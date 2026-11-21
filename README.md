@@ -19,6 +19,7 @@ Lean 4 の形式証明(リーマン予想・一般化リーマン予想の証明
 | 主定理が依存する公理(`#print axioms`) | 未実施(ビルド完了後) |
 | 主張の一致確認・主張の依存解析 | 未実施(ビルド完了後) |
 | カーネルによる再検査(`leanchecker`) | 未実施(ビルド完了後) |
+| 独立実装のカーネル(`nanoda`)による照合 | 未実施(ビルド完了後。道具は準備済み) |
 | ビルド後のソース不変確認 | 未実施(ビルド完了後) |
 
 決定的な検査がまだ終わっていないため、**証明の正否についてはまだ何も言えません。**
@@ -64,6 +65,8 @@ scripts/build.sh                       # 全体ビルド
 scripts/progress.sh                    # ビルドの進捗を表示
 scripts/run_checks.sh                  # 公理の一覧、主張の一致確認、主張の依存解析
 scripts/run_leanchecker.sh             # 全モジュールのカーネル再検査
+scripts/setup_external_checkers.sh     # lean4export / nanoda / lean4lean を用意
+scripts/run_nanoda.sh                  # 主定理の依存一式を別実装カーネル nanoda で検査
 scripts/reconstruct.sh --verify        # ビルド後もソースが原本と一致することを確認
 ```
 

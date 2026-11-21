@@ -140,7 +140,7 @@ footer{border-top:1px solid var(--line); padding-top:1.5rem; font-size:.85rem; c
   <p class="lede">2026 年 11 月 20 日付で <a href="https://alpo.ge/remark.pdf">alpo.ge/remark.pdf</a> に公開された文書と、そこから配布されている Lean 4 の形式証明を、原本を保全したうえで手元の計算機で再コンパイルし、検査した記録です。</p>
   <ul class="meta">
     <li>状態 <b id="status-text">検証中(全体ビルド進行中)</b></li>
-    <li>最終更新 <b>2026-11-21 11:00 JST</b></li>
+    <li>最終更新 <b>2026-11-21 11:05 JST</b></li>
     <li>リポジトリ <a href="https://github.com/yawara/riemann-hypothesis">yawara/riemann-hypothesis</a></li>
   </ul>
 </header>
@@ -152,7 +152,7 @@ footer{border-top:1px solid var(--line); padding-top:1.5rem; font-size:.85rem; c
       <span class="pill run">進行中</span>
       <strong>証明の正否は、まだ判定できません</strong>
     </div>
-    <p>配布物の取得・保全と、コンパイル前に行える検査はすべて終わり、いずれも問題は見つかっていません。ただし決定的な検査である「全 175,187 ファイルのコンパイル」と「主定理が依存する公理の確認」「カーネルによる再検査」はこれからです。これらが終わるまで、この証明が正しいとも誤りとも言えません。</p>
+    <p>配布物の取得・保全と、コンパイル前に行える検査はすべて終わり、いずれも問題は見つかっていません。ただし決定的な検査である「全 175,187 ファイルのコンパイル」と「主定理が依存する公理の確認」「カーネルによる再検査」「別実装のカーネルによる照合」はこれからです。これらが終わるまで、この証明が正しいとも誤りとも言えません。</p>
     <ul class="checks">
       <li><span class="pill ok">完了</span><span class="what">原本の取得と保全</span>
         <span class="detail">PDF 1 個と Lean 配布物 14 分割を取得し、応答ヘッダ・取得時刻・SHA-256 とともに保存。</span></li>
@@ -165,13 +165,15 @@ footer{border-top:1px solid var(--line); padding-top:1.5rem; font-size:.85rem; c
       <li><span class="pill ok">完了</span><span class="what">import グラフ</span>
         <span class="detail">存在しないモジュールへの import は 0、循環は 0。全 175,187 モジュールが <code>Main</code> から到達可能。</span></li>
       <li><span class="pill run">進行中</span><span class="what">全モジュールのコンパイル</span>
-        <span class="detail" id="build-detail">2026-11-21 10:42 JST 開始。開始 11 分の時点で 2,541 / 175,187 モジュール完了、エラー 0。完走まで半日程度の見込み。</span></li>
+        <span class="detail" id="build-detail">2026-11-21 10:42 JST 開始。開始 22 分の時点で 5,100 / 175,187 モジュール完了、エラー 0。完走まで半日程度の見込み。</span></li>
       <li><span class="pill wait">未実施</span><span class="what">主定理が依存する公理</span>
         <span class="detail">ビルド完了後に <code>#print axioms</code> で確認。</span></li>
       <li><span class="pill wait">未実施</span><span class="what">主張の一致確認</span>
         <span class="detail">検証者が Mathlib だけで書いた命題と、主定理の型が一致するかをカーネルに判定させる。</span></li>
       <li><span class="pill wait">未実施</span><span class="what">カーネルによる再検査</span>
         <span class="detail">ツールチェーン同梱の <code>leanchecker</code> で全モジュールの宣言をカーネルに再生させる。</span></li>
+      <li><span class="pill wait">未実施</span><span class="what">独立実装のカーネルによる照合</span>
+        <span class="detail">主定理の依存一式を書き出し、Rust 製の別実装カーネル <code>nanoda</code> で検査する。道具は準備済みで、小さな対象では動作を確認。</span></li>
       <li><span class="pill wait">未実施</span><span class="what">ビルド後のソース不変確認</span>
         <span class="detail">ビルドに使った全ファイルが原本と 1 バイトも違わないことを再照合する。</span></li>
     </ul>
@@ -339,7 +341,7 @@ def PrimitiveDirichletLZerosOnLine : Prop :=
   <table class="kv">
     <tbody>
       <tr><th>開始</th><td>2026-11-21 10:42:23 JST</td></tr>
-      <tr><th>進捗</th><td id="build-progress">開始 11 分時点で 2,541 / 175,187 モジュール(1.45%)。毎秒 3〜4 モジュール</td></tr>
+      <tr><th>進捗</th><td id="build-progress">開始 22 分時点で 5,100 / 175,187 モジュール(2.91%)。毎秒 3〜4 モジュール</td></tr>
       <tr><th>エラー</th><td id="build-errors">この時点で 0 件(リンタの警告のみ)</td></tr>
       <tr><th>並列度</th><td>Lean プロセス約 90 並列、ロードアベレージ約 160</td></tr>
     </tbody>
@@ -358,7 +360,11 @@ def PrimitiveDirichletLZerosOnLine : Prop :=
   <h3>5.6 カーネルによる再検査 <span class="pill wait">未実施</span></h3>
   <p>ツールチェーン同梱の <code>leanchecker</code> で、全モジュールの宣言をカーネルに再生させます。エラボレータやメタプログラムを経由しない検査なので、カーネルを迂回して環境に宣言を押し込む細工があれば検出できます。</p>
 
-  <h3>5.7 ビルド後のソース不変確認 <span class="pill wait">未実施</span></h3>
+  <h3>5.7 独立実装のカーネルによる照合 <span class="pill wait">未実施</span></h3>
+  <p>ここまでの検査はすべて Lean 本体のカーネル(C++ 実装)に依存します。カーネル自体の不具合を突かれている可能性を減らすため、主定理 5 件が推移的に依存する定義・定理・公理をすべて <code>lean4export</code> で書き出し、Rust で書かれた別実装の型検査器 <code>nanoda</code> に検査させます。許可する公理は標準の 3 つだけです。</p>
+  <p class="note">準備として、主張の定義 <code>RiemannZetaZerosOnLine</code>(Mathlib のみに依存)の依存一式を書き出して検査し、53,240 宣言がエラーなく通ることを確認しました。使用した版は lean4export <code>v4.33.0</code>、nanoda_lib <code>0da9f98</code>(v0.4.32)です。</p>
+
+  <h3>5.8 ビルド後のソース不変確認 <span class="pill wait">未実施</span></h3>
   <p>ビルドに使った 175,190 ファイルが原本と 1 バイトも違わないことを、保存してある SHA-256 一覧と再照合します(ビルド開始前の照合は一致済み)。</p>
 </section>
 
@@ -388,7 +394,7 @@ def PrimitiveDirichletLZerosOnLine : Prop :=
   <h3>言えないこと</h3>
   <ul class="plain">
     <li>証明の数学的な筋道が正しく理解できるか、既知の障害をどう越えているかは、この検証の対象外です。1,700 万行を人間が読んだわけではありません。</li>
-    <li>Lean のカーネル実装そのものの正しさは前提としています。独立実装のカーネル(nanoda など)による照合は、この時点では行っていません。</li>
+    <li>Lean のカーネル実装そのものの正しさは前提としています。別実装のカーネル(nanoda)による照合は準備済みですが、この時点ではまだ行っていません。</li>
     <li>Mathlib 本体は公式のビルド済みキャッシュを使っており、ソースからの再コンパイルはしていません。</li>
     <li>検証は 1 台の計算機、1 回の実行によるものです。</li>
     <li>配布元と著者については、PDF とサーバ応答から分かる範囲しか確認していません。</li>
@@ -409,6 +415,8 @@ python3 -I scripts/import_graph.py lean/src verification/import-graph
 scripts/build.sh                       # 全体ビルド(setup.json の削除スクリプトを並走)
 scripts/run_checks.sh                  # 公理の一覧、主張の一致確認、主張の依存解析
 scripts/run_leanchecker.sh             # 全モジュールのカーネル再検査
+scripts/setup_external_checkers.sh     # lean4export / nanoda / lean4lean を用意
+scripts/run_nanoda.sh                  # 主定理の依存一式を別実装カーネル nanoda で検査
 scripts/reconstruct.sh --verify        # ビルド後もソースが原本と一致することを確認</code></pre>
 </section>
 
