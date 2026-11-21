@@ -4,7 +4,8 @@
 Lean 4 の形式証明(リーマン予想・一般化リーマン予想の証明とされるもの)を、**原本を保全したうえで
 独立に再コンパイル・検査する** ためのリポジトリです。
 
-検証結果のレポート(日本語)は [`docs/index.html`](docs/index.html) にあり、GitHub Pages で公開する想定です。
+検証結果のレポート(日本語)は GitHub Pages で公開しています: <https://yawara.github.io/riemann-hypothesis/>
+(原稿は [`docs/index.html`](docs/index.html)。検証の進行に合わせて逐次更新します。)
 
 ## 現在の状態
 
@@ -42,7 +43,8 @@ evidence/       原本(書き換え禁止)。取得記録とハッシュつき �
   04-tarball-contents/     tarball の一覧と、展開後 175,190 ファイルの SHA-256
 scripts/        検証手順を再実行するスクリプト
 verification/   検査の結果・ログ・検査用 Lean ファイル
-docs/           GitHub Pages 用のレポート
+docs/           GitHub Pages 用のレポート(生成物。gh-pages ブランチへ公開)
+docs-src/       レポートのテンプレート(scripts/build_report.py が docs/index.html を生成)
 lean/           展開した Lean プロジェクト(git 管理外。原本から再構成する)
 ```
 
@@ -68,6 +70,15 @@ scripts/run_leanchecker.sh             # 全モジュールのカーネル再検
 scripts/setup_external_checkers.sh     # lean4export / nanoda / lean4lean を用意
 scripts/run_nanoda.sh                  # 主定理の依存一式を別実装カーネル nanoda で検査
 scripts/reconstruct.sh --verify        # ビルド後もソースが原本と一致することを確認
+```
+
+### レポートの更新と公開
+
+```bash
+python3 -I scripts/gen_zeta_figure.py > verification/zeta-figure.json   # 冒頭の図(臨界線上の ζ)のデータ
+python3 -I scripts/build_report.py                                      # docs/index.html を生成
+scripts/publish_pages.sh "レポートを更新"                               # gh-pages ブランチへ公開
+scripts/status_updater.sh                                               # 進捗(中立な数値のみ)を定期公開
 ```
 
 ### ビルド時の注意(ディスク)
