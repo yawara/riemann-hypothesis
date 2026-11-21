@@ -1,0 +1,7 @@
+url_effective=https://alpo.ge/remark.pdf
+http_code=200
+remote_ip=104.26.12.124
+size_download=245114
+content_type=application/pdf
+num_redirects=0
+ssl_verify_result=0

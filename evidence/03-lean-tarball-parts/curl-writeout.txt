@@ -1,0 +1,14 @@
+part01 url_effective=https://alpo.ge/lean.tar.gz.part01 http_code=200 size_download=18000000 content_type= time_total=0.395386
+part02 url_effective=https://alpo.ge/lean.tar.gz.part02 http_code=200 size_download=18000000 content_type= time_total=0.363585
+part03 url_effective=https://alpo.ge/lean.tar.gz.part03 http_code=200 size_download=18000000 content_type= time_total=0.344492
+part04 url_effective=https://alpo.ge/lean.tar.gz.part04 http_code=200 size_download=18000000 content_type= time_total=0.370300
+part05 url_effective=https://alpo.ge/lean.tar.gz.part05 http_code=200 size_download=18000000 content_type= time_total=0.339830
+part06 url_effective=https://alpo.ge/lean.tar.gz.part06 http_code=200 size_download=18000000 content_type= time_total=0.328965
+part07 url_effective=https://alpo.ge/lean.tar.gz.part07 http_code=200 size_download=18000000 content_type= time_total=0.413514
+part08 url_effective=https://alpo.ge/lean.tar.gz.part08 http_code=200 size_download=18000000 content_type= time_total=0.376152
+part09 url_effective=https://alpo.ge/lean.tar.gz.part09 http_code=200 size_download=18000000 content_type= time_total=0.336012
+part10 url_effective=https://alpo.ge/lean.tar.gz.part10 http_code=200 size_download=18000000 content_type= time_total=0.340001
+part11 url_effective=https://alpo.ge/lean.tar.gz.part11 http_code=200 size_download=18000000 content_type= time_total=0.352232
+part12 url_effective=https://alpo.ge/lean.tar.gz.part12 http_code=200 size_download=18000000 content_type= time_total=0.352280
+part13 url_effective=https://alpo.ge/lean.tar.gz.part13 http_code=200 size_download=18000000 content_type= time_total=0.496653
+part14 url_effective=https://alpo.ge/lean.tar.gz.part14 http_code=200 size_download=5275554 content_type= time_total=0.140441
