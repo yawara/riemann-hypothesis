@@ -1,10 +1,12 @@
 ---
 // ページの外枠。本文 1 段 + 右余白の版面(global.css の page)に、巻頭・本文・奥付を流し込む。
+// 印(Seal.astro)が使う SVG フィルタも、ここに 1 つだけ置く。
 // 検証機が書き出す status.json / observations.json は Alpine.js で読み込み、数値と図を最新にする。
 import '../styles/global.css';
 import 'katex/dist/katex.min.css';
 import '@fontsource-variable/jetbrains-mono';
 import cmRegular from 'katex/dist/fonts/KaTeX_Main-Regular.woff2?url';
+import displayFont from '../assets/fonts/display-subset.woff2?url';
 import data from '../data/generated.json';
 
 interface Props {
@@ -29,9 +31,10 @@ const obs = data.obs;
     <meta property="og:description" content={description} />
     <meta property="og:type" content="article" />
     <meta property="og:url" content={canonical} />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#121418" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#fbfaf6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#10141c" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <link rel="preload" as="font" type="font/woff2" href={displayFont} crossorigin />
     <link rel="preload" as="font" type="font/woff2" href={cmRegular} crossorigin />
   </head>
   <body
@@ -42,6 +45,19 @@ const obs = data.obs;
     data-errors={obs.latest.error_lines ?? ''}
     data-phase={obs.latest.phase}
   >
+    <!-- 印の輪郭をわずかに揺らし、ところどころをかすれさせるフィルタ(components/Seal.astro が使う) -->
+    <svg width="0" height="0" class="absolute" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id="seal-rough" x="-6%" y="-6%" width="112%" height="112%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="7" result="warp"></feTurbulence>
+          <feDisplacementMap in="SourceGraphic" in2="warp" scale="2.6" xChannelSelector="R" yChannelSelector="G" result="shape"
+          ></feDisplacementMap>
+          <feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="2" seed="23" result="grain"></feTurbulence>
+          <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -4.4 3.3" result="worn"></feColorMatrix>
+          <feComposite in="shape" in2="worn" operator="in"></feComposite>
+        </filter>
+      </defs>
+    </svg>
     <div class="page pt-7 pb-24">
       <slot name="masthead" />
       <main class="mt-14 [&>section+section]:mt-[4.75rem]">

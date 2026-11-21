@@ -88,9 +88,13 @@ python3 -I scripts/observe.py              # いまの状態でまとめを作�
 
 ### レポートの更新と公開
 
-レポートは「和文の数学論文の組版」に寄せています。本文は明朝、見出しと図表まわりはゴシック、
-欧文と数字は Computer Modern(数式と同じ書体)。枠や角丸の部品は使わず、罫と余白で区切ります。
-色は図 1(ζ の位相図)と同じ 4 色、紙の白・墨・藍・朱だけです。
+レポートは、墨・藍・朱の 3 色刷りの印刷物に見立てています。
+
+* 巻頭に、リーマン ζ 関数の位相図を大きな図版として置き、題字は縦組みにする。
+* 見出しは活字らしい太明朝(解星 特ミン)。本文は和文の数学書の組版で、本文は明朝、図表まわりはゴシック、
+  欧文と数字は Computer Modern(数式と同じ書体)。
+* 検査の状態は印で示す(朱の「済」、藍の「中」、灰の「未」)。図表の番号も朱。
+* 枠や角丸の部品は使わず、罫と余白、右余白の注で組む。色は位相図と同じ 4 色(紙・墨・藍・朱)だけ。
 
 土台には既存のフレームワークを使っています(バージョンは `site/package-lock.json` で固定)。
 
@@ -103,12 +107,14 @@ python3 -I scripts/observe.py              # いまの状態でまとめを作�
 | コードの色分け | [Shiki](https://shiki.style/)(Astro 同梱) | Lean 4 の文法定義を持つ。色は CSS 変数で紙面の 4 色に合わせる |
 | 観測値の読み込み | [Alpine.js](https://alpinejs.dev/) | 静的ページに少量の動きを足す用途に合う(宣言的で軽い) |
 | コードの書体 | [Fontsource](https://fontsource.org/)(JetBrains Mono) | 外部 CDN に依存せず自前配信できる。Lean の Unicode 記号を広く収録している |
+| 見出しの書体 | 解星 特ミン ExtraBold(SIL OFL 1.1。npm の `@expo-google-fonts/kaisei-tokumin`)と [subset-font](https://github.com/papandreou/subset-font) | 活字らしい太明朝。全体では 4.5 MB あるので、紙面で使う約 100 字だけに絞って約 40 KB で配信する |
 
-和文の書体は配信せず、閲覧環境の明朝・ゴシックを使います。
+本文の和文書体は配信せず、閲覧環境の明朝・ゴシックを使います。
 
 ```bash
 python3 -I scripts/gen_zeta_figure.py > verification/zeta-figure.json   # 図 1 下段(臨界線上の Z 関数)のデータ
-python3 -I scripts/gen_zeta_phase.py site/src/assets                    # 図 1 上段(ζ の位相図。明暗 2 枚の画像)
+python3 -I scripts/gen_zeta_phase.py site/src/assets                    # 巻頭図と図 1 上段(ζ の位相図。明暗 2 枚ずつ)
+(cd site && node scripts/subset-display-font.mjs)                       # 見出し用の書体を、使う文字だけに絞り直す
 scripts/publish_pages.sh "レポートを更新"                               # データ生成 → astro build → gh-pages へ公開
 scripts/status_updater.sh                                               # コンパイル済みモジュール数を 20 分ごとに公開
 ```

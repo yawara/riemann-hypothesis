@@ -1,26 +1,21 @@
 ---
-// 検査の状態。塗りの量で表す(済 = 塗りつぶし、実行中 = 半分、未着手 = 輪だけ)。色は 墨 / 藍 / 灰、異常だけ朱。
+// 検査の状態を印で示す。朱の「済」、藍の「中」(実行中)、灰の「未」(未着手)、墨の角印「否」。
+import Seal from './Seal.astro';
+
 interface Props {
   state: 'ok' | 'run' | 'wait' | 'bad';
-  label: string;
+  /** 印の右に添える短い説明(省略可) */
+  label?: string;
+  size?: string;
 }
-const { state, label } = Astro.props;
-const tone = { ok: 'text-ink', run: 'text-ai', wait: 'text-ink-3', bad: 'text-shu' }[state];
+const { state, label, size = '1.5rem' } = Astro.props;
+const names = { ok: '済', run: '実行中', wait: '未着手', bad: '否' };
 ---
 
-<span class="inline-flex items-center gap-1.5 font-sans text-[0.8125rem] leading-none font-normal whitespace-nowrap">
-  <svg class:list={['shrink-0', tone]} viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
-    {state === 'ok' && <circle cx="6" cy="6" r="5.4" fill="currentColor" />}
-    {
-      state === 'run' && (
-        <>
-          <circle cx="6" cy="6" r="4.8" fill="none" stroke="currentColor" stroke-width="1.2" />
-          <path d="M6 1.2 A4.8 4.8 0 0 1 6 10.8 Z" fill="currentColor" />
-        </>
-      )
-    }
-    {state === 'wait' && <circle cx="6" cy="6" r="4.8" fill="none" stroke="currentColor" stroke-width="1.2" />}
-    {state === 'bad' && <path d="M2 2 L10 10 M10 2 L2 10" fill="none" stroke="currentColor" stroke-width="1.8" />}
-  </svg>
-  <span class:list={[state === 'wait' ? 'text-ink-2' : state === 'bad' ? 'text-shu' : 'text-ink']}>{label}</span>
+<span class="inline-flex items-center gap-1.5 align-middle font-sans text-[0.8125rem] leading-none font-normal whitespace-nowrap">
+  {state === 'ok' && <Seal text="済" tone="shu" size={size} rotate={-7} label={names.ok} />}
+  {state === 'run' && <Seal text="中" tone="ai" size={size} rotate={5} label={names.run} />}
+  {state === 'wait' && <Seal text="未" tone="mute" size={size} rotate={0} label={names.wait} />}
+  {state === 'bad' && <Seal text="否" tone="ink" shape="square" filled size={size} rotate={-3} label={names.bad} />}
+  {label && <span class:list={[state === 'wait' ? 'text-ink-2' : 'text-ink']}>{label}</span>}
 </span>

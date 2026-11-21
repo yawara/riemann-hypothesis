@@ -6,13 +6,14 @@ interface Props {
   no: string;
   title: string;
   state?: 'ok' | 'run' | 'wait' | 'bad';
+  /** 印の右に添える短い説明(省略可) */
   label?: string;
 }
 const { no, title, state, label } = Astro.props;
 ---
 
 <h3 class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-  <span class="font-serif text-[1.1rem] font-normal text-ink-2">{no}</span>
+  <span class="font-serif text-[1.1rem] font-normal text-ai">{no}</span>
   <span>{title}</span>
-  {state && label && <State state={state} label={label} />}
+  {state && <State state={state} label={label} />}
 </h3>

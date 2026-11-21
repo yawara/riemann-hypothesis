@@ -20,5 +20,10 @@
     "astro": "7.4.7",
     "katex": "0.19.1",
     "tailwindcss": "4.3.5"
+  },
+  "devDependencies": {
+    "@expo-google-fonts/kaisei-tokumin": "0.4.2",
+    "subset-font": "2.9.0",
+    "ultrahtml": "1.7.0"
   }
 }

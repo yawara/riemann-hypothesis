@@ -9,13 +9,13 @@ import lightPng from '../assets/zeta-phase-light.png';
 import darkPng from '../assets/zeta-phase-dark.png';
 import data from '../data/generated.json';
 
-const light = await getImage({ src: lightPng, format: 'webp', quality: 88 });
-const dark = await getImage({ src: darkPng, format: 'webp', quality: 88 });
+const light = await getImage({ src: lightPng, format: 'webp', quality: 76 });
+const dark = await getImage({ src: darkPng, format: 'webp', quality: 76 });
 const zeros = data.zeta.zeros;
 const half = Math.ceil(zeros.length / 2);
 ---
 
-<figure class="bleed mt-12">
+<figure class="bleed my-8">
   <div class="relative">
     <div
       id="zfig"
@@ -199,14 +199,35 @@ const half = Math.ceil(zeros.length / 2);
   }
 
   if (el) {
-    draw();
-    let last = el.clientWidth;
-    new ResizeObserver(() => {
-      if (el.clientWidth !== last) {
-        last = el.clientWidth;
-        draw();
-      }
-    }).observe(el);
-    darkMode.addEventListener('change', draw);
+    // 画面に近づいてから描く(上段の画像の読み込みを、必要になるまで遅らせる)
+    let drawn = false;
+    let last = 0;
+    const start = () => {
+      if (drawn) return;
+      drawn = true;
+      draw();
+      last = el.clientWidth;
+      new ResizeObserver(() => {
+        if (el.clientWidth !== last) {
+          last = el.clientWidth;
+          draw();
+        }
+      }).observe(el);
+      darkMode.addEventListener('change', draw);
+    };
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) {
+            io.disconnect();
+            start();
+          }
+        },
+        { rootMargin: '900px 0px' },
+      );
+      io.observe(el);
+    } else {
+      start();
+    }
   }
 </script>

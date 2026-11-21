@@ -1,0 +1,58 @@
+---
+// 印。検査の状態(済・中・未・否)や、巻頭と奥付の印に使う。
+// 輪郭のゆらぎと、ところどころのかすれは、layouts/Report.astro に置いた SVG フィルタ(#seal-rough)で付ける。
+interface Props {
+  /** 1〜4 字 */
+  text: string;
+  tone?: 'shu' | 'ai' | 'ink' | 'mute';
+  shape?: 'round' | 'square';
+  filled?: boolean;
+  /** CSS の長さ */
+  size?: string;
+  rotate?: number;
+  /** 読み上げ用の名前(省略時は text) */
+  label?: string;
+  class?: string;
+}
+const { text, tone = 'shu', shape = 'round', filled = false, size = '1.5rem', rotate = -6, label, class: className } = Astro.props;
+const cs = [...text].slice(0, 4);
+// 文字の配置(viewBox は 100 × 100)。1 字: 中央。2〜3 字: 縦 1 行。4 字: 右の行から 2 字ずつ(印章の読み順)。
+const glyphs =
+  cs.length === 1
+    ? [{ c: cs[0], x: 50, y: 50, s: 58 }]
+    : cs.length === 2
+      ? cs.map((c, i) => ({ c, x: 50, y: 31 + i * 38, s: 37 }))
+      : cs.length === 3
+        ? cs.map((c, i) => ({ c, x: 50, y: 23.5 + i * 26.5, s: 25.5 }))
+        : cs.map((c, i) => ({ c, x: i < 2 ? 70 : 30, y: 30 + (i % 2) * 40, s: 35 }));
+const stroke = tone === 'mute' ? 3.5 : cs.length >= 3 ? 4.5 : 6.5;
+const ink = filled ? 'var(--paper)' : 'currentColor';
+---
+
+<svg
+  class:list={['seal font-display', `seal-${tone}`, className]}
+  viewBox="0 0 100 100"
+  style={`width:${size};height:${size};--rot:${rotate}deg`}
+  role="img"
+  aria-label={label ?? text}
+>
+  <g filter="url(#seal-rough)">
+    {
+      shape === 'round' ? (
+        <circle cx="50" cy="50" r={48 - stroke / 2} fill={filled ? 'currentColor' : 'none'} stroke="currentColor" stroke-width={stroke} />
+      ) : (
+        <rect
+          x={2 + stroke / 2}
+          y={2 + stroke / 2}
+          width={96 - stroke}
+          height={96 - stroke}
+          rx="3"
+          fill={filled ? 'currentColor' : 'none'}
+          stroke="currentColor"
+          stroke-width={stroke}
+        />
+      )
+    }
+    {glyphs.map((g) => <text x={g.x} y={g.y} font-size={g.s} text-anchor="middle" dominant-baseline="central" fill={ink}>{g.c}</text>)}
+  </g>
+</svg>

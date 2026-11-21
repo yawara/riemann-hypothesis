@@ -13,7 +13,7 @@ const obs = data.obs as Obs;
   <div id="obsfig" class="plot-host min-h-[19rem]" role="img" aria-label="コンパイル済みモジュール数の推移。値は表 2 にあります。"></div>
   <figcaption class="cap mt-2 max-w-[var(--measure)]">
     <b>図 2</b>コンパイル済みモジュール数の推移(横軸は日本時間)。実線は成果物の更新時刻から 5 分刻みで求めた値、白丸は 50
-    分ごとの観測点、藍の点は最新の値です。破線は、直近の速度がそのまま続いた場合の見込みで、モジュールごとに重さが違うため目安にとどまります。
+    分ごとの観測点、朱の点は最新の値です。破線は、直近の速度がそのまま続いた場合の見込みで、モジュールごとに重さが違うため目安にとどまります。
   </figcaption>
 </figure>
 
@@ -116,9 +116,10 @@ const obs = data.obs as Obs;
               fontFamily: sans,
             })
           : null,
+        Plot.areaY(series, { x: 't', y: 'n', fill: 'var(--ai-mark)', fillOpacity: 0.12 }),
         Plot.line(series, { x: 't', y: 'n', stroke: 'var(--ink)', strokeWidth: 1.6, strokeLinejoin: 'round' }),
         Plot.dot(pts, { x: 't', y: 'n', r: 3.6, fill: 'var(--paper)', stroke: 'var(--ink)', strokeWidth: 1.4 }),
-        Plot.dot([tip], { x: 't', y: 'n', r: 4.2, fill: 'var(--ai)', stroke: 'var(--paper)', strokeWidth: 1.5 }),
+        Plot.dot([tip], { x: 't', y: 'n', r: 4.4, fill: 'var(--shu-mark)', stroke: 'var(--paper)', strokeWidth: 1.5 }),
         Plot.text([tip], {
           x: 't',
           y: 'n',

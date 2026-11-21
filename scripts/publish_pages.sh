@@ -3,7 +3,8 @@
 #
 #   1. scripts/observe.py で定点観測のまとめを作り直し、scripts/site_data.py でサイト用データ
 #      (図 1 の数値・Lean ファイル全文・観測記録)を生成
-#   2. site/ を `astro build` で静的ファイル(site/dist/)にする
+#   2. site/ を `astro build` で静的ファイル(site/dist/)にする。見出し用の書体は、紙面で使う文字だけに
+#      絞り直し(site/scripts/subset-display-font.mjs)、文字が増減していたらもう一度ビルドする
 #   3. site/dist/ を gh-pages の作業ツリー($WT)へ同期して commit / push
 #
 #   * main ブランチの site/ が原稿、gh-pages ブランチが公開物(GitHub Pages の公開元)。
@@ -32,6 +33,13 @@ python3 -I scripts/site_data.py
   cd site
   [ -d node_modules ] || npm ci --ignore-scripts --no-fund --no-audit
   npx astro build
+  rc=0
+  node scripts/subset-display-font.mjs || rc=$?
+  if [ "$rc" = "10" ]; then
+    npx astro build
+  elif [ "$rc" != "0" ]; then
+    exit "$rc"
+  fi
 )
 
 if [ ! -e "$WT/.git" ]; then
