@@ -1,0 +1,151 @@
+=== addDecl / addAndCompile  (rg addDecl|addAndCompile)
+src/Formalism/HermitianCurvature/HermitianCurvatureProofs/CutCptCopy.lean:78:      addDecl (.defnDecl { d with name := n', type := subst tainted d.type, value := subst tainted d.value })
+src/Formalism/HermitianCurvature/HermitianCurvatureProofs/CutCptCopy.lean:82:      addDecl (.thmDecl { t with name := n', type := subst tainted t.type, value := subst tainted t.value })
+
+=== modifyEnv / setEnv  (rg modifyEnv|setEnv)
+src/BuildAid/D4.lean:4:run_cmd Lean.modifyEnv fun env => Lean.LibrarySuggestions.nameDenyListExt.addEntry env "PositivityTheory"
+src/BuildAid/D2.lean:4:run_cmd Lean.modifyEnv fun env => Lean.LibrarySuggestions.nameDenyListExt.addEntry env "CrystallineSemistableComparison"
+src/BuildAid/D1.lean:4:run_cmd Lean.modifyEnv fun env => Lean.LibrarySuggestions.nameDenyListExt.addEntry env "CompanionTheory"
+src/BuildAid/D5.lean:4:run_cmd Lean.modifyEnv fun env => Lean.LibrarySuggestions.nameDenyListExt.addEntry env "UpperTheory"
+src/BuildAid/D3.lean:4:run_cmd Lean.modifyEnv fun env => Lean.LibrarySuggestions.nameDenyListExt.addEntry env "GlobalTheory"
+
+=== run_cmd  (rg run_cmd)
+src/BuildAid/D5.lean:4:run_cmd Lean.modifyEnv fun env => Lean.LibrarySuggestions.nameDenyListExt.addEntry env "UpperTheory"
+src/BuildAid/D3.lean:4:run_cmd Lean.modifyEnv fun env => Lean.LibrarySuggestions.nameDenyListExt.addEntry env "GlobalTheory"
+src/BuildAid/D4.lean:4:run_cmd Lean.modifyEnv fun env => Lean.LibrarySuggestions.nameDenyListExt.addEntry env "PositivityTheory"
+src/BuildAid/D2.lean:4:run_cmd Lean.modifyEnv fun env => Lean.LibrarySuggestions.nameDenyListExt.addEntry env "CrystallineSemistableComparison"
+src/BuildAid/D1.lean:4:run_cmd Lean.modifyEnv fun env => Lean.LibrarySuggestions.nameDenyListExt.addEntry env "CompanionTheory"
+
+=== elab / elab_rules  (rg -w elab|elab_rules)
+src/Formalism/LocalToGlobal/IndefiniteReal/HeckeNonvanishing/Imports.lean:5:elab "kexactB " e:term : tactic => withMainContext do
+src/Formalism/LocalToGlobal/NumberFieldFamilies/OwnStruct.lean:53:elab "kcopy " t:term : tactic => withMainContext do
+src/Formalism/LocalToGlobal/NumberFieldFamilies/OwnStruct.lean:60:elab "#kcopy_probe " t:term " : " ty:term : command => Command.runTermElabM fun _ => do
+src/Formalism/HermitianCurvature/HermitianCurvatureProofs/CutCptCopy.lean:87:elab "cpt_copy_thms" : command => do
+
+=== import Lean*  (rg ^import Lean)
+src/Formalism/LocalToGlobal/NumberFieldFamilies/OwnStruct.lean:1:import Lean
+src/Formalism/LocalToGlobal/IndefiniteReal/HeckeNonvanishing/Imports.lean:1:import Lean
+src/BuildAid/D4.lean:1:import Lean.LibrarySuggestions.Basic
+src/BuildAid/D4.lean:2:import Lean.Elab.Command
+src/BuildAid/D3.lean:1:import Lean.LibrarySuggestions.Basic
+src/BuildAid/D3.lean:2:import Lean.Elab.Command
+src/BuildAid/D5.lean:1:import Lean.LibrarySuggestions.Basic
+src/BuildAid/D5.lean:2:import Lean.Elab.Command
+src/BuildAid/D2.lean:1:import Lean.LibrarySuggestions.Basic
+src/BuildAid/D2.lean:2:import Lean.Elab.Command
+src/BuildAid/D1.lean:1:import Lean.LibrarySuggestions.Basic
+src/BuildAid/D1.lean:2:import Lean.Elab.Command
+
+=== open Lean  (rg open Lean)
+src/Formalism/SharpRestriction/RamificationFrobenius/TotientGaloisClasses/EvalFrameOrd.lean:5:open Lean Meta Qq
+src/Formalism/LocalToGlobal/NumberFieldFamilies/OwnStruct.lean:5:open Lean Meta Elab Tactic Term
+src/Formalism/LocalToGlobal/IndefiniteReal/HeckeNonvanishing/Imports.lean:3:open Lean Elab Tactic Meta
+src/Formalism/HermitianCurvature/HermitianCurvatureProofs/CutCptCopy.lean:12:open Lean Meta Elab Command
+
+=== partial  (rg -w partial)
+src/Formalism/LocalToGlobal/NumberFieldFamilies/OwnStruct.lean:18:partial def copyAt (probe : Bool) (e tgt : Expr) (path : String) (fuel : Nat) : StateT (Array String) MetaM Expr := do
+src/Formalism/HermitianCurvature/HermitianCurvatureProofs/CutCptCopy.lean:41:partial def go (env : Environment) (n : Name) (st : NameSet × NameSet × Array Name) : NameSet × NameSet × Array Name :=
+
+=== #print / #check  (rg #print|#check)
+src/Formalism/PeriodIntegrals/UnitaryGroupMassFormula/UnitaryClassMass/UnitaryClassMass.lean:22:#check @PI.UnitaryGroupMassFormula.UJClassMass.hermitian_approximation
+src/Formalism/PeriodIntegrals/UnitaryGroupMassFormula/UnitaryClassMass/UnitaryClassMass.lean:24:#check @PI.UnitaryGroupMassFormula.UJClassMass.unitary_class_mass
+src/Formalism/PeriodIntegrals/UnitaryGroupMassFormula/UnitaryClassMass/UnitaryClassMass.lean:25:#print axioms PI.UnitaryGroupMassFormula.UJClassMass.tensor_localization
+src/Formalism/PeriodIntegrals/UnitaryGroupMassFormula/UnitaryClassMass/UnitaryClassMass.lean:26:#print axioms PI.UnitaryGroupMassFormula.UJClassMass.hermitian_approximation
+src/Formalism/PeriodIntegrals/UnitaryGroupMassFormula/UnitaryClassMass/UnitaryClassMass.lean:27:#print axioms PI.UnitaryGroupMassFormula.UJClassMass.unitary_class_mass
+src/Formalism/PeriodIntegrals/UnitaryGroupMassFormula/LocalUnimodularLattice/Transf.lean:100:#print axioms transfer_holds
+
+=== stop (単語)  (rg -w stop)
+src/Formalism/PieriBlockIdeals/PieriColumnMinors/AntitoneShapes.lean:144:    obtain ⟨l, hl1, hl2⟩ := lcb_ivt hp a j0 ha.1 n le_rfl (by rw [hp.stop]; exact ha.2)
+src/Formalism/PieriBlockIdeals/PieriColumnMinors/PathEqOfContentSequence.lean:133:  · rw [k2 n (by omega), H.stop]
+src/Formalism/PieriBlockIdeals/PieriColumnMinors/BinaryFormsExample.lean:638:          rw [hp.stop] at this
+src/Formalism/PieriBlockIdeals/LemmaDSkeletonUnit.lean:280:  stop : κ n = tau
+
+=== macro / macro_rules(全件)  (rg -w macro|macro_rules)
+src/ReciprocityTheory/ReductiveGroups/ArithmeticGeometry/DiscreteValuationRings/ExistsRosatiGen.lean:34:macro "secTac" : tactic => `(tactic| (simp [Sum.forall, Fin.forall_fin_succ, Over.w, Over.w_assoc, eSec, Matrix.cons_val_zero, Matrix.co
+src/ReciprocityTheory/ReductiveGroups/ArithmeticGeometry/ExtensionDescent/Theta1.lean:25:macro "ones" : tactic => `(tactic| (repeat (first | erw [map_one] | erw [one_zpow] | erw [one_pow] | erw [inv_one] | erw [_root_.mul_one] | erw [_root_
+src/Formalism/DistinguishedUnitIdeals/DistinguishedOrderProofs/RhoMapFunctorial.lean:10:local macro "modx" : tactic =>
+src/Formalism/HermitianCurvature/HermitianCurvatureProofs/CoordinateCommuteRaisingConstant.lean:573:local macro "mx2_dg" : tactic => `(tactic| (simp only [pA, pbA, cA, ciA, cbA, cbiA, zA, ziA, zbA, zbiA, ggA, ggiA, nabA_eq, nabsA_eq, sc, Ma
+src/Formalism/HermitianCurvature/HermitianCurvatureProofs/CornerBlockActionInvariant.lean:72:local macro "blks" : tactic => `(tactic| simp only [Ux3.block3_apply, Matrix.fromBlocks_apply₁₁, Matrix.fromBlocks_apply₁₂,
+src/Formalism/HermitianCurvature/HermitianCurvatureProofs/EmbedLoweringConstant.lean:12:local macro "noncomm_match_scalars" : tactic => `(tactic|
+src/Formalism/HermitianCurvature/HermitianCurvatureProofs/LevelNablaStarRelations.lean:353:local macro "mx2_dg" : tactic => `(tactic| (simp only [pA, pbA, cA, ciA, cbA, cbiA, zA, ziA, zbA, zbiA, ggA, ggiA, nabA_eq, nabsA_eq, sc,
+src/Formalism/HermitianCurvature/HermitianCurvatureProofs/RadicalUnipotentFirstBasisEqOne.lean:412:local macro "blks" : tactic => `(tactic| simp only [Ux3.block3_apply, Matrix.fromBlocks_apply₁₁, Matrix.fromBlocks_apply₁₂,
+src/Formalism/HermitianCurvature/HermitianCurvatureProofs/RadicalUnipotentFirstBasisEqOne.lean:526:local macro "blks" : tactic => `(tactic| simp only [Ux3.block3_apply, Matrix.fromBlocks_apply₁₁, Matrix.fromBlocks_apply₁₂,
+src/Formalism/HermitianCurvature/HermitianCurvatureProofs/RttUpperRelationsFromDescent.lean:30:macro "distrib_module" : tactic =>
+src/Formalism/HermitianCurvature/HermitianCurvatureProofs/LinearFormRadicalRankOne.lean:55:local macro "blks" : tactic => `(tactic| simp only [Ux3.block3_apply, Matrix.fromBlocks_apply₁₁, Matrix.fromBlocks_apply₁₂,
+src/Formalism/SharpRestriction/Divisibility/LocalNonemptiness/SubsingletonRankIndicatorIff.lean:276:macro "exists_prescribed_local_data" : tactic => `(tactic| (intros; first | trivial | rfl | exact Subsingleton.elim _ _ | simp))
+src/Formalism/SharpRestriction/Divisibility/GeneratorPowers/FBMapPf.lean:153:local macro "fbm" : tactic => `(tactic| (simp only [map_mul, map_one, FGLaw.add, map_ev', mp_cons, mp_nil, mp_pt, mp_zero,
+src/Formalism/SatakeDualWeyl/AdelicIwasawaHecke/FIwasawaC.lean:7:macro "fIwasawa_omega" : tactic =>
+src/Formalism/PeriodIntegrals/UnitaryGroupMassFormula/LevelImageArithmetic/GlevImageOf.lean:12:local macro "ifarith" : tactic =>
+src/Formalism/PeriodIntegrals/UnitaryGroupMassFormula/GaussianUniqueness/MulMApply.lean:12:macro "lvo" : tactic => `(tactic| (intro a b c h1 h2; (try dsimp only at h1 h2 ⊢); omega))
+src/Formalism/PeriodIntegrals/UnitaryGroupMassFormula/DensityLemma/PFibreBoundV.lean:175:macro "nbt" : tactic => `(tactic| (simp only [unipotentBlockMatrix, Matrix.of_apply]; split_ifs <;>
+src/Formalism/LocalToGlobal/TorsionIntegrality/TorsionTranslationPowers/NonsingularJetNorms/NonsingularNorm.lean:70:macro "integ" : tactic =>
+src/Formalism/LocalToGlobal/IndefiniteForms/IndefiniteTree/FunctionalLowerBoundOfConditionsNumeric.lean:231:macro "pos_tac" : tactic =>
+src/Formalism/LocalToGlobal/IndefiniteForms/IndefiniteTree/FunctionalLowerBoundOfConditionsNumeric.lean:234:macro "onele_tac" : tactic =>
+src/Formalism/EllipticTorsion/EllipticTorsionProofs/Change.lean:66:macro "change_aux_intm" : tactic => `(tactic| (repeat (first
+src/Development/WeilBound/CoreStatements/PadicHodgeComparison/EtaleCohomologyComparison/CechPairings/FaceMapCompSuccAboveCastSucc.lean:227:macro "fin_tac" : tactic => `(tactic| (funext x; first | (apply Fin.ext; simp only [Function.comp_app
+src/Development/WeilBound/CoreStatements/HodgeTatePoints/CcBase.lean:42:macro "ztac" : tactic => `(tactic| repeat' (first
+src/Development/WeilBound/CoreStatements/HodgeTatePoints/CcBase.lean:81:macro "evs" " at " h:ident : tactic => `(tactic| simp (disch := ztac) only [FGLaw.add, ev_mul', ev_one, ev_ev, evV_cons,
+src/Development/WeilBound/CoreStatements/HodgeTatePoints/CbBase.lean:34:macro "zz" : tactic => `(tactic| repeat' with_reducible first
+src/Development/WeilBound/CoreStatements/HodgeTatePoints/CbBase.lean:81:macro "evs" loc:(Lean.Parser.Tactic.location)? : tactic => `(tactic|
+src/Development/EtaleCohomology/EtaleSheaves/ChasePf.lean:105:macro "meq" : tactic => `(tactic| first
+src/Development/EtaleCohomology/TateTwists/EtaleTensorCycleLocallyLowersTopDegreeOfRowExact.lean:9:local macro "TI " w:term:max : term => `({p : ℤ × ℤ // p.1 + p.2 = $w})
+src/Development/EtaleCohomology/TateTwists/EtaleTensorCycleLocallyLowersTopDegreeOfRowExact.lean:11:local macro "TF " C:term:max J:term:max U:term:max w:term:max : term =>
+src/Development/AutomorphicArithmetic/ThetaCorrespondence/ThetaPairLifts/ThirdPlaceSeries/ExistsSelectionPairLocalLanglands.lean:29:local macro:max "kq% " e:term:max : term => `((by kexactB $e))
+src/Development/AutomorphicArithmetic/Foundations/EtaleClopenDescent/ExistsHeckeCorrespondenceOnIntegralShimuraModel.lean:103:local macro "cp " m:term:max : term =>
+src/Development/AutomorphicArithmetic/Foundations/Convolution/RealGroupAnalysis/UnitaryActions/ContinuousAdelicGL2OfContinuousEntries.lean:34:local macro "sl2" : tactic => `(tactic|
+src/Development/AutomorphicArithmetic/Foundations/Convolution/RealGroupAnalysis/UnitaryActions/ContinuousAdelicGL2OfContinuousEntries.lean:36:local macro "gl2" : tactic => `(tactic|
+src/Development/AutomorphicSpectrum/Proofs/BlockDecomposition/Cup1CoboundaryMemBoundaries.lean:96:macro "fin_order" : tactic =>
+src/Development/AutomorphicSpectrum/Proofs/BlockDecomposition/DFormMem.lean:85:local macro "fa" : tactic =>
+src/Development/AutomorphicSpectrum/Proofs/BlockDecomposition/GradedFormCocycle.lean:15:local macro "fa" : tactic =>
+src/Development/AutomorphicSpectrum/Proofs/BlockDecomposition/TaylorDifferentialRepresentative.lean:59:local macro "fa" : tactic =>
+src/Development/AbelianVarietyTheory/Proofs/TwistedOperators/TransferBottom.lean:24:local macro:max "kc% " e:term:max : term => `((by kexactB $e))
+src/Development/AbelianVarietyTheory/Proofs/TwistedOperators/TwoLeMOf.lean:72:local macro:max "kd% " e:term:max : term => `((by kexactB $e))
+src/Development/AbelianVarietyTheory/Proofs/TwistedOperators/TwoLeMOf.lean:74:local macro "copyDec% " d:term:max : term =>
+src/Development/AbelianVarietyTheory/Proofs/TwistedOperators/TwoLeMOf.lean:78:local macro "copyIsV% " h:term:max : term =>
+src/Development/AbelianVarietyTheory/Proofs/TwistedOperators/TransferFlip.lean:28:local macro:max "kc% " e:term:max : term => `((by kexactB $e))
+src/Development/AutomorphicSpectrum/Proofs/BlockDecomposition/ShuffleCup1FormulaPositiveDegree.lean:29:macro "fin_order'" : tactic =>
+src/Development/AbelianVarietyTheory/Proofs/ModuliProofs/ExistsUniqueRigMulRight.lean:601:local macro "grp_comb " e:term : tactic => `(tactic| (
+src/Development/AutomorphicSpectrum/Proofs/BlockDecomposition/NewformHeckeEigenvalue.lean:23:local macro "gl2" : tactic => `(tactic| (apply Units.ext; ext i j; fin_cases i <;> fin_cases j <;>
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/CharWSeedStd.lean:16:local macro "qmove " h:term : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/EqCjOneSmul.lean:69:local macro "qmove " h:term : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/ExistsNormalisedReadingTransportedNewTwist.lean:13:local macro:max "kc% " e:term:max : term => `((by kexactB $e))
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/ExistsSelectedRealization.lean:43:local macro:max "kq% " e:term:max : term => `((by kexactB $e))
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/FormGroupsModelsActionsMeasuresBasesCharacterise.lean:18:local macro "ksub " h:ident x:ident y:term : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/FormGroupsModelsActionsMeasuresBasesCharacterise.lean:30:local macro "tie_cases" : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/FormGroupsModelsActionsMeasuresBasesCharacterise.lean:81:local macro "pre_cases" : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/LineModelTrueOfFalse.lean:9:local macro "opens_le_auto" : tactic => `(tactic| (refine SetLike.le_def.2 fun z hz => ?_; simp only [TopologicalSpace.Opens.mem_inf] at hz ⊢; ta
+src/Development/AbelianVarietyTheory/Proofs/InertiaEigenvalues/IsClassSystem.lean:29:scoped macro "geo_cases " h:ident D:ident D':ident : tactic =>
+src/Development/AbelianVarietyTheory/Proofs/InertiaEigenvalues/IsClassSystem.lean:94:scoped macro "base_cases " r:ident B:ident B':ident : tactic =>
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/RingSpecNormalisedCharacterEq.lean:75:scoped macro "copy_cases " h:ident D:ident D':ident : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/RigidFrameSymmetricRatioSeries.lean:49:macro "jet_tac" : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/JetHarmonics/IntegralChartFormalBiext.lean:36:local macro "no_const" : tactic =>
+src/Development/AbelianVarietyTheory/Proofs/JetHarmonics/IntegralChartFormalBiext.lean:46:local macro "push_map" : tactic =>
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/RealDatumPrerequisitesUpdateModels.lean:18:scoped macro "obt " p:Lean.Parser.Tactic.rcasesPatMed " := " e:term : tactic => `(tactic| (have x := $e; obtain $p := x))
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/ReferenceTupleWeilDatumVectorPolynomialMapEnlarg.lean:18:local macro "ksub " h:ident x:ident y:term : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/ReferenceTupleWeilDatumVectorPolynomialMapEnlarg.lean:25:local macro "pre_sub" : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/ReferenceTupleWeilDatumVectorPolynomialMapEnlarg.lean:30:local macro "keq " n:ident x:term:max y:term:max h:term:max : tactic => `(tactic|
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/ReferenceTupleWeilDatumVectorPolynomialMapEnlarg.lean:161:local macro "tie_cases" : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/ReferenceTupleWeilDatumVectorPolynomialMapEnlarg.lean:213:local macro "pre_cases" : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/ThetaLiftAtReferenceTupleOverEnlargedBase.lean:19:local macro "ksub " h:ident x:ident y:term : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/ThetaLiftAtReferenceTupleOverEnlargedBase.lean:53:local macro "tie_cases" : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/ThetaLiftAtReferenceTupleOverEnlargedBase.lean:72:local macro "coef_cases" : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/ThetaLiftAtReferenceTupleOverEnlargedBase.lean:183:local macro "pre_cases" : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/InertiaEigenvalues/LiftSetupOverExtendedDataIntegralFormsEq.lean:15:local macro:max "kc% " e:term:max : term => `((by kexactB $e))
+src/Development/AbelianVarietyTheory/Proofs/InertiaEigenvalues/RatCopyIff.lean:16:local macro:max "kc% " e:term:max : term => `((by kexactB $e))
+src/Development/AbelianVarietyTheory/Proofs/InertiaEigenvalues/TieMove.lean:15:local macro:max "kc% " e:term:max : term => `((by kexactB $e))
+src/Development/AbelianVarietyTheory/Proofs/FormalGroupCharts/GermEvGermEvThreePoints.lean:87:local macro "gp" : tactic =>
+src/Development/AbelianVarietyTheory/Proofs/FormalGroupCharts/GermEvGermEvThreePoints.lean:92:local macro "push_ev" loc:(Lean.Parser.Tactic.location)? : tactic =>
+src/Development/AbelianVarietyTheory/Proofs/FormalGroupCharts/ExistsFormalBiextMap.lean:87:local macro "no_const" : tactic =>
+src/Development/AbelianVarietyTheory/Proofs/FormalGroupCharts/ExistsFormalBiextMap.lean:96:local macro "push_map" h:ident : tactic =>
+src/Development/AbelianVarietyTheory/Proofs/InertiaEigenvalues/SetupRelIffSameData.lean:21:scoped macro "set_cases " h1:ident h2:ident N:ident N':ident X:ident X':ident : tactic =>
+src/Development/AbelianVarietyTheory/Proofs/DivisorProofs/ExistsDlogAddCoboundaryAbLocus.lean:20:local macro "opens_le" : tactic =>
+src/Development/AbelianVarietyTheory/Proofs/DivisorProofs/ExistsMeasY.lean:20:scoped macro "obt " p:Lean.Parser.Tactic.rcasesPatMed " := " e:term : tactic => `(tactic| (have x := $e; obtain $p := x))
+src/Development/AbelianVarietyTheory/Definitions/GaloisGeometry/NegOnePowBoundaryTermsCancel.lean:114:macro "fin_index_simp" : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Proofs/DivisorProofs/IsCechOneCoboundaryOfRefinement.lean:8:local macro "opens_le" : tactic =>
+src/Development/AbelianVarietyTheory/Definitions/AutomorphicMembership/GoodPartEq.lean:17:scoped macro "tr_via " P:term:max e:term:max h:term:max : tactic => `(tactic| kexactB (cast (congrArg $P $e) (kc% $h)))
+src/Development/AbelianVarietyTheory/Proofs/DivisorProofs/IsProperOfFiniteType.lean:30:macro "lbt" : tactic => `(tactic| (repeat (first | assumption | apply pull_isLB)))
+src/Development/AbelianVarietyTheory/Definitions/AutomorphicMembership/PlaceModelImp.lean:27:scoped macro:max "kc% " e:term:max : term => `((by kexactB $e))
+src/Development/AbelianVarietyTheory/Definitions/AutomorphicMembership/RealIoX.lean:90:scoped macro "tr_delta" : tactic => `(tactic|
+src/Development/AbelianVarietyTheory/Definitions/AutomorphicMembership/RealIoX.lean:99:scoped macro "tr_leaves " a:term:max b:term:max : tactic => `(tactic| (
+src/Development/AbelianVarietyTheory/Definitions/AutomorphicMembership/RealIoX.lean:111:scoped macro "tr_clause " a:term:max b:term:max h:term:max : tactic => `(tactic| (tr_delta; tr_leaves $a $b; kexactB $h))
+

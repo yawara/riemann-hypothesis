@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>リーマン予想 Lean 証明の独立検証</title>
+<meta name="description" content="alpo.ge で公開されたリーマン予想の Lean 形式証明(175,187 ファイル)を、原本を保全したうえで独立にコンパイル・検査した記録。">
+<style>
+/* Layout: 1 カラムの検証報告書。冒頭に判定パネル(検査一覧)を置き、以降は節番号つきの本文。 */
+:root{
+  --bg:#f5f6f9; --surface:#ffffff; --ink:#19212e; --muted:#566172; --line:#d7dce6;
+  --accent:#27488a; --accent-soft:#e6ecf8;
+  --ok:#1b6f45; --ok-bg:#e1f1e8;
+  --run:#855600; --run-bg:#faedcf;
+  --bad:#ad241c; --bad-bg:#fae3e1;
+  --wait:#566172; --wait-bg:#e8ebf1;
+  --code-bg:#edf0f5;
+  --font-body:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,system-ui,sans-serif;
+  --font-head:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP","Source Han Serif JP",serif;
+  --font-mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,"Noto Sans Mono CJK JP",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#10141b; --surface:#181e28; --ink:#e3e7ee; --muted:#9aa5b6; --line:#2b3341;
+    --accent:#93b2f0; --accent-soft:#1c2740;
+    --ok:#74d3a3; --ok-bg:#143224;
+    --run:#e8ba5e; --run-bg:#382a0d;
+    --bad:#f39089; --bad-bg:#3c1a18;
+    --wait:#9aa5b6; --wait-bg:#232a36;
+    --code-bg:#141922;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#10141b; --surface:#181e28; --ink:#e3e7ee; --muted:#9aa5b6; --line:#2b3341;
+  --accent:#93b2f0; --accent-soft:#1c2740;
+  --ok:#74d3a3; --ok-bg:#143224;
+  --run:#e8ba5e; --run-bg:#382a0d;
+  --bad:#f39089; --bad-bg:#3c1a18;
+  --wait:#9aa5b6; --wait-bg:#232a36;
+  --code-bg:#141922;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--font-body); font-size:16px; line-height:1.85;
+  font-feature-settings:"palt" 0;
+}
+.wrap{
+  max-width:52rem; margin-inline:auto; padding-block:2.5rem 4rem;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  display:flex; flex-direction:column; gap:3rem;
+}
+a{color:var(--accent); text-underline-offset:.2em}
+a:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:2px}
+
+/* ---- 見出し ---- */
+.masthead{display:flex; flex-direction:column; gap:.9rem; padding-bottom:1.75rem; border-bottom:2px solid var(--ink)}
+.kicker{font-size:.8rem; letter-spacing:.14em; color:var(--muted); margin:0}
+h1{font-family:var(--font-head); font-weight:600; font-size:clamp(1.7rem, 4.6vw, 2.5rem); line-height:1.35; margin:0; text-wrap:balance}
+.lede{margin:0; color:var(--muted); max-width:40rem}
+.meta{display:flex; flex-wrap:wrap; gap:.4rem 1.5rem; margin:0; padding:0; list-style:none; font-size:.85rem; color:var(--muted)}
+.meta b{color:var(--ink); font-weight:600}
+
+section{display:flex; flex-direction:column; gap:1.1rem}
+h2{font-family:var(--font-head); font-weight:600; font-size:1.45rem; line-height:1.4; margin:0; padding-bottom:.45rem; border-bottom:1px solid var(--line); text-wrap:balance}
+h2 .num{font-family:var(--font-mono); font-size:.85rem; color:var(--accent); margin-right:.7rem; letter-spacing:.04em}
+h3{font-size:1.05rem; line-height:1.5; margin:.6rem 0 0; font-weight:700}
+p{margin:0; max-width:44rem}
+ul.plain,ol.plain{margin:0; padding-left:1.3rem; max-width:44rem; display:flex; flex-direction:column; gap:.35rem}
+small,.note{font-size:.85rem; color:var(--muted)}
+
+/* ---- 判定パネル ---- */
+.verdict{background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:1.4rem 1.5rem; display:flex; flex-direction:column; gap:1.2rem}
+.verdict-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:.6rem 1rem}
+.verdict-head strong{font-family:var(--font-head); font-size:1.3rem; font-weight:600}
+.verdict p{max-width:none}
+.checks{list-style:none; margin:0; padding:0; display:flex; flex-direction:column}
+.checks li{display:grid; grid-template-columns:6.2rem 1fr; gap:.2rem 1rem; padding:.7rem 0; border-top:1px solid var(--line); align-items:start}
+.checks .what{font-weight:600}
+.checks .detail{grid-column:2; font-size:.88rem; color:var(--muted); line-height:1.65}
+.pill{display:inline-block; font-size:.76rem; font-weight:700; letter-spacing:.06em; line-height:1; padding:.42em .7em; border-radius:3px; text-align:center; white-space:nowrap; margin-top:.35em}
+.pill.ok{color:var(--ok); background:var(--ok-bg)}
+.pill.run{color:var(--run); background:var(--run-bg)}
+.pill.bad{color:var(--bad); background:var(--bad-bg)}
+.pill.wait{color:var(--wait); background:var(--wait-bg)}
+@media (max-width:30rem){ .checks li{grid-template-columns:1fr} .checks .detail{grid-column:1} }
+
+/* ---- 数値タイル ---- */
+.figures{display:grid; grid-template-columns:repeat(auto-fit, minmax(11.5rem, 1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:6px; overflow:hidden; margin:0; padding:0; list-style:none}
+.figures li{background:var(--surface); padding:1rem 1.1rem; display:flex; flex-direction:column; gap:.15rem}
+.figures .v{font-family:var(--font-mono); font-size:1.55rem; font-weight:600; font-variant-numeric:tabular-nums; line-height:1.3; letter-spacing:-.01em}
+.figures .k{font-size:.82rem; color:var(--muted); line-height:1.5}
+
+/* ---- 表 ---- */
+.scroll{overflow-x:auto; border:1px solid var(--line); border-radius:6px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:.9rem; line-height:1.6}
+th,td{padding:.55rem .85rem; text-align:left; vertical-align:top; border-bottom:1px solid var(--line)}
+tr:last-child>td,tr:last-child>th{border-bottom:0}
+thead th{font-size:.78rem; letter-spacing:.06em; color:var(--muted); font-weight:700; white-space:nowrap; background:var(--bg)}
+td.n,th.n{text-align:right; font-family:var(--font-mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+tbody th{font-weight:600; white-space:nowrap}
+tfoot td,tfoot th{font-weight:700; border-top:2px solid var(--line); border-bottom:0}
+table.kv th{width:11rem; color:var(--muted); font-weight:600; white-space:normal}
+
+/* ---- コード・ハッシュ ---- */
+code,pre{font-family:var(--font-mono); font-size:.86em}
+code{background:var(--code-bg); padding:.1em .35em; border-radius:3px}
+code.hash{word-break:break-all; background:none; padding:0; font-size:.8rem}
+pre{margin:0; background:var(--code-bg); border:1px solid var(--line); border-radius:6px; padding:1rem 1.1rem; overflow-x:auto; line-height:1.6; font-size:.82rem}
+pre code{background:none; padding:0; font-size:inherit}
+figure{margin:0; display:flex; flex-direction:column; gap:.4rem}
+figcaption{font-size:.82rem; color:var(--muted)}
+
+/* ---- 取得の連鎖 ---- */
+.chain{list-style:none; margin:0; padding:0; display:flex; flex-direction:column}
+.chain li{position:relative; padding:0 0 1.2rem 1.9rem}
+.chain li::before{content:""; position:absolute; left:.3rem; top:.62rem; width:.6rem; height:.6rem; border-radius:50%; background:var(--accent)}
+.chain li::after{content:""; position:absolute; left:.56rem; top:1.3rem; bottom:-.5rem; width:1px; background:var(--line)}
+.chain li:last-child{padding-bottom:0}
+.chain li:last-child::after{display:none}
+.chain .t{font-weight:700}
+.chain .d{font-size:.88rem; color:var(--muted); line-height:1.7}
+
+.callout{border-left:3px solid var(--accent); background:var(--accent-soft); padding:.9rem 1.1rem; border-radius:0 6px 6px 0}
+.callout p{max-width:none}
+footer{border-top:1px solid var(--line); padding-top:1.5rem; font-size:.85rem; color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="kicker">独立検証レポート</p>
+  <h1>リーマン予想 Lean 証明の独立検証</h1>
+  <p class="lede">2026 年 11 月 20 日付で <a href="https://alpo.ge/remark.pdf">alpo.ge/remark.pdf</a> に公開された文書と、そこから配布されている Lean 4 の形式証明を、原本を保全したうえで手元の計算機で再コンパイルし、検査した記録です。</p>
+  <ul class="meta">
+    <li>状態 <b id="status-text">検証中(全体ビルド進行中)</b></li>
+    <li>最終更新 <b>2026-11-21 11:00 JST</b></li>
+    <li>リポジトリ <a href="https://github.com/yawara/riemann-hypothesis">yawara/riemann-hypothesis</a></li>
+  </ul>
+</header>
+
+<section id="summary" aria-labelledby="h-summary">
+  <h2 id="h-summary"><span class="num">00</span>現時点の結論</h2>
+  <div class="verdict">
+    <div class="verdict-head">
+      <span class="pill run">進行中</span>
+      <strong>証明の正否は、まだ判定できません</strong>
+    </div>
+    <p>配布物の取得・保全と、コンパイル前に行える検査はすべて終わり、いずれも問題は見つかっていません。ただし決定的な検査である「全 175,187 ファイルのコンパイル」と「主定理が依存する公理の確認」「カーネルによる再検査」はこれからです。これらが終わるまで、この証明が正しいとも誤りとも言えません。</p>
+    <ul class="checks">
+      <li><span class="pill ok">完了</span><span class="what">原本の取得と保全</span>
+        <span class="detail">PDF 1 個と Lean 配布物 14 分割を取得し、応答ヘッダ・取得時刻・SHA-256 とともに保存。</span></li>
+      <li><span class="pill ok">完了</span><span class="what">配布物の完全性</span>
+        <span class="detail">14 分割を連結すると正常な gzip。中身は通常ファイルのみ 175,190 個で、危険なパスやリンクは無し。</span></li>
+      <li><span class="pill ok">完了</span><span class="what">依存ライブラリの真正性</span>
+        <span class="detail">固定された Mathlib のコミットは公式リポジトリのタグ <code>v4.33.1</code> そのもの。他の依存も Mathlib 自身の固定版と一致。</span></li>
+      <li><span class="pill ok">0 件</span><span class="what">ソースの静的スキャン</span>
+        <span class="detail"><code>sorry</code>・<code>axiom</code>・<code>native_decide</code>・<code>unsafe</code>・カーネル検査のスキップ指定などは、全ソース中に 1 件も無し。</span></li>
+      <li><span class="pill ok">完了</span><span class="what">import グラフ</span>
+        <span class="detail">存在しないモジュールへの import は 0、循環は 0。全 175,187 モジュールが <code>Main</code> から到達可能。</span></li>
+      <li><span class="pill run">進行中</span><span class="what">全モジュールのコンパイル</span>
+        <span class="detail" id="build-detail">2026-11-21 10:42 JST 開始。開始 11 分の時点で 2,541 / 175,187 モジュール完了、エラー 0。完走まで半日程度の見込み。</span></li>
+      <li><span class="pill wait">未実施</span><span class="what">主定理が依存する公理</span>
+        <span class="detail">ビルド完了後に <code>#print axioms</code> で確認。</span></li>
+      <li><span class="pill wait">未実施</span><span class="what">主張の一致確認</span>
+        <span class="detail">検証者が Mathlib だけで書いた命題と、主定理の型が一致するかをカーネルに判定させる。</span></li>
+      <li><span class="pill wait">未実施</span><span class="what">カーネルによる再検査</span>
+        <span class="detail">ツールチェーン同梱の <code>leanchecker</code> で全モジュールの宣言をカーネルに再生させる。</span></li>
+      <li><span class="pill wait">未実施</span><span class="what">ビルド後のソース不変確認</span>
+        <span class="detail">ビルドに使った全ファイルが原本と 1 バイトも違わないことを再照合する。</span></li>
+    </ul>
+  </div>
+</section>
+
+<section id="target" aria-labelledby="h-target">
+  <h2 id="h-target"><span class="num">01</span>検証対象</h2>
+  <p>起点は 4 ページの PDF です。本文は、著者が Claude と共同でリーマン予想の証明を発見し、さらに一般化リーマン予想まで解決したと述べ、議論を「仮定なしに」形式化したとしています。人間が読める証明文書は公開されておらず、提示されているのは Lean のコードだけです。コードの所在は脚注 1 に 14 個の URL として書かれています。</p>
+  <div class="scroll">
+  <table class="kv">
+    <tbody>
+      <tr><th>起点の文書</th><td><a href="https://alpo.ge/remark.pdf">https://alpo.ge/remark.pdf</a>(4 ページ、作成日時 2026-11-20 21:52:48 JST)</td></tr>
+      <tr><th>Lean コード</th><td><code>https://alpo.ge/lean.tar.gz.part01</code> 〜 <code>part14</code>(連結すると 1 個の tar.gz)</td></tr>
+      <tr><th>文書の主張</th><td>リーマン予想と、Dirichlet L 関数に対する一般化リーマン予想の証明。Lean による形式化は完了済み。</td></tr>
+      <tr><th>著者表記</th><td>PDF 本文にもメタデータにも著者名は書かれていません。配布元は個人ドメイン <code>alpo.ge</code> です。</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">この検証は「配布された Lean コードが、Lean の検査を本当に通るか」「通ったとして、それは本当にリーマン予想の主張か」を確かめるものです。証明の数学的な中身を人間が読んで理解・査読する作業は含みません。</p>
+</section>
+
+<section id="evidence" aria-labelledby="h-evidence">
+  <h2 id="h-evidence"><span class="num">02</span>原本の保全</h2>
+  <p>取得したファイルはバイト列のままリポジトリの <a href="https://github.com/yawara/riemann-hypothesis/tree/main/evidence"><code>evidence/</code></a> に保存し、以後いっさい書き換えていません。サーバの応答ヘッダと取得時刻も併せて残しています。</p>
+  <ol class="chain">
+    <li><div class="t">remark.pdf</div>
+      <div class="d">245,114 バイト。取得 2026-11-21 10:24:45 JST。<br>SHA-256 <code class="hash">3fc97784b71ddd44ff8aa0a177e99622a1c61b13cfa843a0989ee4a7a0cfeb8d</code></div></li>
+    <li><div class="t">lean.tar.gz.part01 〜 part14</div>
+      <div class="d">part01〜13 は各 18,000,000 バイト、part14 は 5,275,554 バイト。取得 2026-11-21 10:25:45〜10:25:50 JST。各分割の SHA-256 は <code>SHA256SUMS</code> に記録。</div></li>
+    <li><div class="t">連結した lean.tar.gz</div>
+      <div class="d">239,275,554 バイト。<code>gzip -t</code> 正常。展開後の tar は 1,270,753,280 バイト。<br>SHA-256 <code class="hash">9631b4f020199e580ba86178cb56c6e9b09f690c2369a80dc4334aa93f49c7fc</code></div></li>
+    <li><div class="t">展開した Lean プロジェクト(lean/)</div>
+      <div class="d">175,190 ファイル。全ファイルの SHA-256 一覧を保存し、ビルドに使うツリーが原本と一致することをスクリプトで照合できます。</div></li>
+  </ol>
+  <p>tarball の中身は通常ファイルだけで、シンボリックリンクや絶対パス、<code>..</code> を含むパスはありません。所有者・時刻は正規化されています(0/0、1970-01-01)。展開ツリーは原本から完全に再構成できるため、git には原本(14 分割)だけを入れ、展開ツリーは入れていません。</p>
+</section>
+
+<section id="scale" aria-labelledby="h-scale">
+  <h2 id="h-scale"><span class="num">03</span>Lean コードの規模</h2>
+  <ul class="figures">
+    <li><span class="v">175,187</span><span class="k">Lean ファイル(<code>.lean</code>)の数</span></li>
+    <li><span class="v">17,374,215</span><span class="k">行数(改行の数)</span></li>
+    <li><span class="v">1.03 GB</span><span class="k">ソースの合計 1,030,531,854 バイト</span></li>
+    <li><span class="v">約 81.9 万</span><span class="k"><code>theorem</code> / <code>lemma</code> の宣言行(行頭一致で 818,755)</span></li>
+  </ul>
+  <p>Lean ファイル以外に入っているのは、ビルド設定の 3 ファイル(<code>lakefile.toml</code>、<code>lake-manifest.json</code>、<code>lean-toolchain</code>)だけです。参考までに、数学ライブラリ Mathlib 本体(v4.33.1)は 8,311 ファイル・2,293,877 行・約 97 MB です。この配布物はファイル数でその約 21 倍、行数で約 7.6 倍、バイト数で約 10.6 倍にあたります。</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>ディレクトリ(<code>lean/src/</code> 直下)</th><th class="n">ファイル数</th><th class="n">行数</th><th class="n">バイト数</th><th class="n">ファイル数の割合</th></tr></thead>
+    <tbody>
+      <tr><th>Development</th><td class="n">141,928</td><td class="n">12,232,663</td><td class="n">767,288,236</td><td class="n">81.0%</td></tr>
+      <tr><th>Formalism</th><td class="n">18,254</td><td class="n">3,200,748</td><td class="n">164,903,481</td><td class="n">10.4%</td></tr>
+      <tr><th>GroundTheory</th><td class="n">8,507</td><td class="n">1,119,138</td><td class="n">54,564,791</td><td class="n">4.9%</td></tr>
+      <tr><th>ReciprocityTheory</th><td class="n">3,845</td><td class="n">563,016</td><td class="n">28,914,051</td><td class="n">2.2%</td></tr>
+      <tr><th>CompanionTheory</th><td class="n">2,027</td><td class="n">194,218</td><td class="n">11,296,366</td><td class="n">1.2%</td></tr>
+      <tr><th>PositivityTheory</th><td class="n">449</td><td class="n">55,130</td><td class="n">3,109,326</td><td class="n">0.3%</td></tr>
+      <tr><th>Lemmata</th><td class="n">167</td><td class="n">9,232</td><td class="n">452,342</td><td class="n">0.1%</td></tr>
+      <tr><th>BuildAid</th><td class="n">5</td><td class="n">20</td><td class="n">850</td><td class="n">0.0%</td></tr>
+      <tr><th>Supplements</th><td class="n">3</td><td class="n">22</td><td class="n">1,195</td><td class="n">0.0%</td></tr>
+      <tr><th>(直下)Main.lean, Statements.lean</th><td class="n">2</td><td class="n">28</td><td class="n">1,216</td><td class="n">0.0%</td></tr>
+    </tbody>
+    <tfoot><tr><th>合計</th><td class="n">175,187</td><td class="n">17,374,215</td><td class="n">1,030,531,854</td><td class="n">100%</td></tr></tfoot>
+  </table>
+  </div>
+  <h3>依存関係の形</h3>
+  <p>各ファイル冒頭の <code>import</code> 行を読んで依存グラフを作ると、プロジェクト内の import は 753,261 本、最長の連鎖は 203 段でした。<strong>175,187 モジュールのすべてが <code>Main</code> の推移的な import に含まれます。</strong>つまり主定理を検査するには、1 ファイルも飛ばさずに全部をコンパイルする必要があります。</p>
+  <div class="scroll">
+  <table class="kv">
+    <tbody>
+      <tr><th>Lean</th><td><code>leanprover/lean4:v4.33.1</code>(配布物の <code>lean-toolchain</code> の指定どおり)</td></tr>
+      <tr><th>ビルドツール</th><td>Lake 5.0.0-src+819816b(ツールチェーン同梱)</td></tr>
+      <tr><th>Mathlib</th><td>コミット <code>0df444a360ea…</code>。公式リポジトリのタグ <code>v4.33.1</code>(2026-08-21)と一致</td></tr>
+      <tr><th>外部への import</th><td><code>Mathlib</code>(136,003 ファイルが全体を import)、<code>Batteries</code>、<code>Lean</code> のみ</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="statements" aria-labelledby="h-statements">
+  <h2 id="h-statements"><span class="num">04</span>主定理として何が主張されているか</h2>
+  <p>最終的な主張は、配布物の <code>Main.lean</code> にある 5 つの定理です。そのうち 4 つの命題は <code>Statements.lean</code> で定義されています。この <code>Statements.lean</code> は <code>import Mathlib</code> だけを行うファイルで、プロジェクト側の定義を一切使っていません。</p>
+  <figure>
+    <pre><code>import Statements
+import Supplements.Kernels.MainTheoremsAll
+
+theorem riemannHypothesis : RiemannHypothesis := rhOfAll
+
+theorem riemannZeta_eq_zero_re : RiemannZetaZerosOnLine := rhOfAll
+
+theorem LFunction_ne_zero_of_half_lt_re : DirichletLNonvanishingRightOfHalf := allChi
+
+theorem LFunction_eq_zero_re : DirichletLZerosOnLine := claimAll.2.1
+
+theorem LFunction_eq_zero_re_of_isPrimitive : PrimitiveDirichletLZerosOnLine := critAll</code></pre>
+    <figcaption>配布物 <code>lean/src/Main.lean</code>(全文)</figcaption>
+  </figure>
+  <figure>
+    <pre><code>import Mathlib
+
+def RiemannZetaZerosOnLine : Prop :=
+  ∀ s : ℂ, riemannZeta s = 0 → (¬∃ n : ℕ, s = -2 * ((n : ℂ) + 1)) → s ≠ 1 → s.re = 1 / 2
+
+def DirichletLNonvanishingRightOfHalf : Prop :=
+  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N) (s : ℂ),
+    1 / 2 &lt; s.re → (χ ≠ 1 ∨ s ≠ 1) → DirichletCharacter.LFunction χ s ≠ 0
+
+def DirichletLZerosOnLine : Prop :=
+  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N) (s : ℂ),
+    0 &lt; s.re → s.re &lt; 1 → DirichletCharacter.LFunction χ s = 0 → s.re = 1 / 2
+
+def PrimitiveDirichletLZerosOnLine : Prop :=
+  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N), χ.IsPrimitive →
+    ∀ s : ℂ, 0 &lt; s.re → s.re &lt; 1 → DirichletCharacter.LFunction χ s = 0 → s.re = 1 / 2</code></pre>
+    <figcaption>配布物 <code>lean/src/Statements.lean</code>(全文)</figcaption>
+  </figure>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>定理名</th><th>主張の内容</th></tr></thead>
+    <tbody>
+      <tr><th><code>riemannHypothesis</code></th><td>Mathlib が定義する <code>RiemannHypothesis</code> そのもの。ζ(s) = 0 で、s が自明な零点(−2, −4, …)でも 1 でもなければ Re s = 1/2。</td></tr>
+      <tr><th><code>riemannZeta_eq_zero_re</code></th><td>同じ主張を、Mathlib の定義名を使わずに書き下したもの。</td></tr>
+      <tr><th><code>LFunction_ne_zero_of_half_lt_re</code></th><td>一般化リーマン予想(半平面形)。任意の法 N の Dirichlet 指標 χ について、Re s &gt; 1/2 なら L(s, χ) ≠ 0。</td></tr>
+      <tr><th><code>LFunction_eq_zero_re</code></th><td>一般化リーマン予想(臨界帯形)。0 &lt; Re s &lt; 1 にある L(s, χ) の零点は Re s = 1/2 上にある。</td></tr>
+      <tr><th><code>LFunction_eq_zero_re_of_isPrimitive</code></th><td>上と同じ主張を原始指標に限ったもの。</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>主張の書き方そのものは、Mathlib の既存の定義(<code>riemannZeta</code>、<code>DirichletCharacter.LFunction</code>)に対する標準的な定式化です。主定理の直前の数ファイル(関数等式で左半分を右半分に移す議論など)は目で読み、Mathlib の定理を使った通常の議論であることを確認しました。膨大な本体部分は読んでおらず、そこは Lean のカーネルによる検査に委ねます。</p>
+</section>
+
+<section id="checks" aria-labelledby="h-checks">
+  <h2 id="h-checks"><span class="num">05</span>検査の内容と結果</h2>
+
+  <h3>5.1 ソースの静的スキャン <span class="pill ok">0 件</span></h3>
+  <p>Lean を動かす前に、全ソース(1.03 GB)を文字列検索しました。「証明済み」に見せかける抜け道になりうる記述と、ビルド時に任意のコードを実行しうる記述を数えています。</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>検索対象</th><th class="n">ファイル数</th><th class="n">一致行数</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><th><code>sorry</code>(大文字小文字無視・部分一致)</th><td class="n">0</td><td class="n">0</td><td>証明の穴埋め</td></tr>
+      <tr><th><code>admit</code></th><td class="n">0</td><td class="n">0</td><td>同上</td></tr>
+      <tr><th><code>axiom</code></th><td class="n">0</td><td class="n">0</td><td>独自公理の追加</td></tr>
+      <tr><th><code>native_decide</code> / <code>ofReduceBool</code> / <code>trustCompiler</code></th><td class="n">0</td><td class="n">0</td><td>コンパイラを信頼する証明</td></tr>
+      <tr><th><code>unsafe</code> / <code>implemented_by</code> / <code>extern</code> / <code>opaque</code></th><td class="n">0</td><td class="n">0</td><td>カーネル外の実装への差し替え</td></tr>
+      <tr><th><code>debug.skipKernelTC</code> ほか <code>set_option debug.*</code></th><td class="n">0</td><td class="n">0</td><td>カーネル検査のスキップ</td></tr>
+      <tr><th><code>#guard_msgs</code> / <code>#eval</code> / <code>initialize</code></th><td class="n">0</td><td class="n">0</td><td>エラーの握りつぶし、ビルド時のコード実行</td></tr>
+      <tr><th><code>syntax</code> / 大域の <code>notation</code></th><td class="n">0</td><td class="n">0</td><td>識別子や記法のすり替え(<code>local</code> / <code>scoped</code> な記法は 1,791 件あり、いずれもファイル内・名前空間内に限定)</td></tr>
+      <tr><th><code>addDecl</code></th><td class="n">1</td><td class="n">2</td><td>宣言を別名で複製するコマンド。通常のカーネル検査を通る経路を使用(下記)</td></tr>
+      <tr><th><code>run_cmd</code> / <code>modifyEnv</code></th><td class="n">5</td><td class="n">5</td><td><code>BuildAid/D1〜D5.lean</code>。補題検索の除外リストに名前を足すだけ</td></tr>
+      <tr><th><code>elab</code></th><td class="n">3</td><td class="n">4</td><td>証明補助のタクティク定義(下記)</td></tr>
+      <tr><th><code>macro</code></th><td class="n">64</td><td class="n">87</td><td>タクティクの略記。全件が <code>tactic</code> か局所的な項マクロ</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>メタプログラムを含むファイルは人間が読んで確認しました。<code>CutCptCopy.lean</code> は既存の定義・定理を、名前を付け替えて <code>addDecl</code> で登録し直すコマンドを定義しています。<code>addDecl</code> は通常どおりカーネル検査を経由するので、これ自体は健全性を損ないません。<code>OwnStruct.lean</code> と <code>HeckeNonvanishing/Imports.lean</code> は、項を組み立ててゴールに割り当てるタクティク(<code>kcopy</code>、<code>kexactB</code>)で、最終的な型の一致はカーネルが判定します。いずれも、後述のカーネル再検査の対象です。</p>
+  <p class="note">静的スキャンは補助的な検査です。文字列検索をすり抜ける細工の可能性は残るため、最終判断はカーネルによる検査で行います。全項目の結果は <a href="https://github.com/yawara/riemann-hypothesis/tree/main/verification/static-scan"><code>verification/static-scan/</code></a> にあります。</p>
+
+  <h3>5.2 依存ライブラリの真正性 <span class="pill ok">完了</span></h3>
+  <p>配布物が固定している Mathlib のコミット <code>0df444a360eaa60ab8c11dca51a86af692955474</code> は、公式リポジトリ <code>leanprover-community/mathlib4</code> のタグ <code>v4.33.1</code> と一致しました。<code>master</code> ブランチとの差は <code>lean-toolchain</code> の 1 行だけです。Batteries や Aesop など他の 8 つの依存も、Mathlib 自身が固定している版と完全に一致します。改変された Mathlib を掴まされている、という可能性はありません。</p>
+
+  <h3>5.3 全モジュールのコンパイル <span class="pill run">進行中</span></h3>
+  <p>配布物の <code>lakefile.toml</code>・<code>lake-manifest.json</code>・<code>lean-toolchain</code> をそのまま使い、ソースに一切手を加えずに <code>lake build</code> を実行しています。Mathlib は公式のビルド済みキャッシュを取得して利用しました。</p>
+  <div class="scroll">
+  <table class="kv">
+    <tbody>
+      <tr><th>開始</th><td>2026-11-21 10:42:23 JST</td></tr>
+      <tr><th>進捗</th><td id="build-progress">開始 11 分時点で 2,541 / 175,187 モジュール(1.45%)。毎秒 3〜4 モジュール</td></tr>
+      <tr><th>エラー</th><td id="build-errors">この時点で 0 件(リンタの警告のみ)</td></tr>
+      <tr><th>並列度</th><td>Lean プロセス約 90 並列、ロードアベレージ約 160</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="callout">
+    <p><strong>ビルド手順に加えた唯一の工夫。</strong>Lake 5 はモジュールごとに、推移的に import する全成果物のパスを列挙した <code>setup.json</code> を書き出します。<code>import Mathlib</code> だけで約 6 MB あり、このプロジェクト全体では合計 1.4 TB を超える見積もりになって検証機のディスクに収まりません。そこで、ビルド済みモジュールの <code>setup.json</code> を随時削除するスクリプトを並走させています。このファイルは Lean 起動時の入力にすぎず、削除しても再ビルドが起きないこと(成果物として追跡されていないこと)を事前に小さな例で確認しました。ソース・設定・コンパイラには触れていません。</p>
+  </div>
+
+  <h3>5.4 主定理が依存する公理 <span class="pill wait">未実施</span></h3>
+  <p>ビルド完了後、5 つの主定理それぞれについて <code>#print axioms</code> を実行します。Lean 4 と Mathlib の標準は <code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code> の 3 つです。これ以外(<code>sorryAx</code> や独自公理)が現れた場合、その定理は無条件に証明されたとは言えません。</p>
+
+  <h3>5.5 主張の一致確認 <span class="pill wait">未実施</span></h3>
+  <p>検証者が Mathlib だけを import して書いた命題(<a href="https://github.com/yawara/riemann-hypothesis/blob/main/verification/lean-checks/RHReference.lean"><code>RHReference.lean</code></a>)を、配布物の主定理でそのまま証明できるかをカーネルに判定させます。あわせて、主定理の型に現れる定数を定義の中身まで推移的に辿り、主張がプロジェクト側の定義に依存していないことを機械的に確認します。</p>
+
+  <h3>5.6 カーネルによる再検査 <span class="pill wait">未実施</span></h3>
+  <p>ツールチェーン同梱の <code>leanchecker</code> で、全モジュールの宣言をカーネルに再生させます。エラボレータやメタプログラムを経由しない検査なので、カーネルを迂回して環境に宣言を押し込む細工があれば検出できます。</p>
+
+  <h3>5.7 ビルド後のソース不変確認 <span class="pill wait">未実施</span></h3>
+  <p>ビルドに使った 175,190 ファイルが原本と 1 バイトも違わないことを、保存してある SHA-256 一覧と再照合します(ビルド開始前の照合は一致済み)。</p>
+</section>
+
+<section id="hardware" aria-labelledby="h-hardware">
+  <h2 id="h-hardware"><span class="num">06</span>検証に使った計算機</h2>
+  <p>検証は 1 台の計算機で行っています。Lean のコンパイルとカーネル検査は CPU とメモリだけを使う処理で、GPU は関与しません。</p>
+  <div class="scroll">
+  <table class="kv">
+    <tbody>
+      <tr><th>CPU</th><td>AMD EPYC 7742(64 コア / 128 スレッド、1 ソケット、x86_64、最大 3.41 GHz)</td></tr>
+      <tr><th>キャッシュ</th><td>L1d 2 MiB / L1i 2 MiB / L2 32 MiB / L3 256 MiB、NUMA 4 ノード</td></tr>
+      <tr><th>メモリ</th><td>528,177,132 kB(約 503 GiB)、スワップ 8 GiB</td></tr>
+      <tr><th>マザーボード</th><td>TYAN S8030GM4NE-2T(BIOS V2.00、2021-03-11)</td></tr>
+      <tr><th>ストレージ</th><td>NVMe SSD Seagate FireCuda 510 2 TB(XFS)。ソースは <code>/home</code>、ビルド生成物は <code>/</code> 側に配置</td></tr>
+      <tr><th>OS</th><td>Ubuntu 24.04.4 LTS、Linux 7.0.0-28-generic</td></tr>
+      <tr><th>ツール</th><td>elan 4.2.3、Lean 4.33.1、Lake 5.0.0、git 2.43.0、curl 8.5.0、GNU tar 1.35、ripgrep 13.0.0、Python 3.12.3</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">採取した生の情報は <a href="https://github.com/yawara/riemann-hypothesis/blob/main/verification/hardware.txt"><code>verification/hardware.txt</code></a> にあります。</p>
+</section>
+
+<section id="limits" aria-labelledby="h-limits">
+  <h2 id="h-limits"><span class="num">07</span>この検証で言えること、言えないこと</h2>
+  <h3>すべての検査が通った場合に言えること</h3>
+  <p>配布された Lean ソースが、指定どおりの Lean 4.33.1 と Mathlib v4.33.1 のもとでエラーなくコンパイルでき、主定理が標準の 3 公理だけに依存している、ということです。Lean のカーネルが正しく、Mathlib の <code>riemannZeta</code> などの定義が意図どおりである限り、これは Mathlib の <code>RiemannHypothesis</code> が証明されたことを意味します。</p>
+  <h3>言えないこと</h3>
+  <ul class="plain">
+    <li>証明の数学的な筋道が正しく理解できるか、既知の障害をどう越えているかは、この検証の対象外です。1,700 万行を人間が読んだわけではありません。</li>
+    <li>Lean のカーネル実装そのものの正しさは前提としています。独立実装のカーネル(nanoda など)による照合は、この時点では行っていません。</li>
+    <li>Mathlib 本体は公式のビルド済みキャッシュを使っており、ソースからの再コンパイルはしていません。</li>
+    <li>検証は 1 台の計算機、1 回の実行によるものです。</li>
+    <li>配布元と著者については、PDF とサーバ応答から分かる範囲しか確認していません。</li>
+  </ul>
+</section>
+
+<section id="reproduce" aria-labelledby="h-reproduce">
+  <h2 id="h-reproduce"><span class="num">08</span>再現手順</h2>
+  <p>リポジトリには原本と、ここまでの全手順を再実行するスクリプトが入っています。<code>elan</code>、<code>zstd</code>、<code>ripgrep</code>、Python 3 が必要です。ビルド生成物の置き場所として数十 GB 以上の空きを用意してください。</p>
+  <pre><code>git clone https://github.com/yawara/riemann-hypothesis.git
+cd riemann-hypothesis
+
+scripts/reconstruct.sh                 # 原本 14 分割から lean/ を再構成し、全ファイルのハッシュを照合
+scripts/static_scan.sh                 # 静的スキャン
+python3 -I scripts/import_graph.py lean/src verification/import-graph
+
+(cd lean &amp;&amp; lake exe cache get)        # Lean 4.33.1 と Mathlib v4.33.1(ビルド済みキャッシュ)を取得
+scripts/build.sh                       # 全体ビルド(setup.json の削除スクリプトを並走)
+scripts/run_checks.sh                  # 公理の一覧、主張の一致確認、主張の依存解析
+scripts/run_leanchecker.sh             # 全モジュールのカーネル再検査
+scripts/reconstruct.sh --verify        # ビルド後もソースが原本と一致することを確認</code></pre>
+</section>
+
+<footer>
+  <p>このページは検証の進行に合わせて更新します。数値とハッシュは、リポジトリに保存したログと証拠ファイルから転記したものです。</p>
+</footer>
+
+</div>
+</body>
+</html>

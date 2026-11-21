@@ -1,0 +1,45 @@
+{
+  "modules_total": 175187,
+  "internal_import_edges": 753261,
+  "files_with_duplicate_import_lines": 19897,
+  "external_import_roots": {
+    "Batteries": 3,
+    "Lean": 12,
+    "Mathlib": 136488
+  },
+  "missing_internal_imports": 0,
+  "modules_in_cycles": 0,
+  "max_import_chain_depth": 203,
+  "main_cone_modules": 175187,
+  "main_cone_by_top_dir": {
+    "BuildAid": 5,
+    "CompanionTheory": 2027,
+    "Development": 141928,
+    "Formalism": 18254,
+    "GroundTheory": 8507,
+    "Lemmata": 167,
+    "Main": 1,
+    "PositivityTheory": 449,
+    "ReciprocityTheory": 3845,
+    "Statements": 1,
+    "Supplements": 3
+  },
+  "statements_cone_modules": 1,
+  "outside_main_cone_modules": 0,
+  "outside_main_cone_by_top_dir": {},
+  "modules_total_by_top_dir": {
+    "BuildAid": 5,
+    "CompanionTheory": 2027,
+    "Development": 141928,
+    "Formalism": 18254,
+    "GroundTheory": 8507,
+    "Lemmata": 167,
+    "Main": 1,
+    "PositivityTheory": 449,
+    "ReciprocityTheory": 3845,
+    "Statements": 1,
+    "Supplements": 3
+  },
+  "modules_not_matched_by_any_lean_lib": 0,
+  "modules_never_imported_by_others": 1
+}

@@ -1,0 +1,9 @@
+# 配布 tarball を展開した Lean プロジェクト(175,190 ファイル / 約 1 GB)。
+# evidence/03-lean-tarball-parts の原本から scripts/reconstruct.sh でバイト単位に
+# 再構成でき、evidence/04-tarball-contents の SHA-256 一覧で照合できるため、
+# git には含めない(原本と二重に持たない)。ビルド生成物 lean/.lake も同様。
+/lean/
+
+# Python キャッシュなど
+__pycache__/
+*.pyc

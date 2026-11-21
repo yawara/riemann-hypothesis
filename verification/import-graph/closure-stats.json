@@ -1,0 +1,10 @@
+{
+  "modules": 175187,
+  "sum_of_transitive_project_imports": 545942223,
+  "mean": 3116.3398140272966,
+  "p50": 720,
+  "p90": 9283,
+  "p99": 24338,
+  "max": 175186,
+  "modules_with_zero_project_imports": 5927
+}

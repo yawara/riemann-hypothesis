@@ -1,0 +1,6 @@
+   1695 local notation
+     68 local notation3
+     26 local infixl
+     15 notation
+      1 scoped notation
+      1 scoped infixl

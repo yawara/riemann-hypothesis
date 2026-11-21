@@ -1,0 +1,45 @@
+category	label	files	matching_lines	ripgrep_args
+soundness	sorry (単語)	0	0	-w sorry
+soundness	sorry (大文字小文字無視・部分一致)	0	0	-i sorry
+soundness	admit (単語)	0	0	-w admit
+soundness	axiom (単語)	0	0	-w axiom
+soundness	native_decide	0	0	native_decide
+soundness	decide +native	0	0	decide\s*\+native
+soundness	ofReduceBool / reduceBool / trustCompiler	0	0	ofReduceBool|reduceBool|trustCompiler
+soundness	implemented_by	0	0	implemented_by
+soundness	extern (単語)	0	0	-w extern
+soundness	unsafe (単語)	0	0	-w unsafe
+soundness	csimp (単語)	0	0	-w csimp
+soundness	opaque (単語)	0	0	-w opaque
+soundness	debug.skipKernelTC	0	0	skipKernelTC
+soundness	set_option debug.*	0	0	set_option\s+debug
+soundness	byAsSorry	0	0	-i byAsSorry
+soundness	#guard_msgs	0	0	guard_msgs
+soundness	stop (単語)	4	4	-w stop
+soundness	admitGoal / elabSorry / mkSorry	0	0	admitGoal|elabSorry|mkSorry
+soundness	axiomDecl / axiomInfo / mkAxiom	0	0	axiomDecl|axiomInfo|AxiomVal|mkAxiom
+soundness	unsafeCast / lcProof / lcUnreachable	0	0	unsafeCast|lcProof|lcUnreachable|ptrAddrUnsafe
+soundness	addDecl / addAndCompile	1	2	addDecl|addAndCompile
+soundness	modifyEnv / setEnv	5	5	modifyEnv|setEnv
+meta	run_cmd	5	5	run_cmd
+meta	run_elab / run_meta	0	0	run_elab|run_meta
+meta	#eval	0	0	#eval
+meta	#exit	0	0	#exit
+meta	initialize / builtin_initialize	0	0	-w initialize|builtin_initialize
+meta	elab / elab_rules	3	4	-w elab|elab_rules
+meta	macro / macro_rules	64	87	-w macro|macro_rules
+meta	syntax / declare_syntax_cat	0	0	-w syntax|declare_syntax_cat
+meta	notation 類(local/scoped 含む)	1020	1806	-w notation|notation3|infix|infixl|infixr|prefix|postfix
+meta	notation 類(行頭 = 大域)	0	0	^\s*(notation3?|infix|infixl|infixr|prefix|postfix)\b
+meta	IO.Process / IO.FS / System / socket	0	0	IO\.(Process|FS|getEnv|println|eprintln|mkRef|sleep|appPath)|\bSocket\b|\bcurl\b|\bwget\b
+meta	import Lean*	7	12	^import Lean
+meta	open Lean	4	4	open Lean
+meta	partial (単語)	2	2	-w partial
+meta	#print / #check	2	6	#print|#check
+meta	prelude / module 宣言	0	0	^(prelude|module)\s*$
+info	import Mathlib(全体 import の行)	136003	155753	^import Mathlib$
+info	set_option maxHeartbeats	54080	57556	set_option\s+maxHeartbeats
+info	attribute [local instance] 等	47326	51511	local instance|attribute \[local instance|attribute \[-instance
+info	noncomputable (単語)	79954	86666	-w noncomputable
+info	theorem / lemma(行頭)	165801	818755	^\s*(@\[[^\]]*\]\s*)?((private|protected|nonrec|noncomputable)\s+)*(theorem|lemma)\s
+info	def / abbrev / instance / structure / class / inductive(行頭)	45310	242668	^\s*(@\[[^\]]*\]\s*)?((private|protected|nonrec|noncomputable|scoped|local)\s+)*(def|abbrev|instance|structure|class|inductive)\s
