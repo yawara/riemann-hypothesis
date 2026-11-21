@@ -11,21 +11,41 @@
 # 大量に消費するため、LEAN_NUM_THREADS=1 のプロセスを多数並べ、各プロセスには
 # モジュールのバッチを順番に処理させる。
 #
+# SCOPE=project(既定)は配布プロジェクトの全モジュール、SCOPE=deps は Mathlib など依存
+# ライブラリ(公式キャッシュから取得した .olean)の全モジュールを対象にする。
+#
 # 使い方: JOBS=100 scripts/run_leanchecker.sh
+#         SCOPE=deps JOBS=100 scripts/run_leanchecker.sh
 set -uo pipefail
 export LC_ALL=C
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RUN_ROOT="${RH_RUN_ROOT:-/var/tmp/riemann-hypothesis-ywr/runs}"
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
-OUT="$RUN_ROOT/leanchecker-$TS"
+SCOPE="${SCOPE:-project}"
+OUT="$RUN_ROOT/leanchecker-$SCOPE-$TS"
 JOBS="${JOBS:-100}"
 mkdir -p "$OUT"
-ln -sfn "$OUT" "$RUN_ROOT/latest-leanchecker"
+ln -sfn "$OUT" "$RUN_ROOT/latest-leanchecker-$SCOPE"
 
 cd "$ROOT/lean"
 
-find src -name '*.lean' | sed -e 's|^src/||' -e 's|\.lean$||' -e 's|/|.|g' | sort > "$OUT/modules.txt"
+if [ -n "${MODULES_FILE:-}" ]; then
+  # 動作試験用: 検査するモジュール名の一覧を直接与える
+  cp "$MODULES_FILE" "$OUT/modules.txt"
+elif [ "$SCOPE" = "deps" ]; then
+  for lib in .lake/packages/*/.lake/build/lib/lean; do
+    ( cd "$lib" && find . -name '*.olean' | sed -e 's|^\./||' -e 's|\.olean$||' -e 's|/|.|g' )
+  done | sort -u > "$OUT/modules.all.txt"
+  # leanchecker は引数を「前方一致」で解釈するため、`Mathlib` のようなルートモジュール名を
+  # 渡すとライブラリ全体が 1 プロセスで再検査されてしまう。ルート(名前に `.` を含まない
+  # もの)は配下の全モジュールを import するだけの集約ファイルなので対象から外し、
+  # 配下のモジュールを個別に検査する。
+  grep -v '\.' "$OUT/modules.all.txt" > "$OUT/modules.excluded-roots.txt" || true
+  grep '\.' "$OUT/modules.all.txt" > "$OUT/modules.txt"
+else
+  find src -name '*.lean' | sed -e 's|^src/||' -e 's|\.lean$||' -e 's|/|.|g' | sort > "$OUT/modules.txt"
+fi
 N="$(wc -l < "$OUT/modules.txt")"
 BATCH="${BATCH:-$(( (N + JOBS - 1) / JOBS ))}"
 # 重いモジュールが 1 バッチに偏らないよう、決定的な順序でばらしてから分割する
@@ -33,6 +53,7 @@ awk -v jobs="$(( (N + BATCH - 1) / BATCH ))" '{print > sprintf("%s/batch.%04d", 
 
 {
   echo "started_at_utc: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "scope: $SCOPE"
   echo "modules: $N"
   echo "jobs: $JOBS"
   echo "batch_size: $BATCH"
