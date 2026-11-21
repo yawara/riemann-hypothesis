@@ -81,10 +81,14 @@ scripts/reconstruct.sh --verify        # ビルド後もソースが原本と一
 ```bash
 python3 -I scripts/observe.py --daemon     # 常駐。観測点ごとに記録し、gh-pages の observations.json を更新
 python3 -I scripts/observe.py              # いまの状態でまとめを作り直すだけ(観測点は増やさない)
+python3 -I scripts/build_speed_analysis.py # 速度が落ちていく理由の集計(import の数と所要時間の関係)
 ```
 
 観測点の一覧は [`verification/observations.jsonl`](verification/observations.jsonl) に残します。
 記録するのは測定値だけで、合否の判定は含みません。
+
+ビルドの速度は、後半ほど落ちます。Lake が 1 モジュールごとに推移的な import を最初からたどり直すためで、
+集計は [`verification/build-speed/`](verification/build-speed/) にあります(レポートの 2 節に説明)。
 
 ### レポートの更新と公開
 

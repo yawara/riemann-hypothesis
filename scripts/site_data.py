@@ -5,6 +5,7 @@
   * zeta  … 図 1 下段のデータ(verification/zeta-figure.json。scripts/gen_zeta_figure.py の出力)
   * lean  … 配布物の Main.lean / Statements.lean の全文(lean/ が無ければ既存の値を引き継ぐ)
   * obs   … 定点観測のまとめ(scripts/observe.py の出力。無ければ既存の値を引き継ぐ)
+  * speed … ビルド速度の集計(verification/build-speed/summary.json。scripts/build_speed_analysis.py の出力)
 
 生成物はリポジトリに含めるので、lean/ を再構成していない環境でもサイトをビルドできる。
 
@@ -50,12 +51,20 @@ def main():
             obs = json.load(fh)
     assert obs, "定点観測のまとめが無い(先に scripts/observe.py を実行する)"
 
+    speed = prev.get("speed")
+    speed_path = os.path.join(ROOT, "verification", "build-speed", "summary.json")
+    if os.path.isfile(speed_path):
+        with open(speed_path, encoding="utf-8") as fh:
+            speed = json.load(fh)
+    assert speed, "ビルド速度の集計が無い(先に scripts/build_speed_analysis.py を実行する)"
+
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
     out = {
         "generatedAt": now.strftime("%Y-%m-%d %H:%M JST"),
         "zeta": zeta,
         "lean": lean,
         "obs": obs,
+        "speed": speed,
     }
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as fh:

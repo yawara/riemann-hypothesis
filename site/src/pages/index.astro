@@ -40,6 +40,24 @@ const obs = data.obs;
 const latest = obs.latest;
 const pct = ((latest.done / obs.total) * 100).toFixed(1);
 
+// ---- 2 節: 速度が落ちている理由(scripts/build_speed_analysis.py の集計) ----
+const sp = data.speed;
+const spFirst = sp.intervals[0];
+const spLast = sp.intervals[sp.intervals.length - 1];
+const spAsOf = jstMdHm(sp.as_of_utc);
+const binLabel = (b: { lo: number; hi: number | null }) => (b.hi === null ? `${fmtInt(b.lo)} 以上` : `${fmtInt(b.lo)}〜${fmtInt(b.hi - 1)}`);
+const tailHours = (sp.tail.reduce((sum: number, t: { predicted_s: number }) => sum + t.predicted_s, 0) / 3600).toFixed(1);
+const tailMin = Math.min(...sp.tail.map((t: { closure: number }) => t.closure));
+const tailMax = Math.max(...sp.tail.map((t: { closure: number }) => t.closure));
+const man = (n: number) => (n / 10000).toFixed(1).replace(/\.0$/, '');
+// いまの速度が続いた場合の完走時刻と、最後の鎖のぶんを足した時刻(30 分単位に丸める)
+const etaLinearMs = Date.parse(sp.as_of_utc) + (sp.remaining / sp.recent.rate_per_min) * 60000;
+const round30 = (ms: number) => Math.round(ms / 1800000) * 1800000;
+const etaLinear = jstMdHm(round30(etaLinearMs));
+const etaLate = jstMdHm(round30(etaLinearMs + Number(tailHours) * 3600000));
+const perExternalMs = ((sp.regression.intercept_s / sp.external_modules) * 1000).toFixed(1);
+const perProjectMs = sp.regression.slope_s_per_1000.toFixed(1);
+
 type St = 'ok' | 'run' | 'wait' | 'bad';
 // ---- 1 節: 検査の一覧(実施順) ----
 const checks: { state: St; label: string; title: string; detail: string; ref: string }[] = [
@@ -308,6 +326,74 @@ const colophon: [string, string][] = [
       値は検証機が自動で測って書き出したもので、合否の判定は含みません。エラー行が現れた場合は、原因(証明の誤りか、計算機側の都合か)を調べてから本文に書きます。
     </p>
     <ObsFigure />
+
+    <h3>速度が落ちている理由</h3>
+    <p>
+      速度は観測のたびに少しずつ落ちています。第 {spFirst.seq} 回は 1 分あたり {spFirst.rate_per_min.toFixed(0)} モジュール、第 {spLast.seq} 回は{' '}
+      {spLast.rate_per_min.toFixed(0)} モジュールでした。計算機の不調ではありません。{spAsOf} JST ごろに {sp.cpu.seconds.toFixed(0)} 秒間測ったところ、CPU は{' '}
+      {sp.cpu.cores} スレッドのうち {sp.cpu.busy_cores.toFixed(0)} 本ぶんしか使っておらず、メモリとディスクにも余裕があります(表 2)。Lean
+      のコンパイル自体も速いままです。計測のあいだに動いていた <code>lean</code> プロセスは、起動からの経過時間が中央値{' '}
+      {sp.cpu.lean_age_median_s.toFixed(0)} 秒、90% 点でも {sp.cpu.lean_age_p90_s.toFixed(0)} 秒でした。
+    </p>
+    <p>
+      時間を使っているのは、ビルドツール Lake の準備です。同じ計測で、Lake 本体が CPU を {sp.cpu.lake_cores.toFixed(0)} 本ぶん使っていました。Lake は 1
+      モジュールをコンパイルする前に、そのモジュールが推移的に import するモジュールを、毎回最初から 1 つずつたどって、成果物の一覧を作ります(Lake
+      の <code>fetchTransImportArts</code>。7.3 節の注に書いた <code>setup.json</code> の中身です)。たどる数は、Mathlib など外部の約{' '}
+      {fmtInt(sp.external_modules)} 個に、プロジェクト内の import を足した数です。配布物の Lean ファイルは <code>module</code> 宣言を 1
+      つも使っていないので({sp.files_with_module_header} / {fmtInt(sp.modules_total)})、一覧には import 先の成果物がすべて入ります。
+    </p>
+    <p>
+      実測でも、1 モジュールの所要時間は import の数とともに伸びています(表 3)。済んだ {fmtInt(sp.regression.n)} 件に直線を当てはめると、約{' '}
+      {sp.regression.intercept_s.toFixed(0)} 秒 + プロジェクト内の import 1,000 個あたり約 {sp.regression.slope_s_per_1000.toFixed(1)}{' '}
+      秒でした。たどる 1 個あたりに直すと、外部の分が約 {perExternalMs} ミリ秒、プロジェクト内の分が約 {perProjectMs}{' '}
+      ミリ秒です。ビルドが依存の深いところへ進むにつれ、各回に完成したモジュールの import 数(中央値)は、第 {spFirst.seq} 回の{' '}
+      {fmtInt(spFirst.closure_median)} 個から第 {spLast.seq} 回の {fmtInt(spLast.closure_median)} 個に増えました。
+    </p>
+    <Tbl
+      no="3"
+      title={`推移的な import の数(プロジェクト内)と、1 モジュールの所要時間(中央値と平均。狭い画面では中央値のみ)。所要時間は Lake がビルドログに報告した値で、準備とコンパイルの合計。${spAsOf} JST 時点の集計。`}
+    >
+      <thead>
+        <tr>
+          <th class="pr-2.5 sm:pr-4">import の数</th>
+          <th class="num pr-2.5 sm:pr-4">済んだ件数</th>
+          <th class="num pr-2.5 sm:pr-4">中央値</th>
+          <th class="num pr-2.5 max-sm:hidden sm:pr-4">平均</th>
+          <th class="num">残りの件数</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          sp.bins.map((b: any) => (
+            <tr>
+              <td class="pr-2.5 whitespace-nowrap sm:pr-4">{binLabel(b)}</td>
+              <td class="num pr-2.5 sm:pr-4">{fmtInt(b.built)}</td>
+              <td class="num pr-2.5 sm:pr-4">{b.median_s === null ? '—' : `${b.median_s.toFixed(0)} 秒`}</td>
+              <td class="num pr-2.5 max-sm:hidden sm:pr-4">{b.mean_s === null ? '—' : `${b.mean_s.toFixed(1)} 秒`}</td>
+              <td class="num">{fmtInt(b.remaining)}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </Tbl>
+    <p>
+      今後の見込みです。残りの {fmtInt(sp.remaining)} 個は、import 数の平均が約 {fmtInt(sp.remaining_closure.mean)} 個で、直近 3
+      回に処理した分(平均 約 {fmtInt(sp.recent.closure_mean)} 個)より軽めです。全体がこのまま遅くなり続けるとは見ていません。ただし最後は遅くなります。<code
+        >Main</code
+      > に至る依存の鎖の最後の {sp.tail.length} 個は、それぞれ {man(tailMin)} 万〜{man(tailMax)} 万個を import していて、順番にしか進められません。直線を延長した見積もりでは、この{' '}
+      {sp.tail.length} 個だけで約 {tailHours} 時間かかります。
+    </p>
+    <p>
+      いまの速度が続いた場合、完走は {etaLinear} ごろです。そこへ最後の鎖の待ち時間が加わるので、遅ければ {etaLate}{' '}
+      ごろになると見ています。import が 2.5 万個を超える範囲は実績がほとんど無く、見積もりには幅があります。図 2
+      の破線は直近の速度の延長なので、最後の遅れを含んでいません。
+    </p>
+    <p class="note">
+      <b class="mr-[0.5em] text-[0.8125rem] text-shu">注</b>この処理はビルドの準備で、証明の検査結果には影響しません。たどる 1
+      個あたりの時間は、所要時間と import 数の関係から出した値で、Lake の内部を直接計測したものではありません。集計は{' '}
+      <a href={`${repo}/blob/main/scripts/build_speed_analysis.py`}><code>build_speed_analysis.py</code></a>、結果は{' '}
+      <a href={`${repo}/tree/main/verification/build-speed`}><code>verification/build-speed/</code></a> にあります。
+    </p>
   </Sec>
 
   <Sec id="target" no="3" title="検証対象">
@@ -334,7 +420,7 @@ const colophon: [string, string][] = [
       取得したファイルはバイト列のままリポジトリの <a href={`${repo}/tree/main/evidence`}><code>evidence/</code></a>
       に保存し、以後いっさい書き換えていません。サーバの応答ヘッダと取得時刻も併せて残しています。
     </p>
-    <Tbl no="3" title="保全した原本と、そこから作ったもの。取得時刻は 2026-11-21 の日本時間。" wide>
+    <Tbl no="4" title="保全した原本と、そこから作ったもの。取得時刻は 2026-11-21 の日本時間。" wide>
       <thead>
         <tr>
           <th class="w-[1.6rem]"></th>
@@ -389,8 +475,8 @@ const colophon: [string, string][] = [
         >lean-toolchain</code
       >)だけです。
     </p>
-    <Kv no="4" title="行数とサイズ。" rows={sizeRows} />
-    <Tbl no="5" title="ディレクトリ別の内訳(<span class='font-mono text-[0.92em]'>lean/src/</span> 直下)。">
+    <Kv no="5" title="行数とサイズ。" rows={sizeRows} />
+    <Tbl no="6" title="ディレクトリ別の内訳(<span class='font-mono text-[0.92em]'>lean/src/</span> 直下)。">
       <thead>
         <tr>
           <th>ディレクトリ</th>
@@ -429,7 +515,7 @@ const colophon: [string, string][] = [
       段でした。175,187 モジュールのすべてが <code>Main</code> の推移的な import
       に含まれます。つまり主定理を検査するには、1 ファイルも飛ばさずに全部をコンパイルする必要があります。
     </p>
-    <Kv no="6" title="ツールチェーンと依存。" rows={toolRows} />
+    <Kv no="7" title="ツールチェーンと依存。" rows={toolRows} />
   </Sec>
 
   <Sec id="statements" no="6" title="主定理として何が主張されているか">
@@ -445,7 +531,7 @@ const colophon: [string, string][] = [
     </p>
     <Listing no="1" path="lean/src/Main.lean" note="配布物のまま、全文" code={data.lean.main} />
     <Listing no="2" path="lean/src/Statements.lean" note="配布物のまま、全文" code={data.lean.statements} />
-    <Tbl no="7" title="5 つの主定理。" wide stack>
+    <Tbl no="8" title="5 つの主定理。" wide stack>
       <thead>
         <tr><th class="w-[21rem]">定理名</th><th>主張の内容</th></tr>
       </thead>
@@ -480,7 +566,7 @@ const colophon: [string, string][] = [
       Lean を動かす前に、全ソース(1.03
       GB)を文字列検索しました。「証明済み」に見せかける抜け道になりうる記述と、ビルド時に任意のコードを実行しうる記述を数えています。
     </p>
-    <Tbl no="8" title="静的スキャンの結果。" stack>
+    <Tbl no="9" title="静的スキャンの結果。" stack>
       <thead>
         <tr>
           <th class="w-[36%]">検索対象</th>
@@ -587,7 +673,7 @@ const colophon: [string, string][] = [
 
   <Sec id="hardware" no="8" title="検証に使った計算機">
     <p>検証は 1 台の計算機で行っています。Lean のコンパイルとカーネル検査は CPU とメモリだけを使う処理で、GPU は関与しません。</p>
-    <Kv no="9" title="検証機の構成。" rows={hardware} />
+    <Kv no="10" title="検証機の構成。" rows={hardware} />
     <p>
       採取した生の情報は <a href={`${repo}/blob/main/verification/hardware.txt`}><code>verification/hardware.txt</code></a> にあります。
     </p>
