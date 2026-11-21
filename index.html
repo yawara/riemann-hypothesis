@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>リーマン予想 Lean 証明の独立検証</title>
+<meta name="description" content="alpo.ge で公開されたリーマン予想の Lean 形式証明(175,187 ファイル)を、原本を保全したうえで独立にコンパイル・検査している記録。">
+<meta property="og:title" content="リーマン予想 Lean 証明の独立検証">
+<meta property="og:description" content="175,187 個の Lean ファイルからなる形式証明を、原本を保全したうえで独立に再コンパイル・検査している記録。">
+<meta property="og:type" content="article">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%231c5cab'/%3E%3Ctext x='32' y='47' text-anchor='middle' font-family='STIX Two Text,Times New Roman,serif' font-style='italic' font-size='46' fill='%23fff'%3E%CE%B6%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&family=Shippori+Mincho:wght@500;600;700&display=swap">
+<style>
+/* Layout: 数学論文の紙面に、証明支援系の道具立てを重ねる。
+   冒頭に臨界線上の ζ(零点の並び)を実データで描き、本文は左余白に § 番号を置く 1 段組。 */
+:root{
+  --paper:#f4f6fa; --surface:#ffffff; --ink:#151c2c; --muted:#566179; --line:#d6dbe6; --hair:#e4e8f0;
+  --accent:#1c5cab; --accent-soft:#e8f0fb; --series:#2a78d6; --track:#cde2fb;
+  --ok:#17663f; --ok-bg:#dff1e6;
+  --run:#7a4f00; --run-bg:#fbecc8;
+  --bad:#a3231b; --bad-bg:#fbe2df;
+  --wait:#566179; --wait-bg:#e7eaf1;
+  --code-bg:#eef1f6;
+  --font-body:"Hiragino Sans","Hiragino Kaku Gothic ProN","BIZ UDPGothic","Yu Gothic UI","Yu Gothic","Noto Sans JP","Noto Sans CJK JP",Meiryo,system-ui,sans-serif;
+  --font-head:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP","Noto Serif CJK JP",serif;
+  --font-math:"STIX Two Text","STIX Two Math","Cambria Math","Times New Roman","Hiragino Mincho ProN","Yu Mincho","Noto Serif CJK JP",serif;
+  --font-mono:"JetBrains Mono",ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,"Noto Sans Mono CJK JP",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#0e131b; --surface:#151b26; --ink:#e5e9f1; --muted:#9ba7bc; --line:#2a3344; --hair:#1f2735;
+    --accent:#86b6ef; --accent-soft:#18233a; --series:#3987e5; --track:#0d366b;
+    --ok:#7bd8a8; --ok-bg:#12301f;
+    --run:#ecc067; --run-bg:#35280b;
+    --bad:#f4958e; --bad-bg:#3a1917;
+    --wait:#9ba7bc; --wait-bg:#222a37;
+    --code-bg:#121821;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#0e131b; --surface:#151b26; --ink:#e5e9f1; --muted:#9ba7bc; --line:#2a3344; --hair:#1f2735;
+  --accent:#86b6ef; --accent-soft:#18233a; --series:#3987e5; --track:#0d366b;
+  --ok:#7bd8a8; --ok-bg:#12301f;
+  --run:#ecc067; --run-bg:#35280b;
+  --bad:#f4958e; --bad-bg:#3a1917;
+  --wait:#9ba7bc; --wait-bg:#222a37;
+  --code-bg:#121821;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--font-body); font-size:16px; line-height:1.85}
+.page{
+  max-width:62rem; margin-inline:auto; padding-block:2.75rem 4.5rem;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  display:flex; flex-direction:column; gap:3.5rem;
+}
+a{color:var(--accent); text-underline-offset:.2em; text-decoration-thickness:1px}
+a:focus-visible,summary:focus-visible,.plot:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:2px}
+p{margin:0; max-width:42rem}
+.math{font-family:var(--font-math); font-size:1.08em; white-space:nowrap}
+.math i{font-style:italic}
+.nb{white-space:nowrap}
+.note{font-size:.86rem; color:var(--muted); line-height:1.75}
+
+/* ---- 巻頭 ---- */
+.mast{display:flex; flex-direction:column; gap:1.35rem}
+.mast-top{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem 1.5rem; padding-bottom:.8rem; border-bottom:2px solid var(--ink)}
+.kicker{font-family:var(--font-head); font-weight:600; font-size:.95rem; letter-spacing:.18em; max-width:none}
+.stamp{display:flex; flex-wrap:wrap; align-items:center; gap:.4rem .7rem; font-size:.84rem; color:var(--muted); max-width:none}
+.stamp time{color:var(--ink); font-variant-numeric:tabular-nums}
+h1{font-family:var(--font-head); font-weight:700; font-size:clamp(1.75rem, 5.4vw, 2.9rem); line-height:1.32; letter-spacing:.01em; margin:.35rem 0 0; text-wrap:balance}
+.lede{color:var(--muted); max-width:42rem}
+.claim{margin:0; display:grid; grid-template-columns:auto minmax(0,1fr); gap:.5rem 1.25rem; align-items:baseline; padding-block:1rem; border-block:1px solid var(--line)}
+.claim dt{font-family:var(--font-head); font-weight:600; font-size:.82rem; letter-spacing:.14em; color:var(--muted); white-space:nowrap}
+.claim dd{margin:0; min-width:0}
+.claim .math{font-size:clamp(1.15rem, 3.4vw, 1.55rem); white-space:normal; line-height:1.5}
+.claim code{font-size:clamp(.8rem, 2.5vw, 1rem); background:none; padding:0; overflow-wrap:anywhere}
+
+/* ---- 図: 臨界線上の Z(t) ---- */
+.zplot{margin:0; display:flex; flex-direction:column; gap:.75rem}
+.zframe{display:grid; grid-template-columns:1.7rem minmax(0,1fr); column-gap:.45rem; row-gap:.3rem}
+.yaxis,.xaxis{position:relative; font-family:var(--font-math); font-size:.8rem; color:var(--muted); font-variant-numeric:tabular-nums; line-height:1}
+.yaxis{grid-column:1; grid-row:1}
+.yaxis span{position:absolute; right:0; transform:translateY(-50%)}
+.xaxis{grid-column:2; grid-row:2; height:1.1rem}
+.xaxis span{position:absolute; top:.15rem; transform:translateX(-50%)}
+.xaxis .unit{left:auto; right:0; top:1.25rem; transform:none; font-style:italic}
+.plot{position:relative; grid-column:2; grid-row:1; height:clamp(150px, 25vw, 230px); touch-action:pan-y; cursor:crosshair}
+.plot svg{position:absolute; inset:0; width:100%; height:100%; display:block; overflow:visible}
+.plot .grid line{stroke:var(--hair); stroke-width:1; vector-effect:non-scaling-stroke}
+.plot .axis0{stroke:var(--line); stroke-width:1.5; vector-effect:non-scaling-stroke}
+.plot .curve{fill:none; stroke:var(--series); stroke-width:2; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke}
+.zero{position:absolute; top:50%; width:9px; height:9px; margin:-4.5px 0 0 -4.5px; border-radius:50%; background:var(--series); box-shadow:0 0 0 2px var(--paper)}
+.zero.on{box-shadow:0 0 0 2px var(--paper), 0 0 0 4px var(--series)}
+.zlabel{position:absolute; bottom:calc(50% + .5rem); transform:translateX(-100%); margin-left:.35rem; font-size:.78rem; color:var(--muted); line-height:1.3; white-space:nowrap; pointer-events:none}
+@media (max-width:46rem){ .zlabel .long{display:none} }
+.cross{position:absolute; top:0; bottom:0; width:1px; background:var(--muted); pointer-events:none}
+.tip{position:absolute; top:.3rem; background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:.35rem .6rem; font-size:.78rem; line-height:1.5; white-space:nowrap; pointer-events:none; box-shadow:0 2px 8px rgb(0 0 0 / .12)}
+.tip b{font-family:var(--font-math); font-size:1rem; font-weight:600; font-variant-numeric:tabular-nums}
+.tip span{color:var(--muted)}
+figcaption{font-size:.86rem; color:var(--muted); line-height:1.75; max-width:46rem}
+details.tableview{font-size:.86rem}
+details.tableview summary{cursor:pointer; color:var(--accent); width:fit-content}
+details.tableview .scroll{margin-top:.6rem; max-width:26rem}
+
+/* ---- 節 ---- */
+.sec{display:grid; grid-template-columns:4.25rem minmax(0,1fr); column-gap:1.5rem}
+.mark{font-family:var(--font-math); font-size:1.5rem; line-height:1.45; color:var(--accent); text-align:right; white-space:nowrap}
+.mark.jp{font-family:var(--font-head); font-weight:600; font-size:1rem; letter-spacing:.2em; line-height:2.2; margin-right:-.2em}
+.body{display:flex; flex-direction:column; gap:1.1rem; min-width:0}
+h2{font-family:var(--font-head); font-weight:700; font-size:1.5rem; line-height:1.45; margin:0; padding-bottom:.5rem; border-bottom:1px solid var(--line); text-wrap:balance}
+h3{font-size:1.04rem; line-height:1.55; margin:.7rem 0 0; font-weight:700; display:flex; flex-wrap:wrap; align-items:baseline; gap:.3rem .7rem}
+h3 .no{font-family:var(--font-math); font-weight:400; font-size:1.12rem; color:var(--accent)}
+ul.plain{margin:0; padding-left:1.3rem; max-width:42rem; display:flex; flex-direction:column; gap:.4rem}
+@media (max-width:46rem){
+  .page{gap:2.75rem}
+  .sec{grid-template-columns:minmax(0,1fr); row-gap:.1rem}
+  .mark{text-align:left; font-size:1.15rem}
+  .mark.jp{font-size:.9rem; line-height:1.8}
+}
+
+/* ---- 状態ピル ---- */
+.pill{display:inline-flex; align-items:center; gap:.35em; font-family:var(--font-body); font-size:.74rem; font-weight:700; letter-spacing:.05em; line-height:1; padding:.42em .65em; border-radius:3px; white-space:nowrap; vertical-align:.12em}
+.pill::before{content:""; width:.5em; height:.5em; border-radius:50%; background:currentColor; flex:none}
+.pill.ok{color:var(--ok); background:var(--ok-bg)}
+.pill.run{color:var(--run); background:var(--run-bg)}
+.pill.bad{color:var(--bad); background:var(--bad-bg)}
+.pill.wait{color:var(--wait); background:var(--wait-bg)}
+.pill.wait::before{background:none; box-shadow:inset 0 0 0 1.5px currentColor}
+.pill.run::before{animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.pill.run::before{animation:none}}
+
+/* ---- 要旨(判定パネル) ---- */
+.verdict{background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:1.5rem clamp(1rem, 3.5vw, 1.75rem); display:flex; flex-direction:column; gap:1.3rem}
+.verdict-head{display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .9rem}
+.verdict-head strong{font-family:var(--font-head); font-size:clamp(1.15rem, 3.6vw, 1.4rem); font-weight:700; line-height:1.45}
+.verdict p{max-width:44rem}
+.meter{display:flex; flex-direction:column; gap:.45rem}
+.meter-head{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:.2rem 1rem; font-size:.9rem}
+.meter-label{font-weight:700}
+.meter-val{color:var(--muted); font-variant-numeric:tabular-nums}
+.meter-val b{color:var(--ink); font-size:1.05rem}
+.track{height:8px; border-radius:4px; background:var(--track); overflow:hidden}
+.fill{height:100%; min-width:8px; border-radius:4px; background:var(--series)}
+.rail{list-style:none; margin:0; padding:0; position:relative; display:flex; flex-direction:column; gap:1.05rem}
+.rail::before{content:""; position:absolute; left:.44rem; top:.7rem; bottom:.7rem; width:2px; background:var(--line)}
+.rail li{position:relative; padding-left:1.9rem; display:flex; flex-direction:column; gap:.15rem}
+.rail .node{position:absolute; left:0; top:.42rem; width:1rem; height:1rem; border-radius:50%; background:var(--surface); box-shadow:inset 0 0 0 2px var(--line)}
+.rail li.ok .node{background:var(--series); box-shadow:none}
+.rail li.ok .node::after{content:""; position:absolute; left:.33rem; top:.18rem; width:.28rem; height:.5rem; border:solid var(--surface); border-width:0 2px 2px 0; transform:rotate(45deg)}
+.rail li.run .node{box-shadow:inset 0 0 0 2px var(--run)}
+.rail li.run .node::after{content:""; position:absolute; inset:.3rem; border-radius:50%; background:var(--run)}
+.rail li.bad .node{background:var(--bad); box-shadow:none}
+.rail .what{font-weight:700; display:flex; flex-wrap:wrap; align-items:center; gap:.3rem .7rem; line-height:1.6}
+.rail .detail{font-size:.88rem; color:var(--muted); line-height:1.7; max-width:44rem}
+
+/* ---- 数値タイル ---- */
+.figures{display:grid; grid-template-columns:repeat(auto-fit, minmax(11.5rem, 1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:6px; overflow:hidden; margin:0; padding:0; list-style:none}
+.figures li{background:var(--surface); padding:1rem 1.15rem 1.05rem; display:flex; flex-direction:column; gap:.2rem}
+.figures .v{font-size:1.7rem; font-weight:700; line-height:1.3; letter-spacing:-.01em}
+.figures .k{font-size:.82rem; color:var(--muted); line-height:1.55}
+
+/* ---- 表 ---- */
+.scroll{overflow-x:auto; border:1px solid var(--line); border-radius:6px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:.9rem; line-height:1.6}
+th,td{padding:.55rem .9rem; text-align:left; vertical-align:top; border-bottom:1px solid var(--line)}
+tr:last-child>td,tr:last-child>th{border-bottom:0}
+thead th{font-size:.76rem; letter-spacing:.06em; color:var(--muted); font-weight:700; white-space:nowrap; background:var(--paper)}
+td.n,th.n{text-align:right; font-family:var(--font-mono); font-size:.86em; font-variant-numeric:tabular-nums; white-space:nowrap}
+tbody th{font-weight:600; white-space:nowrap}
+tfoot td,tfoot th{font-weight:700; border-top:2px solid var(--line); border-bottom:0}
+table.kv th{width:10.5rem; color:var(--muted); font-weight:600; white-space:normal}
+table.wrapname tbody th{white-space:normal; overflow-wrap:anywhere; width:34%}
+table.names tbody th{width:40%}
+
+/* ---- コード・ハッシュ ---- */
+code,pre{font-family:var(--font-mono); font-size:.86em}
+code{background:var(--code-bg); padding:.1em .35em; border-radius:3px}
+code.hash{word-break:break-all; background:none; padding:0; font-size:.78rem}
+.lean{margin:0; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:var(--code-bg)}
+.lean figcaption{display:flex; flex-wrap:wrap; justify-content:space-between; gap:.2rem 1rem; max-width:none; padding:.45rem .9rem; border-bottom:1px solid var(--line); background:var(--surface); font-family:var(--font-mono); font-size:.76rem; color:var(--muted)}
+.lean figcaption b{color:var(--ink); font-weight:600}
+.lean pre{margin:0; padding:.95rem 1rem; overflow-x:auto; line-height:1.7; font-size:.8rem; tab-size:2}
+.lean pre code{background:none; padding:0; font-size:inherit}
+.lean .kw{color:var(--accent); font-weight:600}
+.lean .nm{font-weight:600}
+.lean .ty{color:var(--muted)}
+pre.shell{margin:0; background:var(--code-bg); border:1px solid var(--line); border-radius:6px; padding:1rem 1.1rem; overflow-x:auto; line-height:1.7; font-size:.8rem}
+pre.shell code{background:none; padding:0; font-size:inherit}
+pre.shell .cm{color:var(--muted)}
+
+/* ---- 取得の連鎖 ---- */
+.chain{list-style:none; margin:0; padding:0; display:flex; flex-direction:column}
+.chain li{position:relative; padding:0 0 1.2rem 1.9rem}
+.chain li::before{content:""; position:absolute; left:.25rem; top:.62rem; width:.6rem; height:.6rem; border-radius:50%; background:var(--series)}
+.chain li::after{content:""; position:absolute; left:.5rem; top:1.35rem; bottom:-.5rem; width:2px; background:var(--line)}
+.chain li:last-child{padding-bottom:0}
+.chain li:last-child::after{display:none}
+.chain .t{font-weight:700}
+.chain .d{font-size:.88rem; color:var(--muted); line-height:1.7}
+
+/* ---- 注意(論文の Remark 環境) ---- */
+.remark{border-block:1px solid var(--line); padding-block:.95rem; max-width:44rem}
+.remark p{max-width:none}
+.remark-label{font-family:var(--font-head); font-weight:700; margin-right:.75em; letter-spacing:.1em}
+
+footer{border-top:1px solid var(--line); padding-top:1.5rem; font-size:.85rem; color:var(--muted); display:flex; flex-direction:column; gap:.4rem}
+footer p{max-width:46rem}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="mast">
+  <div class="mast-top">
+    <p class="kicker">独立検証レポート</p>
+    <p class="stamp"><span class="pill run" id="phase-pill">検証中</span><span>最終更新 <time id="updated">2026-11-21 11:27 JST</time></span></p>
+  </div>
+  <h1>リーマン予想 Lean 証明の独立検証</h1>
+  <p class="lede">2026 年 11 月 20 日付で <a href="https://alpo.ge/remark.pdf">alpo.ge/remark.pdf</a> に公開された文書と、そこから配布されている Lean 4 の形式証明を、原本を保全したうえで手元の計算機で再コンパイルし、検査している記録です。</p>
+  <dl class="claim">
+    <dt>予想</dt>
+    <dd><span class="math"><span class="nb">ζ(<i>s</i>) = 0,</span>&ensp;<span class="nb"><i>s</i> ∉ {−2, −4, −6, …}</span>&ensp;<span class="nb">⟹&ensp;Re <i>s</i> = ½</span></span></dd>
+    <dt>Lean</dt>
+    <dd><code>theorem riemannHypothesis : RiemannHypothesis</code></dd>
+  </dl>
+  <figure class="zplot">
+    <div class="zframe">
+      <div class="yaxis" aria-hidden="true"><span style="top:0%">4</span><span style="top:25%">2</span><span style="top:50%">0</span><span style="top:75%">−2</span><span style="top:100%">−4</span></div>
+      <div class="plot" id="zplot" tabindex="0" role="group" aria-label="臨界線上のリーマンゼータ関数 Z(t) のグラフ。左右の矢印キーで零点を順に表示します。">
+        <svg viewBox="0 0 600 80" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <g class="grid">
+            <line x1="0" y1="0" x2="600" y2="0"/><line x1="0" y1="20" x2="600" y2="20"/><line x1="0" y1="60" x2="600" y2="60"/><line x1="0" y1="80" x2="600" y2="80"/>
+            <line x1="100" y1="0" x2="100" y2="80"/><line x1="200" y1="0" x2="200" y2="80"/><line x1="300" y1="0" x2="300" y2="80"/><line x1="400" y1="0" x2="400" y2="80"/><line x1="500" y1="0" x2="500" y2="80"/>
+          </g>
+          <line class="axis0" x1="0" y1="40" x2="600" y2="40"/>
+          <path class="curve" d="M0,54.6L0.5,54.54L1,54.34L1.5,54.03L2,53.63L2.5,53.16L3,52.66L3.5,52.15L4,51.63L4.5,51.13L5,50.65L5.5,50.2L6,49.78L6.5,49.38L7,49.02L7.5,48.68L8,48.37L8.5,48.09L9,47.82L9.5,47.58L10,47.36L10.5,47.16L11,46.98L11.5,46.81L12,46.65L12.5,46.51L13,46.38L13.5,46.26L14,46.15L14.5,46.05L15,45.96L15.5,45.87L16,45.8L16.5,45.73L17,45.66L17.5,45.61L18,45.55L18.5,45.51L19,45.47L19.5,45.43L20,45.4L20.5,45.37L21,45.34L21.5,45.32L22,45.3L22.5,45.29L23,45.28L23.5,45.27L24,45.27L24.5,45.26L25,45.26L25.5,45.27L26,45.27L26.5,45.28L27,45.29L27.5,45.3L28,45.31L28.5,45.33L29,45.34L29.5,45.36L30,45.38L30.5,45.41L31,45.43L31.5,45.46L32,45.49L32.5,45.52L33,45.55L33.5,45.58L34,45.62L34.5,45.65L35,45.69L35.5,45.73L36,45.77L36.5,45.81L37,45.85L37.5,45.9L38,45.94L38.5,45.99L39,46.04L39.5,46.09L40,46.14L40.5,46.19L41,46.24L41.5,46.3L42,46.35L42.5,46.41L43,46.47L43.5,46.52L44,46.58L44.5,46.64L45,46.71L45.5,46.77L46,46.84L46.5,46.9L47,46.97L47.5,47.03L48,47.1L48.5,47.17L49,47.24L49.5,47.32L50,47.39L50.5,47.46L51,47.54L51.5,47.61L52,47.69L52.5,47.77L53,47.85L53.5,47.93L54,48.01L54.5,48.09L55,48.17L55.5,48.25L56,48.34L56.5,48.42L57,48.51L57.5,48.59L58,48.68L58.5,48.77L59,48.86L59.5,48.95L60,49.04L60.5,49.13L61,49.22L61.5,49.31L62,49.41L62.5,49.5L63,49.59L63.5,49.69L64,49.78L64.5,49.88L65,49.97L65.5,50.07L66,50.17L66.5,50.27L67,50.36L67.5,50.46L68,50.56L68.5,50.66L69,50.76L69.5,50.86L70,50.96L70.5,51.05L71,51.16L71.5,51.25L72,51.36L72.5,51.45L73,51.55L73.5,51.66L74,51.75L74.5,51.85L75,51.95L75.5,52.05L76,52.15L76.5,52.25L77,52.35L77.5,52.45L78,52.54L78.5,52.64L79,52.74L79.5,52.83L80,52.93L80.5,53.02L81,53.12L81.5,53.21L82,53.3L82.5,53.39L83,53.48L83.5,53.57L84,53.66L84.5,53.74L85,53.83L85.5,53.91L86,54L86.5,54.08L87,54.16L87.5,54.24L88,54.31L88.5,54.39L89,54.46L89.5,54.53L90,54.6L90.5,54.67L91,54.74L91.5,54.8L92,54.86L92.5,54.92L93,54.98L93.5,55.03L94,55.08L94.5,55.13L95,55.18L95.5,55.23L96,55.27L96.5,55.31L97,55.34L97.5,55.38L98,55.4L98.5,55.43L99,55.45L99.5,55.48L100,55.49L100.5,55.5L101,55.52L101.5,55.52L102,55.52L102.5,55.52L103,55.52L103.5,55.51L104,55.5L104.5,55.48L105,55.46L105.5,55.44L106,55.41L106.5,55.37L107,55.34L107.5,55.29L108,55.24L108.5,55.19L109,55.14L109.5,55.08L110,55.01L110.5,54.94L111,54.86L111.5,54.78L112,54.7L112.5,54.61L113,54.51L113.5,54.41L114,54.3L114.5,54.19L115,54.08L115.5,53.95L116,53.83L116.5,53.69L117,53.55L117.5,53.41L118,53.26L118.5,53.1L119,52.94L119.5,52.77L120,52.6L120.5,52.42L121,52.23L121.5,52.04L122,51.85L122.5,51.65L123,51.44L123.5,51.22L124,51L124.5,50.78L125,50.55L125.5,50.31L126,50.07L126.5,49.82L127,49.56L127.5,49.3L128,49.03L128.5,48.76L129,48.48L129.5,48.2L130,47.91L130.5,47.62L131,47.32L131.5,47.01L132,46.7L132.5,46.38L133,46.06L133.5,45.73L134,45.4L134.5,45.07L135,44.72L135.5,44.38L136,44.03L136.5,43.67L137,43.31L137.5,42.94L138,42.58L138.5,42.2L139,41.82L139.5,41.44L140,41.06L140.5,40.67L141,40.27L141.5,39.88L142,39.48L142.5,39.08L143,38.67L143.5,38.26L144,37.85L144.5,37.44L145,37.03L145.5,36.61L146,36.19L146.5,35.77L147,35.35L147.5,34.93L148,34.5L148.5,34.08L149,33.65L149.5,33.23L150,32.8L150.5,32.38L151,31.95L151.5,31.52L152,31.1L152.5,30.68L153,30.26L153.5,29.84L154,29.42L154.5,29L155,28.59L155.5,28.18L156,27.77L156.5,27.36L157,26.96L157.5,26.56L158,26.17L158.5,25.78L159,25.39L159.5,25.01L160,24.63L160.5,24.26L161,23.9L161.5,23.54L162,23.18L162.5,22.84L163,22.5L163.5,22.16L164,21.84L164.5,21.52L165,21.21L165.5,20.9L166,20.61L166.5,20.32L167,20.04L167.5,19.77L168,19.51L168.5,19.26L169,19.02L169.5,18.79L170,18.57L170.5,18.36L171,18.16L171.5,17.98L172,17.8L172.5,17.63L173,17.48L173.5,17.34L174,17.21L174.5,17.09L175,16.98L175.5,16.89L176,16.81L176.5,16.74L177,16.68L177.5,16.64L178,16.61L178.5,16.6L179,16.59L179.5,16.61L180,16.63L180.5,16.67L181,16.72L181.5,16.79L182,16.87L182.5,16.96L183,17.07L183.5,17.2L184,17.33L184.5,17.48L185,17.65L185.5,17.83L186,18.02L186.5,18.23L187,18.45L187.5,18.68L188,18.93L188.5,19.19L189,19.46L189.5,19.75L190,20.05L190.5,20.37L191,20.7L191.5,21.04L192,21.39L192.5,21.75L193,22.13L193.5,22.52L194,22.92L194.5,23.33L195,23.75L195.5,24.19L196,24.63L196.5,25.09L197,25.55L197.5,26.02L198,26.51L198.5,27L199,27.5L199.5,28.01L200,28.52L200.5,29.05L201,29.57L201.5,30.11L202,30.65L202.5,31.2L203,31.75L203.5,32.31L204,32.87L204.5,33.44L205,34.01L205.5,34.58L206,35.15L206.5,35.73L207,36.3L207.5,36.88L208,37.45L208.5,38.03L209,38.6L209.5,39.18L210,39.75L210.5,40.32L211,40.88L211.5,41.44L212,42L212.5,42.55L213,43.1L213.5,43.64L214,44.17L214.5,44.7L215,45.21L215.5,45.72L216,46.22L216.5,46.72L217,47.2L217.5,47.67L218,48.12L218.5,48.57L219,49.01L219.5,49.43L220,49.84L220.5,50.23L221,50.62L221.5,50.98L222,51.33L222.5,51.67L223,51.99L223.5,52.29L224,52.58L224.5,52.84L225,53.09L225.5,53.33L226,53.54L226.5,53.73L227,53.91L227.5,54.07L228,54.2L228.5,54.32L229,54.42L229.5,54.49L230,54.55L230.5,54.58L231,54.59L231.5,54.58L232,54.55L232.5,54.5L233,54.43L233.5,54.33L234,54.22L234.5,54.08L235,53.92L235.5,53.74L236,53.53L236.5,53.31L237,53.06L237.5,52.8L238,52.51L238.5,52.2L239,51.87L239.5,51.52L240,51.15L240.5,50.76L241,50.35L241.5,49.92L242,49.48L242.5,49.01L243,48.52L243.5,48.02L244,47.5L244.5,46.97L245,46.42L245.5,45.85L246,45.27L246.5,44.67L247,44.06L247.5,43.44L248,42.8L248.5,42.16L249,41.5L249.5,40.83L250,40.15L250.5,39.46L251,38.76L251.5,38.06L252,37.35L252.5,36.63L253,35.91L253.5,35.18L254,34.45L254.5,33.72L255,32.99L255.5,32.25L256,31.52L256.5,30.78L257,30.05L257.5,29.32L258,28.59L258.5,27.87L259,27.15L259.5,26.44L260,25.74L260.5,25.04L261,24.35L261.5,23.68L262,23.01L262.5,22.35L263,21.71L263.5,21.08L264,20.46L264.5,19.86L265,19.27L265.5,18.7L266,18.15L266.5,17.61L267,17.09L267.5,16.59L268,16.12L268.5,15.66L269,15.22L269.5,14.81L270,14.41L270.5,14.05L271,13.7L271.5,13.38L272,13.08L272.5,12.81L273,12.56L273.5,12.34L274,12.14L274.5,11.97L275,11.83L275.5,11.71L276,11.63L276.5,11.57L277,11.53L277.5,11.53L278,11.55L278.5,11.6L279,11.67L279.5,11.78L280,11.91L280.5,12.07L281,12.26L281.5,12.47L282,12.71L282.5,12.98L283,13.27L283.5,13.59L284,13.93L284.5,14.3L285,14.69L285.5,15.11L286,15.55L286.5,16.01L287,16.5L287.5,17L288,17.53L288.5,18.08L289,18.65L289.5,19.23L290,19.83L290.5,20.45L291,21.09L291.5,21.73L292,22.4L292.5,23.08L293,23.76L293.5,24.46L294,25.17L294.5,25.89L295,26.61L295.5,27.35L296,28.08L296.5,28.83L297,29.57L297.5,30.32L298,31.06L298.5,31.81L299,32.56L299.5,33.3L300,34.04L300.5,34.77L301,35.5L301.5,36.22L302,36.94L302.5,37.64L303,38.33L303.5,39.01L304,39.67L304.5,40.33L305,40.96L305.5,41.58L306,42.19L306.5,42.77L307,43.33L307.5,43.88L308,44.4L308.5,44.9L309,45.38L309.5,45.83L310,46.26L310.5,46.66L311,47.03L311.5,47.38L312,47.7L312.5,47.99L313,48.26L313.5,48.49L314,48.69L314.5,48.86L315,49L315.5,49.12L316,49.19L316.5,49.24L317,49.25L317.5,49.24L318,49.19L318.5,49.11L319,48.99L319.5,48.85L320,48.67L320.5,48.46L321,48.22L321.5,47.94L322,47.64L322.5,47.31L323,46.94L323.5,46.55L324,46.13L324.5,45.68L325,45.2L325.5,44.69L326,44.16L326.5,43.61L327,43.03L327.5,42.42L328,41.8L328.5,41.15L329,40.48L329.5,39.79L330,39.09L330.5,38.37L331,37.63L331.5,36.88L332,36.11L332.5,35.33L333,34.54L333.5,33.75L334,32.94L334.5,32.13L335,31.31L335.5,30.5L336,29.67L336.5,28.85L337,28.03L337.5,27.21L338,26.4L338.5,25.59L339,24.79L339.5,23.99L340,23.21L340.5,22.44L341,21.68L341.5,20.93L342,20.2L342.5,19.49L343,18.8L343.5,18.13L344,17.47L344.5,16.84L345,16.24L345.5,15.66L346,15.1L346.5,14.57L347,14.08L347.5,13.61L348,13.17L348.5,12.76L349,12.39L349.5,12.04L350,11.74L350.5,11.46L351,11.23L351.5,11.02L352,10.86L352.5,10.73L353,10.64L353.5,10.59L354,10.58L354.5,10.6L355,10.66L355.5,10.77L356,10.91L356.5,11.09L357,11.31L357.5,11.56L358,11.86L358.5,12.19L359,12.56L359.5,12.96L360,13.41L360.5,13.89L361,14.4L361.5,14.95L362,15.53L362.5,16.14L363,16.79L363.5,17.46L364,18.17L364.5,18.9L365,19.66L365.5,20.45L366,21.26L366.5,22.09L367,22.95L367.5,23.82L368,24.72L368.5,25.63L369,26.56L369.5,27.5L370,28.46L370.5,29.42L371,30.4L371.5,31.38L372,32.37L372.5,33.36L373,34.36L373.5,35.35L374,36.34L374.5,37.33L375,38.32L375.5,39.3L376,40.27L376.5,41.23L377,42.18L377.5,43.11L378,44.03L378.5,44.93L379,45.82L379.5,46.68L380,47.52L380.5,48.34L381,49.13L381.5,49.9L382,50.64L382.5,51.36L383,52.04L383.5,52.69L384,53.3L384.5,53.89L385,54.44L385.5,54.95L386,55.43L386.5,55.87L387,56.28L387.5,56.64L388,56.97L388.5,57.25L389,57.5L389.5,57.7L390,57.87L390.5,57.99L391,58.08L391.5,58.12L392,58.12L392.5,58.09L393,58.01L393.5,57.89L394,57.74L394.5,57.54L395,57.31L395.5,57.04L396,56.73L396.5,56.39L397,56.01L397.5,55.6L398,55.16L398.5,54.69L399,54.18L399.5,53.65L400,53.09L400.5,52.5L401,51.89L401.5,51.26L402,50.61L402.5,49.94L403,49.24L403.5,48.54L404,47.82L404.5,47.09L405,46.34L405.5,45.59L406,44.84L406.5,44.08L407,43.31L407.5,42.55L408,41.79L408.5,41.03L409,40.28L409.5,39.53L410,38.8L410.5,38.08L411,37.37L411.5,36.68L412,36L412.5,35.34L413,34.71L413.5,34.1L414,33.51L414.5,32.95L415,32.42L415.5,31.92L416,31.45L416.5,31.01L417,30.61L417.5,30.24L418,29.91L418.5,29.62L419,29.36L419.5,29.15L420,28.98L420.5,28.84L421,28.76L421.5,28.71L422,28.71L422.5,28.75L423,28.84L423.5,28.97L424,29.15L424.5,29.37L425,29.63L425.5,29.94L426,30.3L426.5,30.7L427,31.14L427.5,31.62L428,32.15L428.5,32.72L429,33.33L429.5,33.97L430,34.66L430.5,35.38L431,36.14L431.5,36.94L432,37.76L432.5,38.62L433,39.51L433.5,40.42L434,41.37L434.5,42.33L435,43.32L435.5,44.33L436,45.36L436.5,46.4L437,47.46L437.5,48.53L438,49.61L438.5,50.7L439,51.79L439.5,52.89L440,53.98L440.5,55.08L441,56.17L441.5,57.26L442,58.33L442.5,59.4L443,60.45L443.5,61.49L444,62.51L444.5,63.5L445,64.48L445.5,65.43L446,66.36L446.5,67.25L447,68.12L447.5,68.95L448,69.75L448.5,70.51L449,71.23L449.5,71.92L450,72.56L450.5,73.16L451,73.72L451.5,74.23L452,74.7L452.5,75.11L453,75.48L453.5,75.8L454,76.07L454.5,76.29L455,76.46L455.5,76.57L456,76.63L456.5,76.65L457,76.61L457.5,76.51L458,76.37L458.5,76.17L459,75.93L459.5,75.63L460,75.28L460.5,74.89L461,74.44L461.5,73.95L462,73.42L462.5,72.84L463,72.21L463.5,71.55L464,70.84L464.5,70.1L465,69.32L465.5,68.5L466,67.65L466.5,66.77L467,65.87L467.5,64.93L468,63.97L468.5,62.99L469,61.99L469.5,60.98L470,59.95L470.5,58.9L471,57.85L471.5,56.79L472,55.72L472.5,54.65L473,53.59L473.5,52.52L474,51.46L474.5,50.41L475,49.37L475.5,48.35L476,47.33L476.5,46.34L477,45.37L477.5,44.42L478,43.49L478.5,42.59L479,41.72L479.5,40.89L480,40.08L480.5,39.31L481,38.58L481.5,37.88L482,37.23L482.5,36.62L483,36.05L483.5,35.52L484,35.04L484.5,34.61L485,34.22L485.5,33.88L486,33.59L486.5,33.34L487,33.15L487.5,33.01L488,32.91L488.5,32.87L489,32.88L489.5,32.93L490,33.03L490.5,33.18L491,33.38L491.5,33.62L492,33.91L492.5,34.24L493,34.62L493.5,35.04L494,35.49L494.5,35.99L495,36.52L495.5,37.09L496,37.69L496.5,38.32L497,38.98L497.5,39.66L498,40.37L498.5,41.11L499,41.86L499.5,42.62L500,43.41L500.5,44.2L501,45L501.5,45.81L502,46.63L502.5,47.44L503,48.25L503.5,49.06L504,49.86L504.5,50.65L505,51.43L505.5,52.19L506,52.94L506.5,53.66L507,54.36L507.5,55.03L508,55.68L508.5,56.3L509,56.88L509.5,57.43L510,57.94L510.5,58.41L511,58.84L511.5,59.23L512,59.57L512.5,59.87L513,60.11L513.5,60.31L514,60.46L514.5,60.56L515,60.61L515.5,60.6L516,60.54L516.5,60.43L517,60.26L517.5,60.03L518,59.76L518.5,59.42L519,59.04L519.5,58.6L520,58.1L520.5,57.56L521,56.96L521.5,56.31L522,55.62L522.5,54.87L523,54.08L523.5,53.25L524,52.37L524.5,51.45L525,50.49L525.5,49.49L526,48.46L526.5,47.4L527,46.31L527.5,45.19L528,44.04L528.5,42.88L529,41.69L529.5,40.49L530,39.28L530.5,38.05L531,36.82L531.5,35.59L532,34.35L532.5,33.11L533,31.88L533.5,30.66L534,29.45L534.5,28.26L535,27.08L535.5,25.93L536,24.79L536.5,23.69L537,22.61L537.5,21.56L538,20.55L538.5,19.58L539,18.65L539.5,17.76L540,16.92L540.5,16.12L541,15.38L541.5,14.68L542,14.04L542.5,13.45L543,12.92L543.5,12.45L544,12.04L544.5,11.69L545,11.4L545.5,11.17L546,11L546.5,10.9L547,10.87L547.5,10.89L548,10.98L548.5,11.13L549,11.35L549.5,11.63L550,11.97L550.5,12.37L551,12.83L551.5,13.35L552,13.92L552.5,14.56L553,15.24L553.5,15.98L554,16.77L554.5,17.6L555,18.48L555.5,19.4L556,20.37L556.5,21.37L557,22.41L557.5,23.47L558,24.57L558.5,25.7L559,26.85L559.5,28.02L560,29.2L560.5,30.4L561,31.61L561.5,32.83L562,34.05L562.5,35.27L563,36.48L563.5,37.7L564,38.9L564.5,40.09L565,41.26L565.5,42.42L566,43.55L566.5,44.66L567,45.74L567.5,46.79L568,47.81L568.5,48.79L569,49.73L569.5,50.63L570,51.49L570.5,52.31L571,53.07L571.5,53.79L572,54.46L572.5,55.07L573,55.63L573.5,56.14L574,56.59L574.5,56.99L575,57.33L575.5,57.61L576,57.83L576.5,58L577,58.11L577.5,58.16L578,58.15L578.5,58.09L579,57.97L579.5,57.8L580,57.58L580.5,57.31L581,56.98L581.5,56.61L582,56.19L582.5,55.73L583,55.23L583.5,54.68L584,54.1L584.5,53.48L585,52.84L585.5,52.16L586,51.46L586.5,50.73L587,49.99L587.5,49.22L588,48.45L588.5,47.66L589,46.87L589.5,46.07L590,45.27L590.5,44.48L591,43.69L591.5,42.91L592,42.15L592.5,41.4L593,40.67L593.5,39.96L594,39.28L594.5,38.63L595,38.01L595.5,37.42L596,36.87L596.5,36.37L597,35.9L597.5,35.48L598,35.11L598.5,34.78L599,34.51L599.5,34.3L600,34.13"/>
+        </svg>
+        <span class="zero" style="left:23.558%"></span>
+        <span class="zero" style="left:35.037%"></span>
+        <span class="zero" style="left:41.685%"></span>
+        <span class="zero" style="left:50.708%"></span>
+        <span class="zero" style="left:54.892%"></span>
+        <span class="zero" style="left:62.644%"></span>
+        <span class="zero" style="left:68.198%"></span>
+        <span class="zero" style="left:72.212%"></span>
+        <span class="zero" style="left:80.009%"></span>
+        <span class="zero" style="left:82.956%"></span>
+        <span class="zero" style="left:88.284%"></span>
+        <span class="zero" style="left:94.077%"></span>
+        <span class="zero" style="left:98.912%"></span>
+        <span class="zlabel" style="left:23.558%"><span class="long">最初の零点 </span><span class="math"><i>t</i> ≈ 14.13</span></span>
+        <span class="cross" id="zcross" hidden></span>
+        <div class="tip" id="ztip" role="status" hidden></div>
+      </div>
+      <div class="xaxis" aria-hidden="true"><span style="left:0%">0</span><span style="left:16.667%">10</span><span style="left:33.333%">20</span><span style="left:50%">30</span><span style="left:66.667%">40</span><span style="left:83.333%">50</span><span style="left:100%">60</span><span class="unit">t</span></div>
+    </div>
+    <figcaption>臨界線 <span class="math">Re <i>s</i> = ½</span> の上でのリーマン ζ 関数。横軸は <span class="math"><i>s</i> = ½ + <i>it</i></span> の <span class="math"><i>t</i></span>、縦軸は Hardy の Z 関数 <span class="math"><i>Z</i>(<i>t</i>)</span> で、絶対値は <span class="math">|ζ(½ + <i>it</i>)|</span> に等しくなります。曲線が横軸を横切る点が非自明な零点で、<span class="math"><i>t</i> ≤ 60</span> の範囲に 13 個あります。リーマン予想は、非自明な零点がすべてこの直線上にあるという主張です。図の値は本リポジトリのスクリプトで計算し、零点は既知の値と小数 6 桁まで照合しました。</figcaption>
+    <details class="tableview">
+      <summary>零点の一覧を表で見る</summary>
+      <div class="scroll"><table>
+        <thead><tr><th class="n">番号</th><th class="n">零点の虚部 t</th></tr></thead>
+        <tbody>
+          <tr><td class="n">1</td><td class="n">14.134725</td></tr>
+          <tr><td class="n">2</td><td class="n">21.022040</td></tr>
+          <tr><td class="n">3</td><td class="n">25.010858</td></tr>
+          <tr><td class="n">4</td><td class="n">30.424876</td></tr>
+          <tr><td class="n">5</td><td class="n">32.935062</td></tr>
+          <tr><td class="n">6</td><td class="n">37.586178</td></tr>
+          <tr><td class="n">7</td><td class="n">40.918719</td></tr>
+          <tr><td class="n">8</td><td class="n">43.327073</td></tr>
+          <tr><td class="n">9</td><td class="n">48.005151</td></tr>
+          <tr><td class="n">10</td><td class="n">49.773832</td></tr>
+          <tr><td class="n">11</td><td class="n">52.970321</td></tr>
+          <tr><td class="n">12</td><td class="n">56.446248</td></tr>
+          <tr><td class="n">13</td><td class="n">59.347044</td></tr>
+        </tbody>
+      </table></div>
+    </details>
+  </figure>
+</header>
+
+<section class="sec" id="summary" aria-labelledby="h-summary">
+  <div class="mark jp" aria-hidden="true">要旨</div>
+  <div class="body">
+    <h2 id="h-summary">現時点の結論</h2>
+    <div class="verdict">
+      <div class="verdict-head">
+        <span class="pill run">進行中</span>
+        <strong>証明の正否は、まだ判定できません</strong>
+      </div>
+      <p>配布物の取得・保全と、コンパイル前に行える検査はすべて終わり、いずれも問題は見つかっていません。ただし決定的な検査である「全 175,187 ファイルのコンパイル」「主定理が依存する公理の確認」「カーネルによる再検査」「別実装のカーネルによる照合」はこれからです。これらが終わるまで、この証明が正しいとも誤りとも言えません。</p>
+      <div class="meter" role="group" aria-label="全体ビルドの進捗">
+        <div class="meter-head">
+          <span class="meter-label">全体ビルドの進捗</span>
+          <span class="meter-val"><b id="m-done">10,002</b> / 175,187 モジュール(<span id="m-pct">5.7</span>%)</span>
+        </div>
+        <div class="track"><div class="fill" id="m-fill" style="width:5.7%"></div></div>
+        <p class="note" id="m-note">2026-11-21 11:27 JST 時点。エラー 0 件。</p>
+      </div>
+      <ol class="rail">
+        <li class="ok"><span class="node" aria-hidden="true"></span>
+          <span class="what">原本の取得と保全 <span class="pill ok">完了</span></span>
+          <span class="detail">PDF 1 個と Lean 配布物 14 分割を取得し、応答ヘッダ・取得時刻・SHA-256 とともに保存。</span></li>
+        <li class="ok"><span class="node" aria-hidden="true"></span>
+          <span class="what">配布物の完全性 <span class="pill ok">完了</span></span>
+          <span class="detail">14 分割を連結すると正常な gzip。中身は通常ファイルのみ 175,190 個で、危険なパスやリンクは無し。</span></li>
+        <li class="ok"><span class="node" aria-hidden="true"></span>
+          <span class="what">依存ライブラリの真正性 <span class="pill ok">完了</span></span>
+          <span class="detail">固定された Mathlib のコミットは公式リポジトリのタグ <code>v4.33.1</code> そのもの。他の依存も Mathlib 自身の固定版と一致。</span></li>
+        <li class="ok"><span class="node" aria-hidden="true"></span>
+          <span class="what">ソースの静的スキャン <span class="pill ok">0 件</span></span>
+          <span class="detail"><code>sorry</code>・<code>axiom</code>・<code>native_decide</code>・<code>unsafe</code>・カーネル検査のスキップ指定などは、全ソース中に 1 件も無し。</span></li>
+        <li class="ok"><span class="node" aria-hidden="true"></span>
+          <span class="what">import グラフ <span class="pill ok">完了</span></span>
+          <span class="detail">存在しないモジュールへの import は 0、循環は 0。全 175,187 モジュールが <code>Main</code> から到達可能。</span></li>
+        <li class="run"><span class="node" aria-hidden="true"></span>
+          <span class="what">全モジュールのコンパイル <span class="pill run">進行中</span></span>
+          <span class="detail">2026-11-21 10:42 JST 開始。毎秒 3〜4 モジュールで進行中。完走まで半日程度の見込み。</span></li>
+        <li class="wait"><span class="node" aria-hidden="true"></span>
+          <span class="what">主定理が依存する公理 <span class="pill wait">未実施</span></span>
+          <span class="detail">ビルド完了後に <code>#print axioms</code> で確認。</span></li>
+        <li class="wait"><span class="node" aria-hidden="true"></span>
+          <span class="what">主張の一致確認 <span class="pill wait">未実施</span></span>
+          <span class="detail">検証者が Mathlib だけで書いた命題と、主定理の型が一致するかをカーネルに判定させる。</span></li>
+        <li class="wait"><span class="node" aria-hidden="true"></span>
+          <span class="what">カーネルによる再検査 <span class="pill wait">未実施</span></span>
+          <span class="detail">ツールチェーン同梱の <code>leanchecker</code> で全モジュールの宣言をカーネルに再生させる。</span></li>
+        <li class="wait"><span class="node" aria-hidden="true"></span>
+          <span class="what">別実装のカーネルによる照合 <span class="pill wait">未実施</span></span>
+          <span class="detail">主定理の依存一式を書き出し、Rust 製の別実装カーネル <code>nanoda</code> で検査する。道具は準備済みで、小さな対象では動作を確認。</span></li>
+        <li class="wait"><span class="node" aria-hidden="true"></span>
+          <span class="what">ビルド後のソース不変確認 <span class="pill wait">未実施</span></span>
+          <span class="detail">ビルドに使った全ファイルが原本と 1 バイトも違わないことを再照合する。</span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="target" aria-labelledby="h-target">
+  <div class="mark" aria-hidden="true">§1</div>
+  <div class="body">
+    <h2 id="h-target">検証対象</h2>
+    <p>起点は 4 ページの PDF です。本文は、著者が Claude と共同でリーマン予想の証明を発見し、さらに一般化リーマン予想まで解決したと述べ、議論を「仮定なしに」形式化したとしています。人間が読める証明文書は公開されておらず、提示されているのは Lean のコードだけです。コードの所在は脚注 1 に 14 個の URL として書かれています。</p>
+    <div class="scroll">
+    <table class="kv">
+      <tbody>
+        <tr><th>起点の文書</th><td><a href="https://alpo.ge/remark.pdf">https://alpo.ge/remark.pdf</a>(4 ページ、作成日時 2026-11-20 21:52:48 JST)</td></tr>
+        <tr><th>Lean コード</th><td><code>https://alpo.ge/lean.tar.gz.part01</code> 〜 <code>part14</code>(連結すると 1 個の tar.gz)</td></tr>
+        <tr><th>文書の主張</th><td>リーマン予想と、Dirichlet L 関数に対する一般化リーマン予想の証明。Lean による形式化は完了済み。</td></tr>
+        <tr><th>著者表記</th><td>PDF 本文にもメタデータにも著者名は書かれていません。配布元は個人ドメイン <code>alpo.ge</code> です。</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="note">この検証は「配布された Lean コードが、Lean の検査を本当に通るか」「通ったとして、それは本当にリーマン予想の主張か」を確かめるものです。証明の数学的な中身を人間が読んで理解・査読する作業は含みません。</p>
+  </div>
+</section>
+
+<section class="sec" id="evidence" aria-labelledby="h-evidence">
+  <div class="mark" aria-hidden="true">§2</div>
+  <div class="body">
+    <h2 id="h-evidence">原本の保全</h2>
+    <p>取得したファイルはバイト列のままリポジトリの <a href="https://github.com/yawara/riemann-hypothesis/tree/main/evidence"><code>evidence/</code></a> に保存し、以後いっさい書き換えていません。サーバの応答ヘッダと取得時刻も併せて残しています。</p>
+    <ol class="chain">
+      <li><div class="t">remark.pdf</div>
+        <div class="d">245,114 バイト。取得 2026-11-21 10:24:45 JST。<br>SHA-256 <code class="hash">3fc97784b71ddd44ff8aa0a177e99622a1c61b13cfa843a0989ee4a7a0cfeb8d</code></div></li>
+      <li><div class="t">lean.tar.gz.part01 〜 part14</div>
+        <div class="d">part01〜13 は各 18,000,000 バイト、part14 は 5,275,554 バイト。取得 2026-11-21 10:25:45〜10:25:50 JST。各分割の SHA-256 は <code>SHA256SUMS</code> に記録。</div></li>
+      <li><div class="t">連結した lean.tar.gz</div>
+        <div class="d">239,275,554 バイト。<code>gzip -t</code> 正常。展開後の tar は 1,270,753,280 バイト。<br>SHA-256 <code class="hash">9631b4f020199e580ba86178cb56c6e9b09f690c2369a80dc4334aa93f49c7fc</code></div></li>
+      <li><div class="t">展開した Lean プロジェクト(lean/)</div>
+        <div class="d">175,190 ファイル。全ファイルの SHA-256 一覧を保存し、ビルドに使うツリーが原本と一致することをスクリプトで照合できます。</div></li>
+    </ol>
+    <p>tarball の中身は通常ファイルだけで、シンボリックリンクや絶対パス、<code>..</code> を含むパスはありません。所有者・時刻は正規化されています(0/0、1970-01-01)。展開ツリーは原本から完全に再構成できるため、git には原本(14 分割)だけを入れ、展開ツリーは入れていません。</p>
+  </div>
+</section>
+
+<section class="sec" id="scale" aria-labelledby="h-scale">
+  <div class="mark" aria-hidden="true">§3</div>
+  <div class="body">
+    <h2 id="h-scale">Lean コードの規模</h2>
+    <ul class="figures">
+      <li><span class="v">175,187</span><span class="k">Lean ファイル(<code>.lean</code>)の数</span></li>
+      <li><span class="v">17,374,215</span><span class="k">行数(改行の数)</span></li>
+      <li><span class="v">1.03 GB</span><span class="k">ソースの合計 1,030,531,854 バイト</span></li>
+      <li><span class="v">約 81.9 万</span><span class="k"><code>theorem</code> / <code>lemma</code> の宣言行(行頭一致で 818,755)</span></li>
+    </ul>
+    <p>Lean ファイル以外に入っているのは、ビルド設定の 3 ファイル(<code>lakefile.toml</code>、<code>lake-manifest.json</code>、<code>lean-toolchain</code>)だけです。参考までに、数学ライブラリ Mathlib 本体(v4.33.1)は 8,311 ファイル・2,293,877 行・約 97 MB です。この配布物はファイル数でその約 21 倍、行数で約 7.6 倍、バイト数で約 10.6 倍にあたります。</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>ディレクトリ(<code>lean/src/</code> 直下)</th><th class="n">ファイル数</th><th class="n">行数</th><th class="n">バイト数</th><th class="n">ファイル数の割合</th></tr></thead>
+      <tbody>
+        <tr><th>Development</th><td class="n">141,928</td><td class="n">12,232,663</td><td class="n">767,288,236</td><td class="n">81.0%</td></tr>
+        <tr><th>Formalism</th><td class="n">18,254</td><td class="n">3,200,748</td><td class="n">164,903,481</td><td class="n">10.4%</td></tr>
+        <tr><th>GroundTheory</th><td class="n">8,507</td><td class="n">1,119,138</td><td class="n">54,564,791</td><td class="n">4.9%</td></tr>
+        <tr><th>ReciprocityTheory</th><td class="n">3,845</td><td class="n">563,016</td><td class="n">28,914,051</td><td class="n">2.2%</td></tr>
+        <tr><th>CompanionTheory</th><td class="n">2,027</td><td class="n">194,218</td><td class="n">11,296,366</td><td class="n">1.2%</td></tr>
+        <tr><th>PositivityTheory</th><td class="n">449</td><td class="n">55,130</td><td class="n">3,109,326</td><td class="n">0.3%</td></tr>
+        <tr><th>Lemmata</th><td class="n">167</td><td class="n">9,232</td><td class="n">452,342</td><td class="n">0.1%</td></tr>
+        <tr><th>BuildAid</th><td class="n">5</td><td class="n">20</td><td class="n">850</td><td class="n">0.0%</td></tr>
+        <tr><th>Supplements</th><td class="n">3</td><td class="n">22</td><td class="n">1,195</td><td class="n">0.0%</td></tr>
+        <tr><th>(直下)Main.lean, Statements.lean</th><td class="n">2</td><td class="n">28</td><td class="n">1,216</td><td class="n">0.0%</td></tr>
+      </tbody>
+      <tfoot><tr><th>合計</th><td class="n">175,187</td><td class="n">17,374,215</td><td class="n">1,030,531,854</td><td class="n">100%</td></tr></tfoot>
+    </table>
+    </div>
+    <h3>依存関係の形</h3>
+    <p>各ファイル冒頭の <code>import</code> 行を読んで依存グラフを作ると、プロジェクト内の import は 753,261 本、最長の連鎖は 203 段でした。<strong>175,187 モジュールのすべてが <code>Main</code> の推移的な import に含まれます。</strong>つまり主定理を検査するには、1 ファイルも飛ばさずに全部をコンパイルする必要があります。</p>
+    <div class="scroll">
+    <table class="kv">
+      <tbody>
+        <tr><th>Lean</th><td><code>leanprover/lean4:v4.33.1</code>(配布物の <code>lean-toolchain</code> の指定どおり)</td></tr>
+        <tr><th>ビルドツール</th><td>Lake 5.0.0-src+819816b(ツールチェーン同梱)</td></tr>
+        <tr><th>Mathlib</th><td>コミット <code>0df444a360ea…</code>。公式リポジトリのタグ <code>v4.33.1</code>(2026-08-21)と一致</td></tr>
+        <tr><th>外部への import</th><td><code>Mathlib</code>(136,003 ファイルが全体を import)、<code>Batteries</code>、<code>Lean</code> のみ</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="statements" aria-labelledby="h-statements">
+  <div class="mark" aria-hidden="true">§4</div>
+  <div class="body">
+    <h2 id="h-statements">主定理として何が主張されているか</h2>
+    <p>最終的な主張は、配布物の <code>Main.lean</code> にある 5 つの定理です。そのうち 4 つの命題は <code>Statements.lean</code> で定義されています。この <code>Statements.lean</code> は <code>import Mathlib</code> だけを行うファイルで、プロジェクト側の定義を一切使っていません。</p>
+    <figure class="lean">
+      <figcaption><b>lean/src/Main.lean</b><span>配布物のまま・全文</span></figcaption>
+      <pre><code><span class="kw">import</span> Statements
+<span class="kw">import</span> Supplements.Kernels.MainTheoremsAll
+
+<span class="kw">theorem</span> <span class="nm">riemannHypothesis</span> : RiemannHypothesis := rhOfAll
+
+<span class="kw">theorem</span> <span class="nm">riemannZeta_eq_zero_re</span> : RiemannZetaZerosOnLine := rhOfAll
+
+<span class="kw">theorem</span> <span class="nm">LFunction_ne_zero_of_half_lt_re</span> : DirichletLNonvanishingRightOfHalf := allChi
+
+<span class="kw">theorem</span> <span class="nm">LFunction_eq_zero_re</span> : DirichletLZerosOnLine := claimAll.2.1
+
+<span class="kw">theorem</span> <span class="nm">LFunction_eq_zero_re_of_isPrimitive</span> : PrimitiveDirichletLZerosOnLine := critAll</code></pre>
+    </figure>
+    <figure class="lean">
+      <figcaption><b>lean/src/Statements.lean</b><span>配布物のまま・全文</span></figcaption>
+      <pre><code><span class="kw">import</span> Mathlib
+
+<span class="kw">def</span> <span class="nm">RiemannZetaZerosOnLine</span> : <span class="ty">Prop</span> :=
+  ∀ s : ℂ, riemannZeta s = 0 → (¬∃ n : ℕ, s = -2 * ((n : ℂ) + 1)) → s ≠ 1 → s.re = 1 / 2
+
+<span class="kw">def</span> <span class="nm">DirichletLNonvanishingRightOfHalf</span> : <span class="ty">Prop</span> :=
+  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N) (s : ℂ),
+    1 / 2 &lt; s.re → (χ ≠ 1 ∨ s ≠ 1) → DirichletCharacter.LFunction χ s ≠ 0
+
+<span class="kw">def</span> <span class="nm">DirichletLZerosOnLine</span> : <span class="ty">Prop</span> :=
+  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N) (s : ℂ),
+    0 &lt; s.re → s.re &lt; 1 → DirichletCharacter.LFunction χ s = 0 → s.re = 1 / 2
+
+<span class="kw">def</span> <span class="nm">PrimitiveDirichletLZerosOnLine</span> : <span class="ty">Prop</span> :=
+  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N), χ.IsPrimitive →
+    ∀ s : ℂ, 0 &lt; s.re → s.re &lt; 1 → DirichletCharacter.LFunction χ s = 0 → s.re = 1 / 2</code></pre>
+    </figure>
+    <div class="scroll">
+    <table class="wrapname names">
+      <thead><tr><th>定理名</th><th>主張の内容</th></tr></thead>
+      <tbody>
+        <tr><th><code>riemannHypothesis</code></th><td>Mathlib が定義する <code>RiemannHypothesis</code> そのもの。ζ(s) = 0 で、s が自明な零点(−2, −4, …)でも 1 でもなければ Re s = 1/2。</td></tr>
+        <tr><th><code>riemannZeta_eq_zero_re</code></th><td>同じ主張を、Mathlib の定義名を使わずに書き下したもの。</td></tr>
+        <tr><th><code>LFunction_ne_zero_of_half_lt_re</code></th><td>一般化リーマン予想(半平面形)。任意の法 N の Dirichlet 指標 χ について、Re s &gt; 1/2 なら L(s, χ) ≠ 0。</td></tr>
+        <tr><th><code>LFunction_eq_zero_re</code></th><td>一般化リーマン予想(臨界帯形)。0 &lt; Re s &lt; 1 にある L(s, χ) の零点は Re s = 1/2 上にある。</td></tr>
+        <tr><th><code>LFunction_eq_zero_re_of_isPrimitive</code></th><td>上と同じ主張を原始指標に限ったもの。</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>主張の書き方そのものは、Mathlib の既存の定義(<code>riemannZeta</code>、<code>DirichletCharacter.LFunction</code>)に対する標準的な定式化です。主定理の直前の数ファイル(関数等式で左半分を右半分に移す議論など)は目で読み、Mathlib の定理を使った通常の議論であることを確認しました。膨大な本体部分は読んでおらず、そこは Lean のカーネルによる検査に委ねます。</p>
+  </div>
+</section>
+
+<section class="sec" id="checks" aria-labelledby="h-checks">
+  <div class="mark" aria-hidden="true">§5</div>
+  <div class="body">
+    <h2 id="h-checks">検査の内容と結果</h2>
+
+    <h3><span class="no">5.1</span>ソースの静的スキャン <span class="pill ok">0 件</span></h3>
+    <p>Lean を動かす前に、全ソース(1.03 GB)を文字列検索しました。「証明済み」に見せかける抜け道になりうる記述と、ビルド時に任意のコードを実行しうる記述を数えています。</p>
+    <div class="scroll">
+    <table class="wrapname">
+      <thead><tr><th>検索対象</th><th class="n">ファイル数</th><th class="n">一致行数</th><th>意味</th></tr></thead>
+      <tbody>
+        <tr><th><code>sorry</code>(大文字小文字無視・部分一致)</th><td class="n">0</td><td class="n">0</td><td>証明の穴埋め</td></tr>
+        <tr><th><code>admit</code></th><td class="n">0</td><td class="n">0</td><td>同上</td></tr>
+        <tr><th><code>axiom</code></th><td class="n">0</td><td class="n">0</td><td>独自公理の追加</td></tr>
+        <tr><th><code>native_decide</code> / <code>ofReduceBool</code> / <code>trustCompiler</code></th><td class="n">0</td><td class="n">0</td><td>コンパイラを信頼する証明</td></tr>
+        <tr><th><code>unsafe</code> / <code>implemented_by</code> / <code>extern</code> / <code>opaque</code></th><td class="n">0</td><td class="n">0</td><td>カーネル外の実装への差し替え</td></tr>
+        <tr><th><code>debug.skipKernelTC</code> ほか <code>set_option debug.*</code></th><td class="n">0</td><td class="n">0</td><td>カーネル検査のスキップ</td></tr>
+        <tr><th><code>#guard_msgs</code> / <code>#eval</code> / <code>initialize</code></th><td class="n">0</td><td class="n">0</td><td>エラーの握りつぶし、ビルド時のコード実行</td></tr>
+        <tr><th><code>syntax</code> / 大域の <code>notation</code></th><td class="n">0</td><td class="n">0</td><td>識別子や記法のすり替え(<code>local</code> / <code>scoped</code> な記法は 1,791 件あり、いずれもファイル内・名前空間内に限定)</td></tr>
+        <tr><th><code>addDecl</code></th><td class="n">1</td><td class="n">2</td><td>宣言を別名で複製するコマンド。通常のカーネル検査を通る経路を使用(下記)</td></tr>
+        <tr><th><code>run_cmd</code> / <code>modifyEnv</code></th><td class="n">5</td><td class="n">5</td><td><code>BuildAid/D1〜D5.lean</code>。補題検索の除外リストに名前を足すだけ</td></tr>
+        <tr><th><code>elab</code></th><td class="n">3</td><td class="n">4</td><td>証明補助のタクティク定義(下記)</td></tr>
+        <tr><th><code>macro</code></th><td class="n">64</td><td class="n">87</td><td>タクティクの略記。全件が <code>tactic</code> か局所的な項マクロ</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>メタプログラムを含むファイルは人間が読んで確認しました。<code>CutCptCopy.lean</code> は既存の定義・定理を、名前を付け替えて <code>addDecl</code> で登録し直すコマンドを定義しています。<code>addDecl</code> は通常どおりカーネル検査を経由するので、これ自体は健全性を損ないません。<code>OwnStruct.lean</code> と <code>HeckeNonvanishing/Imports.lean</code> は、項を組み立ててゴールに割り当てるタクティク(<code>kcopy</code>、<code>kexactB</code>)で、最終的な型の一致はカーネルが判定します。いずれも、後述のカーネル再検査の対象です。</p>
+    <p class="note">静的スキャンは補助的な検査です。文字列検索をすり抜ける細工の可能性は残るため、最終判断はカーネルによる検査で行います。全項目の結果は <a href="https://github.com/yawara/riemann-hypothesis/tree/main/verification/static-scan"><code>verification/static-scan/</code></a> にあります。</p>
+
+    <h3><span class="no">5.2</span>依存ライブラリの真正性 <span class="pill ok">完了</span></h3>
+    <p>配布物が固定している Mathlib のコミット <code>0df444a360eaa60ab8c11dca51a86af692955474</code> は、公式リポジトリ <code>leanprover-community/mathlib4</code> のタグ <code>v4.33.1</code> と一致しました。<code>master</code> ブランチとの差は <code>lean-toolchain</code> の 1 行だけです。Batteries や Aesop など他の 8 つの依存も、Mathlib 自身が固定している版と完全に一致します。改変された Mathlib を掴まされている、という可能性はありません。</p>
+
+    <h3><span class="no">5.3</span>全モジュールのコンパイル <span class="pill run">進行中</span></h3>
+    <p>配布物の <code>lakefile.toml</code>・<code>lake-manifest.json</code>・<code>lean-toolchain</code> をそのまま使い、ソースに一切手を加えずに <code>lake build</code> を実行しています。Mathlib は公式のビルド済みキャッシュを取得して利用しました。</p>
+    <div class="scroll">
+    <table class="kv">
+      <tbody>
+        <tr><th>開始</th><td>2026-11-21 10:42:23 JST</td></tr>
+        <tr><th>進捗</th><td>冒頭の「全体ビルドの進捗」を参照(自動集計)</td></tr>
+        <tr><th>エラー</th><td>2026-11-21 11:27 JST 時点で 0 件(リンタの警告のみ)</td></tr>
+        <tr><th>並列度</th><td>Lean プロセス約 90 並列、ロードアベレージ約 150</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="remark">
+      <p><span class="remark-label">注意</span>ビルド手順に加えた工夫が 1 つあります。Lake 5 はモジュールごとに、推移的に import する全成果物のパスを列挙した <code>setup.json</code> を書き出します。<code>import Mathlib</code> だけで約 6 MB あり、このプロジェクト全体では合計 1.4 TB を超える見積もりになって検証機のディスクに収まりません。そこで、ビルド済みモジュールの <code>setup.json</code> を随時削除するスクリプトを並走させています。このファイルは Lean 起動時の入力にすぎず、削除しても再ビルドが起きないこと(成果物として追跡されていないこと)を事前に小さな例で確認しました。ソース・設定・コンパイラには触れていません。</p>
+    </div>
+
+    <h3><span class="no">5.4</span>主定理が依存する公理 <span class="pill wait">未実施</span></h3>
+    <p>ビルド完了後、5 つの主定理それぞれについて <code>#print axioms</code> を実行します。Lean 4 と Mathlib の標準は <code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code> の 3 つです。これ以外(<code>sorryAx</code> や独自公理)が現れた場合、その定理は無条件に証明されたとは言えません。</p>
+
+    <h3><span class="no">5.5</span>主張の一致確認 <span class="pill wait">未実施</span></h3>
+    <p>検証者が Mathlib だけを import して書いた命題(<a href="https://github.com/yawara/riemann-hypothesis/blob/main/verification/lean-checks/RHReference.lean"><code>RHReference.lean</code></a>)を、配布物の主定理でそのまま証明できるかをカーネルに判定させます。あわせて、主定理の型に現れる定数を定義の中身まで推移的に辿り、主張がプロジェクト側の定義に依存していないことを機械的に確認します。</p>
+
+    <h3><span class="no">5.6</span>カーネルによる再検査 <span class="pill wait">未実施</span></h3>
+    <p>ツールチェーン同梱の <code>leanchecker</code> で、全モジュールの宣言をカーネルに再生させます。エラボレータやメタプログラムを経由しない検査なので、カーネルを迂回して環境に宣言を押し込む細工があれば検出できます。公式キャッシュから取得した Mathlib 側のモジュールも同じ方法で再検査します。</p>
+
+    <h3><span class="no">5.7</span>別実装のカーネルによる照合 <span class="pill wait">未実施</span></h3>
+    <p>ここまでの検査はすべて Lean 本体のカーネル(C++ 実装)に依存します。カーネル自体の不具合を突かれている可能性を減らすため、主定理 5 件が推移的に依存する定義・定理・公理をすべて <code>lean4export</code> で書き出し、Rust で書かれた別実装の型検査器 <code>nanoda</code> に検査させます。許可する公理は標準の 3 つだけです。</p>
+    <p class="note">準備として、主張の定義 <code>RiemannZetaZerosOnLine</code>(Mathlib のみに依存)の依存一式を書き出して検査し、53,240 宣言がエラーなく通ることを確認しました。使用した版は lean4export <code>v4.33.0</code>、nanoda_lib <code>0da9f98</code>(v0.4.32)です。</p>
+
+    <h3><span class="no">5.8</span>ビルド後のソース不変確認 <span class="pill wait">未実施</span></h3>
+    <p>ビルドに使った 175,190 ファイルが原本と 1 バイトも違わないことを、保存してある SHA-256 一覧と再照合します(ビルド開始前の照合は一致済み)。</p>
+  </div>
+</section>
+
+<section class="sec" id="hardware" aria-labelledby="h-hardware">
+  <div class="mark" aria-hidden="true">§6</div>
+  <div class="body">
+    <h2 id="h-hardware">検証に使った計算機</h2>
+    <p>検証は 1 台の計算機で行っています。Lean のコンパイルとカーネル検査は CPU とメモリだけを使う処理で、GPU は関与しません。</p>
+    <div class="scroll">
+    <table class="kv">
+      <tbody>
+        <tr><th>CPU</th><td>AMD EPYC 7742(64 コア / 128 スレッド、1 ソケット、x86_64、最大 3.41 GHz)</td></tr>
+        <tr><th>キャッシュ</th><td>L1d 2 MiB / L1i 2 MiB / L2 32 MiB / L3 256 MiB、NUMA 4 ノード</td></tr>
+        <tr><th>メモリ</th><td>528,177,132 kB(約 503 GiB)、スワップ 8 GiB</td></tr>
+        <tr><th>マザーボード</th><td>TYAN S8030GM4NE-2T(BIOS V2.00、2021-03-11)</td></tr>
+        <tr><th>ストレージ</th><td>NVMe SSD Seagate FireCuda 510 2 TB(XFS)。ソースは <code>/home</code>、ビルド生成物は <code>/</code> 側に配置</td></tr>
+        <tr><th>OS</th><td>Ubuntu 24.04.4 LTS、Linux 7.0.0-28-generic</td></tr>
+        <tr><th>ツール</th><td>elan 4.2.3、Lean 4.33.1、Lake 5.0.0、git 2.43.0、curl 8.5.0、GNU tar 1.35、ripgrep 13.0.0、Python 3.12.3</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="note">採取した生の情報は <a href="https://github.com/yawara/riemann-hypothesis/blob/main/verification/hardware.txt"><code>verification/hardware.txt</code></a> にあります。</p>
+  </div>
+</section>
+
+<section class="sec" id="limits" aria-labelledby="h-limits">
+  <div class="mark" aria-hidden="true">§7</div>
+  <div class="body">
+    <h2 id="h-limits">この検証で言えること、言えないこと</h2>
+    <h3>すべての検査が通った場合に言えること</h3>
+    <p>配布された Lean ソースが、指定どおりの Lean 4.33.1 と Mathlib v4.33.1 のもとでエラーなくコンパイルでき、主定理が標準の 3 公理だけに依存している、ということです。Lean のカーネルが正しく、Mathlib の <code>riemannZeta</code> などの定義が意図どおりである限り、これは Mathlib の <code>RiemannHypothesis</code> が証明されたことを意味します。</p>
+    <h3>言えないこと</h3>
+    <ul class="plain">
+      <li>証明の数学的な筋道が正しく理解できるか、既知の障害をどう越えているかは、この検証の対象外です。1,700 万行を人間が読んだわけではありません。</li>
+      <li>Lean のカーネル実装そのものの正しさは前提としています。別実装のカーネル(nanoda)による照合は準備済みですが、この時点ではまだ行っていません。</li>
+      <li>Mathlib 本体は公式のビルド済みキャッシュを使っています。ソースから再ビルドしてキャッシュと突き合わせる照合は、全検査の最後に予定しています。</li>
+      <li>検証は 1 台の計算機、1 回の実行によるものです。</li>
+      <li>配布元と著者については、PDF とサーバ応答から分かる範囲しか確認していません。</li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec" id="reproduce" aria-labelledby="h-reproduce">
+  <div class="mark" aria-hidden="true">§8</div>
+  <div class="body">
+    <h2 id="h-reproduce">再現手順</h2>
+    <p>リポジトリには原本と、ここまでの全手順を再実行するスクリプトが入っています。<code>elan</code>、<code>zstd</code>、<code>ripgrep</code>、Python 3 が必要です。ビルド生成物の置き場所として数百 GB の空きを用意してください。</p>
+    <pre class="shell"><code>git clone https://github.com/yawara/riemann-hypothesis.git
+cd riemann-hypothesis
+
+scripts/reconstruct.sh                 <span class="cm"># 原本 14 分割から lean/ を再構成し、全ファイルのハッシュを照合</span>
+scripts/static_scan.sh                 <span class="cm"># 静的スキャン</span>
+python3 -I scripts/import_graph.py lean/src verification/import-graph
+
+(cd lean &amp;&amp; lake exe cache get)        <span class="cm"># Lean 4.33.1 と Mathlib v4.33.1(ビルド済みキャッシュ)を取得</span>
+scripts/build.sh                       <span class="cm"># 全体ビルド(setup.json の削除スクリプトを並走)</span>
+scripts/run_checks.sh                  <span class="cm"># 公理の一覧、主張の一致確認、主張の依存解析</span>
+scripts/run_leanchecker.sh             <span class="cm"># 全モジュールのカーネル再検査</span>
+scripts/setup_external_checkers.sh     <span class="cm"># lean4export / nanoda / lean4lean を用意</span>
+scripts/run_nanoda.sh                  <span class="cm"># 主定理の依存一式を別実装カーネル nanoda で検査</span>
+scripts/reconstruct.sh --verify        <span class="cm"># ビルド後もソースが原本と一致することを確認</span></code></pre>
+  </div>
+</section>
+
+<footer>
+  <p>このページは検証の進行に合わせて更新します。数値とハッシュは、リポジトリに保存したログと証拠ファイルから転記したものです。冒頭の進捗は検証機が自動で集計した値で、合否の判定は含みません。</p>
+  <p>リポジトリ <a href="https://github.com/yawara/riemann-hypothesis">yawara/riemann-hypothesis</a></p>
+</footer>
+
+</div>
+
+<script type="application/json" id="zdata">{"tMax":60.0,"step":0.1,"z":[-1.46,-1.434,-1.363,-1.266,-1.163,-1.065,-0.978,-0.902,-0.837,-0.782,-0.736,-0.698,-0.665,-0.638,-0.615,-0.596,-0.58,-0.566,-0.555,-0.547,-0.54,-0.534,-0.53,-0.528,-0.527,-0.526,-0.527,-0.529,-0.531,-0.534,-0.538,-0.543,-0.549,-0.555,-0.562,-0.569,-0.577,-0.585,-0.594,-0.604,-0.614,-0.624,-0.635,-0.646,-0.658,-0.671,-0.683,-0.697,-0.71,-0.724,-0.739,-0.754,-0.769,-0.785,-0.801,-0.817,-0.834,-0.851,-0.868,-0.886,-0.904,-0.922,-0.941,-0.959,-0.978,-0.997,-1.017,-1.036,-1.056,-1.076,-1.096,-1.115,-1.135,-1.155,-1.175,-1.195,-1.215,-1.235,-1.254,-1.274,-1.293,-1.312,-1.33,-1.348,-1.366,-1.383,-1.4,-1.416,-1.431,-1.446,-1.46,-1.474,-1.486,-1.498,-1.508,-1.518,-1.527,-1.534,-1.54,-1.546,-1.549,-1.552,-1.552,-1.552,-1.55,-1.546,-1.541,-1.534,-1.524,-1.514,-1.501,-1.486,-1.47,-1.451,-1.43,-1.407,-1.383,-1.355,-1.326,-1.294,-1.26,-1.224,-1.185,-1.144,-1.1,-1.055,-1.007,-0.956,-0.903,-0.848,-0.791,-0.732,-0.67,-0.606,-0.54,-0.472,-0.403,-0.331,-0.258,-0.182,-0.106,-0.028,0.052,0.133,0.215,0.297,0.381,0.465,0.55,0.635,0.72,0.805,0.89,0.974,1.058,1.141,1.223,1.304,1.383,1.461,1.536,1.61,1.681,1.75,1.816,1.879,1.939,1.996,2.049,2.098,2.143,2.184,2.22,2.252,2.279,2.302,2.319,2.332,2.339,2.341,2.337,2.328,2.313,2.293,2.267,2.235,2.198,2.155,2.107,2.054,1.995,1.93,1.861,1.787,1.708,1.625,1.537,1.445,1.349,1.25,1.148,1.042,0.935,0.825,0.713,0.599,0.485,0.37,0.255,0.14,0.025,-0.088,-0.2,-0.31,-0.417,-0.521,-0.622,-0.72,-0.812,-0.901,-0.984,-1.062,-1.133,-1.199,-1.258,-1.309,-1.354,-1.391,-1.42,-1.442,-1.455,-1.459,-1.455,-1.443,-1.422,-1.392,-1.353,-1.306,-1.251,-1.187,-1.115,-1.035,-0.948,-0.853,-0.75,-0.642,-0.527,-0.406,-0.28,-0.15,-0.015,0.124,0.265,0.409,0.555,0.701,0.848,0.995,1.141,1.285,1.426,1.565,1.699,1.829,1.954,2.073,2.185,2.291,2.388,2.478,2.558,2.63,2.692,2.744,2.786,2.817,2.837,2.847,2.845,2.833,2.809,2.774,2.729,2.673,2.607,2.531,2.445,2.35,2.247,2.135,2.017,1.891,1.76,1.624,1.483,1.339,1.192,1.043,0.894,0.744,0.596,0.45,0.306,0.167,0.033,-0.096,-0.218,-0.333,-0.44,-0.538,-0.626,-0.703,-0.77,-0.826,-0.869,-0.9,-0.919,-0.925,-0.919,-0.899,-0.867,-0.822,-0.764,-0.694,-0.613,-0.52,-0.416,-0.303,-0.18,-0.048,0.091,0.237,0.389,0.546,0.706,0.869,1.033,1.197,1.36,1.521,1.679,1.832,1.98,2.12,2.253,2.376,2.49,2.592,2.683,2.761,2.826,2.877,2.914,2.936,2.942,2.933,2.909,2.869,2.814,2.744,2.659,2.56,2.447,2.321,2.183,2.034,1.874,1.705,1.528,1.344,1.154,0.96,0.763,0.565,0.366,0.168,-0.027,-0.218,-0.403,-0.582,-0.752,-0.913,-1.064,-1.204,-1.331,-1.444,-1.543,-1.628,-1.697,-1.75,-1.787,-1.808,-1.812,-1.801,-1.774,-1.731,-1.673,-1.601,-1.516,-1.418,-1.309,-1.189,-1.061,-0.924,-0.782,-0.634,-0.484,-0.331,-0.179,-0.028,0.12,0.263,0.4,0.529,0.649,0.758,0.855,0.939,1.009,1.064,1.103,1.124,1.129,1.116,1.085,1.037,0.97,0.886,0.785,0.667,0.534,0.386,0.224,0.049,-0.137,-0.332,-0.536,-0.746,-0.961,-1.179,-1.399,-1.617,-1.833,-2.045,-2.251,-2.448,-2.636,-2.812,-2.975,-3.123,-3.256,-3.372,-3.47,-3.548,-3.607,-3.646,-3.663,-3.661,-3.637,-3.593,-3.528,-3.444,-3.342,-3.221,-3.084,-2.932,-2.765,-2.587,-2.397,-2.199,-1.995,-1.785,-1.572,-1.359,-1.146,-0.937,-0.733,-0.537,-0.349,-0.172,-0.008,0.142,0.277,0.395,0.496,0.578,0.641,0.685,0.709,0.713,0.697,0.662,0.609,0.538,0.451,0.348,0.231,0.102,-0.037,-0.186,-0.341,-0.5,-0.663,-0.825,-0.986,-1.143,-1.294,-1.436,-1.568,-1.688,-1.794,-1.884,-1.957,-2.011,-2.046,-2.061,-2.054,-2.026,-1.976,-1.904,-1.81,-1.696,-1.562,-1.408,-1.237,-1.049,-0.846,-0.631,-0.404,-0.169,0.072,0.318,0.565,0.811,1.055,1.292,1.521,1.739,1.944,2.135,2.308,2.462,2.596,2.708,2.796,2.86,2.9,2.913,2.902,2.865,2.803,2.717,2.608,2.476,2.324,2.152,1.963,1.759,1.543,1.315,1.08,0.839,0.596,0.352,0.11,-0.126,-0.355,-0.574,-0.781,-0.973,-1.149,-1.307,-1.446,-1.563,-1.659,-1.732,-1.783,-1.81,-1.815,-1.797,-1.758,-1.698,-1.619,-1.523,-1.41,-1.284,-1.146,-0.999,-0.845,-0.687,-0.527,-0.369,-0.214,-0.067,0.072,0.199,0.313,0.41,0.489,0.549,0.587],"zeros":[14.134725,21.02204,25.010858,30.424876,32.935062,37.586178,40.918719,43.327073,48.005151,49.773832,52.970321,56.446248,59.347044]}</script>
+<script>
+(function(){
+  // ---- 図: 十字線とツールチップ(マウス・タッチ・矢印キー) ----
+  var data = JSON.parse(document.getElementById('zdata').textContent);
+  var plot = document.getElementById('zplot'), cross = document.getElementById('zcross'), tip = document.getElementById('ztip');
+  var dots = plot.querySelectorAll('.zero'), T = data.tMax, cur = -1;
+  function zAt(t){ var x = t / data.step, i = Math.min(Math.floor(x), data.z.length - 2), f = x - i; return data.z[i] * (1 - f) + data.z[i + 1] * f; }
+  function show(t, k){
+    var w = plot.clientWidth, x = t / T * w;
+    cross.style.left = x + 'px'; cross.hidden = false;
+    tip.textContent = '';
+    var b = document.createElement('b'), s = document.createElement('span');
+    if (k >= 0){ b.textContent = 't = ' + data.zeros[k].toFixed(6); s.textContent = '第 ' + (k + 1) + ' 零点  Z(t) = 0'; }
+    else { b.textContent = 'Z(t) = ' + zAt(t).toFixed(3).replace('-', '−'); s.textContent = 't = ' + t.toFixed(2); }
+    tip.appendChild(b); tip.appendChild(document.createElement('br')); tip.appendChild(s);
+    tip.hidden = false;
+    var tw = tip.offsetWidth, left = Math.max(0, Math.min(w - tw, x + 10 + tw > w ? x - 10 - tw : x + 10));
+    tip.style.left = left + 'px';
+    for (var i = 0; i < dots.length; i++) dots[i].classList.toggle('on', i === k);
+    cur = k;
+  }
+  function hide(){ cross.hidden = true; tip.hidden = true; for (var i = 0; i < dots.length; i++) dots[i].classList.remove('on'); }
+  function fromPointer(e){
+    var r = plot.getBoundingClientRect(), x = Math.max(0, Math.min(r.width, e.clientX - r.left)), t = x / r.width * T, k = -1, best = 10;
+    for (var i = 0; i < data.zeros.length; i++){ var d = Math.abs(data.zeros[i] / T * r.width - x); if (d < best){ best = d; k = i; } }
+    show(k >= 0 ? data.zeros[k] : t, k);
+  }
+  plot.addEventListener('pointermove', fromPointer);
+  plot.addEventListener('pointerdown', fromPointer);
+  plot.addEventListener('pointerleave', function(){ if (document.activeElement !== plot) hide(); });
+  plot.addEventListener('blur', hide);
+  plot.addEventListener('keydown', function(e){
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    var n = data.zeros.length, k = e.key === 'ArrowRight' ? (cur + 1) % n : (cur <= 0 ? n - 1 : cur - 1);
+    show(data.zeros[k], k);
+  });
+
+  // ---- 進捗: 検証機が自動集計した status.json があれば反映する ----
+  function fmt(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function jst(iso){ var d = new Date(new Date(iso).getTime() + 9 * 3600 * 1000), p = function(v){ return String(v).padStart(2, '0'); };
+    return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate()) + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ' JST'; }
+  if (location.protocol.indexOf('http') === 0 && window.fetch){
+    fetch('status.json?ts=' + Date.now(), {cache: 'no-store'}).then(function(r){ return r.ok ? r.json() : null; }).then(function(s){
+      if (!s || !s.modules_total) return;
+      var pct = Math.min(100, s.modules_done / s.modules_total * 100);
+      document.getElementById('m-done').textContent = fmt(s.modules_done);
+      document.getElementById('m-pct').textContent = pct.toFixed(1);
+      document.getElementById('m-fill').style.width = pct.toFixed(2) + '%';
+      if (s.note_ja && s.updated_at_utc) document.getElementById('m-note').textContent = jst(s.updated_at_utc) + ' 時点の自動集計。' + s.note_ja;
+    }).catch(function(){});
+  }
+})();
+</script>
+</body>
+</html>
