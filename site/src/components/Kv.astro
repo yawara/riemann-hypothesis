@@ -1,0 +1,22 @@
+---
+// 「項目名: 値」の表。値は信頼できる固定の HTML(リンクやインラインの <code> を含む)。
+import Table from './Table.astro';
+
+interface Props {
+  rows: [string, string][];
+}
+const { rows } = Astro.props;
+---
+
+<Table>
+  <tbody>
+    {
+      rows.map(([k, v]) => (
+        <tr>
+          <th class="w-36 align-top font-semibold whitespace-normal text-base-content/70 sm:w-44">{k}</th>
+          <td class="leading-relaxed" set:html={v} />
+        </tr>
+      ))
+    }
+  </tbody>
+</Table>

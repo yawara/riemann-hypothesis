@@ -1,0 +1,15 @@
+---
+// 表(daisyUI の table)。幅が足りないときは表だけが横スクロールする。
+interface Props {
+  class?: string;
+}
+const { class: className } = Astro.props;
+---
+
+<div
+  class="not-prose my-6 overflow-x-auto rounded-box border border-base-300 bg-base-100 [&_code]:rounded [&_code]:bg-base-200 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.86em]"
+>
+  <table class:list={['table', className]}>
+    <slot />
+  </table>
+</div>

@@ -1,0 +1,22 @@
+---
+// 検査の状態を示すバッジ(daisyUI の badge + status)。色だけに頼らず必ず文字のラベルを伴う。
+interface Props {
+  state: 'ok' | 'run' | 'wait' | 'bad';
+  label: string;
+  size?: 'sm' | 'md';
+}
+const { state, label, size = 'sm' } = Astro.props;
+const badge = { ok: 'badge-success', run: 'badge-warning', wait: 'badge-neutral', bad: 'badge-error' }[state];
+const dot = { ok: 'status-success', run: 'status-warning', wait: 'status-neutral', bad: 'status-error' }[state];
+---
+
+<span
+  class:list={[
+    'badge badge-soft font-sans font-bold tracking-wide whitespace-nowrap',
+    badge,
+    size === 'sm' ? 'badge-sm' : 'badge-md',
+  ]}
+>
+  <span class:list={['status status-sm', dot, state === 'run' && 'animate-pulse motion-reduce:animate-none']} aria-hidden="true"
+  ></span>{label}
+</span>

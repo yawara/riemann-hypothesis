@@ -7,3 +7,6 @@
 # Python キャッシュなど
 __pycache__/
 *.pyc
+
+# 表示確認用の一時ファイル
+.ff-tmp/

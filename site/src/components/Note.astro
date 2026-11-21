@@ -1,0 +1,16 @@
+---
+// 注意書き(論文の Remark に相当)。daisyUI の alert を使う。
+import InformationCircle from 'heroicons/20/solid/information-circle.svg';
+
+interface Props {
+  label?: string;
+}
+const { label = '注意' } = Astro.props;
+---
+
+<div role="note" class="not-prose alert alert-soft alert-info my-6 items-start text-base-content">
+  <InformationCircle class="mt-1 size-5 shrink-0 text-info" aria-hidden="true" />
+  <div class="text-[0.92rem] leading-[1.85]">
+    <span class="me-2 font-serif font-bold tracking-[0.15em]">{label}</span><slot />
+  </div>
+</div>

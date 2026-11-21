@@ -1,0 +1,22 @@
+---
+// 全体ビルドの進捗(daisyUI の progress)。初期値はビルド時点のスナップショットで、
+// 公開サイトでは検証機が定期的に書き出す status.json を Alpine で読み込んで差し替える。
+import data from '../data/generated.json';
+
+const { done, total, stamp, errors } = data.build;
+const pct = ((done / total) * 100).toFixed(1);
+const note = `${stamp} 時点。` + (errors === null || errors === undefined ? '' : `エラー ${errors} 件。`);
+const fmt = (n: number) => n.toLocaleString('en-US');
+---
+
+<div class="flex flex-col gap-2" x-data="buildStatus" data-done={done} data-total={total} data-note={note}>
+  <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
+    <span class="font-bold">全体ビルドの進捗</span>
+    <span class="tabular-nums text-base-content/70">
+      <b class="text-base text-base-content" x-text="fmt(done)">{fmt(done)}</b> / {fmt(total)} モジュール(<span x-text="pct()">{pct}</span>%)
+    </span>
+  </div>
+  <progress class="progress progress-primary h-2 w-full" value={done} max={total} x-bind:value="done" aria-label="全体ビルドの進捗"
+  ></progress>
+  <p class="text-xs leading-relaxed text-base-content/70" x-text="note">{note}</p>
+</div>

@@ -1,0 +1,13 @@
+---
+// 数式。KaTeX でビルド時に HTML へ変換する(閲覧時に JavaScript は不要)。
+import katex from 'katex';
+
+interface Props {
+  tex: string;
+  display?: boolean;
+}
+const { tex, display = false } = Astro.props;
+const html = katex.renderToString(tex, { displayMode: display, throwOnError: true, output: 'htmlAndMathml' });
+---
+
+<Fragment set:html={html} />

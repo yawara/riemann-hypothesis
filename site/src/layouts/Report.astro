@@ -1,0 +1,115 @@
+---
+// ページの外枠。目次(daisyUI の menu)は広い画面で右側に固定し、現在位置を Alpine で示す。
+import '../styles/global.css';
+import 'katex/dist/katex.min.css';
+import '@fontsource-variable/jetbrains-mono';
+import { Font } from 'astro:assets';
+
+interface TocItem {
+  id: string;
+  mark: string;
+  title: string;
+}
+interface Props {
+  title: string;
+  description: string;
+  toc: TocItem[];
+}
+const { title, description, toc } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '') + '/';
+const canonical = new URL(base, Astro.site).href;
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content={canonical} />
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <Font cssVariable="--font-shippori" />
+  </head>
+  <body class="bg-base-200 font-sans text-base-content antialiased" x-data="{ active: 'summary' }">
+    <div class="mx-auto max-w-7xl px-4 pt-10 pb-20 sm:px-6 lg:px-8">
+      <slot name="masthead" />
+      <div class="mt-14 xl:grid xl:grid-cols-[minmax(0,1fr)_13.5rem] xl:gap-12">
+        <main class="flex min-w-0 flex-col gap-14">
+          <slot />
+        </main>
+        <aside class="hidden xl:block">
+          <nav aria-label="目次" class="sticky top-8">
+            <ul class="menu menu-sm w-full border-l border-base-300 p-0 ps-2">
+              <li class="menu-title font-serif tracking-[0.2em]">目次</li>
+              {
+                toc.map((s) => (
+                  <li>
+                    <a href={`#${s.id}`} x-bind:class={`active === '${s.id}' && 'menu-active'`}>
+                      <span class="w-8 shrink-0 font-serif" aria-hidden="true">
+                        {s.mark}
+                      </span>
+                      {s.title}
+                    </a>
+                  </li>
+                ))
+              }
+            </ul>
+          </nav>
+        </aside>
+      </div>
+      <footer class="mt-16 border-t border-base-300 pt-6 text-sm leading-[1.8] text-base-content/70">
+        <slot name="footer" />
+      </footer>
+    </div>
+    <script>
+      import Alpine from 'alpinejs';
+      import intersect from '@alpinejs/intersect';
+
+      const jst = (iso) => {
+        const d = new Date(new Date(iso).getTime() + 9 * 3600 * 1000);
+        const p = (v) => String(v).padStart(2, '0');
+        return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())} JST`;
+      };
+
+      Alpine.plugin(intersect);
+      // 全体ビルドの進捗。検証機が定期的に書き出す status.json(中立な数値のみ)を読み込む。
+      Alpine.data('buildStatus', () => ({
+        done: 0,
+        total: 1,
+        note: '',
+        init() {
+          this.done = Number(this.$el.dataset.done);
+          this.total = Number(this.$el.dataset.total);
+          this.note = this.$el.dataset.note || '';
+          this.load();
+        },
+        fmt(n) {
+          return Number(n).toLocaleString('en-US');
+        },
+        pct() {
+          return Math.min(100, (this.done / this.total) * 100).toFixed(1);
+        },
+        async load() {
+          if (!location.protocol.startsWith('http')) return;
+          try {
+            const r = await fetch('status.json?ts=' + Date.now(), { cache: 'no-store' });
+            if (!r.ok) return;
+            const s = await r.json();
+            if (!s.modules_total) return;
+            this.done = s.modules_done;
+            this.total = s.modules_total;
+            if (s.note_ja && s.updated_at_utc) this.note = `${jst(s.updated_at_utc)} 時点の自動集計。${s.note_ja}`;
+          } catch (e) {
+            // 取得できなければビルド時点の値のまま表示する
+          }
+        },
+      }));
+      Alpine.start();
+    </script>
+  </body>
+</html>

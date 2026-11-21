@@ -1,0 +1,5 @@
+# ビルド出力・生成物・依存パッケージ
+dist/
+.astro/
+node_modules/
+npm-debug.log*

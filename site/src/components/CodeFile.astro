@@ -1,0 +1,27 @@
+---
+// コードを、ファイル名つきの枠に入れて表示する(Shiki でハイライト。既定は Lean 4)。
+import { Code } from 'astro:components';
+
+interface Props {
+  path: string;
+  note?: string;
+  code: string;
+  lang?: 'lean4' | 'bash';
+}
+const { path, note, code, lang = 'lean4' } = Astro.props;
+---
+
+<figure class="not-prose my-6 overflow-hidden rounded-box border border-base-300 bg-base-200">
+  <figcaption
+    class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-base-300 bg-base-100 px-4 py-2 font-mono text-xs text-base-content/70"
+  >
+    <b class="font-semibold text-base-content">{path}</b>
+    {note && <span class="font-sans">{note}</span>}
+  </figcaption>
+  <Code
+    code={code}
+    lang={lang}
+    themes={{ light: 'github-light', dark: 'github-dark' }}
+    class="overflow-x-auto p-4 text-[0.8rem] leading-[1.7]"
+  />
+</figure>

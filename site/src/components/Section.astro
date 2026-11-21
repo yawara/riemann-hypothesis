@@ -1,0 +1,35 @@
+---
+// 節。左余白に § 番号を置き、目次の現在位置表示のために Alpine の intersect で通過を拾う。
+interface Props {
+  id: string;
+  mark: string;
+  title: string;
+}
+const { id, mark, title } = Astro.props;
+const onEnter = `active = '${id}'`;
+---
+
+<section
+  id={id}
+  aria-labelledby={`h-${id}`}
+  class="scroll-mt-8 grid gap-x-6 lg:grid-cols-[3.75rem_minmax(0,1fr)]"
+  x-intersect:enter.margin.-120px.0px.-400px.0px={onEnter}
+>
+  <div
+    class:list={[
+      'font-serif text-primary select-none lg:text-right',
+      mark.startsWith('§') ? 'text-xl lg:text-[1.6rem] lg:leading-[2.2rem]' : 'text-sm tracking-[0.2em] lg:leading-[2.4rem]',
+    ]}
+    aria-hidden="true"
+  >
+    {mark}
+  </div>
+  <div class="min-w-0">
+    <h2 id={`h-${id}`} class="font-serif text-2xl font-bold leading-snug text-balance border-b border-base-300 pb-2">
+      {title}
+    </h2>
+    <div class="prose prose-ja max-w-none mt-5">
+      <slot />
+    </div>
+  </div>
+</section>

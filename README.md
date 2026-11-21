@@ -5,7 +5,7 @@ Lean 4 の形式証明(リーマン予想・一般化リーマン予想の証明
 独立に再コンパイル・検査する** ためのリポジトリです。
 
 検証結果のレポート(日本語)は GitHub Pages で公開しています: <https://yawara.github.io/riemann-hypothesis/>
-(原稿は [`docs/index.html`](docs/index.html)。検証の進行に合わせて逐次更新します。)
+(原稿は [`site/`](site/)。検証の進行に合わせて逐次更新します。)
 
 ## 現在の状態
 
@@ -28,8 +28,10 @@ Lean 4 の形式証明(リーマン予想・一般化リーマン予想の証明
 ## Lean コードの規模
 
 * Lean ファイル(`.lean`): **175,187 個**
-* 行数: 17,374,215 行
-* 合計サイズ: 1,030,531,854 バイト(約 1.03 GB)
+* 行数: **17,374,215 行**(1 ファイルあたり平均 99.2 行、中央値 58 行、最大 17,981 行)
+* 合計サイズ: **1,030,531,854 バイト(約 1.03 GB)**(1 ファイルあたり平均 5,882 バイト、最大 913,995 バイト)
+* 配布アーカイブ: 239,275,554 バイト(約 239 MB。gzip 圧縮・14 分割の合計)、展開後の tar は 1,270,753,280 バイト
+* 参考: Mathlib 本体(v4.33.1)は 8,311 ファイル・2,293,877 行・97,067,375 バイト
 * ほかにビルド設定 3 ファイル(`lakefile.toml`, `lake-manifest.json`, `lean-toolchain`)
 * Lean `v4.33.1` / Mathlib タグ `v4.33.1`(コミット `0df444a360ea…`)
 
@@ -43,8 +45,7 @@ evidence/       原本(書き換え禁止)。取得記録とハッシュつき �
   04-tarball-contents/     tarball の一覧と、展開後 175,190 ファイルの SHA-256
 scripts/        検証手順を再実行するスクリプト
 verification/   検査の結果・ログ・検査用 Lean ファイル
-docs/           GitHub Pages 用のレポート(生成物。gh-pages ブランチへ公開)
-docs-src/       レポートのテンプレート(scripts/build_report.py が docs/index.html を生成)
+site/           GitHub Pages 用レポートサイトの原稿(Astro プロジェクト。ビルド結果を gh-pages ブランチへ公開)
 lean/           展開した Lean プロジェクト(git 管理外。原本から再構成する)
 ```
 
@@ -74,12 +75,25 @@ scripts/reconstruct.sh --verify        # ビルド後もソースが原本と一
 
 ### レポートの更新と公開
 
+レポートサイトは既存のフレームワークの上に組んでいます(バージョンは `site/package-lock.json` で固定)。
+
+| 役割 | 採用したもの | 選んだ理由 |
+|---|---|---|
+| サイト生成 | [Astro](https://astro.build/) 7 | 静的 HTML を出力し、閲覧時の JavaScript を最小にできる。フォントの自前配信と Shiki を標準で備える |
+| CSS・部品 | [Tailwind CSS](https://tailwindcss.com/) 4 + [daisyUI](https://daisyui.com/) 5 + Typography | 統計タイル・タイムライン・バッジ・進捗バー・表・注意書きなど必要な部品が揃っており、明暗 2 テーマを変数で定義できる |
+| 数式 | [KaTeX](https://katex.org/) | ビルド時に HTML へ変換でき、閲覧時に JavaScript が要らない |
+| 図 | [Observable Plot](https://observablehq.com/plot/) | SVG 出力で CSS 変数による配色に追従し、十字線とツールチップを標準で備える |
+| コードの色分け | [Shiki](https://shiki.style/)(Astro 同梱) | Lean 4 の文法定義を持ち、VS Code と同じ精度で色分けできる |
+| 進捗表示・目次の現在位置 | [Alpine.js](https://alpinejs.dev/) | 静的ページに少量の動きを足す用途に合う(宣言的で軽い) |
+| アイコン・書体 | [Heroicons](https://heroicons.com/)、[Fontsource](https://fontsource.org/)(しっぽり明朝、JetBrains Mono) | 外部 CDN に依存せず自前配信できる |
+
 ```bash
 python3 -I scripts/gen_zeta_figure.py > verification/zeta-figure.json   # 冒頭の図(臨界線上の ζ)のデータ
-python3 -I scripts/build_report.py                                      # docs/index.html を生成
-scripts/publish_pages.sh "レポートを更新"                               # gh-pages ブランチへ公開
+scripts/publish_pages.sh "レポートを更新"                               # データ生成 → astro build → gh-pages へ公開
 scripts/status_updater.sh                                               # 進捗(中立な数値のみ)を定期公開
 ```
+
+サイトのビルドには Node.js 22.23 以上が必要です(`cd site && npm ci && npx astro build`)。
 
 ### ビルド時の注意(ディスク)
 
