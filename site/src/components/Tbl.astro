@@ -1,0 +1,30 @@
+---
+// 表。横罫だけで組み、表題は上に置く(和文の論文の慣例)。幅が足りないときは表だけが横にスクロールする。
+interface Props {
+  no?: string;
+  title?: string;
+  wide?: boolean;
+  /** 狭い画面で行を縦に積む(global.css の tbl-stack) */
+  stack?: boolean;
+  class?: string;
+  id?: string;
+}
+const { no, title, wide = false, stack = false, class: className, id } = Astro.props;
+---
+
+<div id={id} class:list={['tbl my-7', wide && 'bleed', stack && 'tbl-stack']}>
+  {
+    title && (
+      <p class="cap mb-2">
+        {no && <b>表 {no}</b>}
+        <Fragment set:html={title} />
+      </p>
+    )
+  }
+  <div class="overflow-x-auto">
+    <table class={className}>
+      <slot />
+    </table>
+  </div>
+  <slot name="foot" />
+</div>

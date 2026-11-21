@@ -1,0 +1,212 @@
+---
+// 図 1: 上段は臨界帯のまわりでの ζ(s) の位相図(scripts/gen_zeta_phase.py が描いた画像)、
+// 下段は臨界線上の Hardy の Z 関数(scripts/gen_zeta_figure.py の数値)。横軸 t = Im s を上下で共有する。
+// 描画は Observable Plot。軸の名前だけは KaTeX で組んだものを重ねる。
+import { getImage } from 'astro:assets';
+import M from './M.astro';
+import Tbl from './Tbl.astro';
+import lightPng from '../assets/zeta-phase-light.png';
+import darkPng from '../assets/zeta-phase-dark.png';
+import data from '../data/generated.json';
+
+const light = await getImage({ src: lightPng, format: 'webp', quality: 88 });
+const dark = await getImage({ src: darkPng, format: 'webp', quality: 88 });
+const zeros = data.zeta.zeros;
+const half = Math.ceil(zeros.length / 2);
+---
+
+<figure class="bleed mt-12">
+  <div class="relative">
+    <div
+      id="zfig"
+      class="plot-host min-h-[23.5rem]"
+      data-light={light.src}
+      data-dark={dark.src}
+      role="img"
+      aria-label="上段: リーマンゼータ関数の偏角を色で表した図。零点が 13 個、直線 Re s = 1/2 の上に並ぶ。下段: 同じ直線上での Z(t) のグラフ。"
+    >
+      <noscript>
+        <p class="cap py-10">図の表示には JavaScript が必要です。零点の値は下の表にあります。</p>
+      </noscript>
+    </div>
+    <span id="zfig-re" class="pointer-events-none absolute left-0 text-right text-[0.78rem] leading-none" hidden
+      ><M tex={String.raw`\operatorname{Re} s`} /></span
+    >
+    <span id="zfig-z" class="pointer-events-none absolute left-0 text-right text-[0.78rem] leading-none" hidden><M tex="Z(t)" /></span>
+    <span id="zfig-t" class="pointer-events-none absolute text-[0.78rem] leading-none" hidden
+      ><M tex={String.raw`t=\operatorname{Im} s`} /></span
+    >
+  </div>
+  <figcaption class="cap mt-2 max-w-[var(--measure)]">
+    <b>図 1</b>リーマン ζ 関数と、その零点。上段は <M tex={String.raw`\zeta(s)`} /> の偏角を色にしたもので、紙の色が正の実数、藍が <M tex="+i" /> の向き、朱が{' '}
+    <M tex="-i" /> の向き、いちばん濃く刷られたところが負の実数です。4 色が 1 点に集まる場所が零点で、<M tex={String.raw`0 \le t \le 60`} /> にある
+    13 個は、すべて直線 <M tex={String.raw`\operatorname{Re} s = \tfrac12`} />(横線)の上に並びます。左端(<M tex="t = 0" />)には{' '}
+    <M tex="s = 1" /> の極と、自明な零点 <M tex="s = -2, -4, -6" /> が見えます。下段は同じ直線上での Hardy の Z 関数で、<M
+      tex={String.raw`|Z(t)| = |\zeta(\tfrac12 + it)|`}
+    />。横軸を横切る点が上段の零点です。リーマン予想は、自明でない零点がすべてこの直線上にある、という主張です。値は本リポジトリのスクリプトで計算し、零点は既知の値と小数
+    6 桁まで照合しました。
+  </figcaption>
+  <details class="mt-3 max-w-[var(--measure)]">
+    <summary class="cap cursor-pointer text-ai underline decoration-1 underline-offset-[0.22em]">零点の値を表で見る</summary>
+    <div class="grid max-w-md grid-cols-2 gap-x-10">
+      {
+        [zeros.slice(0, half), zeros.slice(half)].map((part, col) => (
+          <Tbl class="mt-0">
+            <thead>
+              <tr>
+                <th class="num">番号</th>
+                <th class="num">零点の虚部 t</th>
+              </tr>
+            </thead>
+            <tbody>
+              {part.map((t, i) => (
+                <tr>
+                  <td class="num">{col * half + i + 1}</td>
+                  <td class="num">{t.toFixed(6)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Tbl>
+        ))
+      }
+    </div>
+  </details>
+</figure>
+
+<script>
+  import * as Plot from '@observablehq/plot';
+  import data from '../data/generated.json';
+  import geo from '../assets/zeta-phase.json';
+
+  const el = document.getElementById('zfig');
+  const labRe = document.getElementById('zfig-re');
+  const labZ = document.getElementById('zfig-z');
+  const labT = document.getElementById('zfig-t');
+  const { z, step, tMax, zeros } = data.zeta;
+  const { sigMin, sigMax } = geo;
+  const darkMode = matchMedia('(prefers-color-scheme: dark)');
+  const minus = (s: string) => s.replace('-', '−');
+  const sans = 'var(--font-sans)';
+
+  function draw() {
+    if (!el || !labRe || !labZ || !labT) return;
+    const width = el.clientWidth;
+    if (!width) return;
+    const narrow = width < 560;
+    const mL = narrow ? 34 : 46;
+    const mR = narrow ? 4 : 10;
+    const mT = 4;
+    const mB = 40;
+    const innerW = width - mL - mR;
+    // 上段は、幅が許せば縦横同じ縮尺(等角)。狭い画面では縦に引き伸ばす。
+    const hb = Math.max(((sigMax - sigMin) * innerW) / tMax, 132);
+    const gap = 30;
+    const hz = narrow ? 140 : 176;
+    const innerH = hb + gap + hz;
+    // 縦方向は自前で px に直す(下段: Z の値、上段: Re s)。y の定義域 1 = 1px。
+    const zAmp = 4.4;
+    const yZ = (v: number) => hz / 2 + (v / zAmp) * (hz / 2);
+    const yS = (s: number) => hz + gap + ((s - sigMin) / (sigMax - sigMin)) * hb;
+
+    // 下段の曲線。零点そのものも点として混ぜ、カーソルが零点にぴったり合うようにする。
+    const curve = z.map((v: number, i: number) => ({ t: +(i * step).toFixed(2), y: yZ(v), z: v, k: 0 }));
+    const zeroPts = zeros.map((t: number, i: number) => ({ t, y: yZ(0), z: 0, k: i + 1 }));
+    const hover = [...curve, ...zeroPts].sort((a, b) => a.t - b.t);
+    const yTicks = new Map<number, string>([
+      [yZ(-4), '−4'],
+      [yZ(-2), '−2'],
+      [yZ(0), '0'],
+      [yZ(2), '2'],
+      [yZ(4), '4'],
+      [yS(0.5), '1/2'],
+      [yS(-2), '−2'],
+      [yS(-4), '−4'],
+      [yS(-6), '−6'],
+    ]);
+
+    const plot = Plot.plot({
+      width,
+      height: innerH + mT + mB,
+      marginLeft: mL,
+      marginRight: mR,
+      marginTop: mT,
+      marginBottom: mB,
+      style: { background: 'transparent', fontSize: '12px', color: 'var(--ink)' },
+      x: { domain: [0, tMax], axis: null },
+      y: { domain: [0, innerH], axis: null },
+      marks: [
+        Plot.image([0], {
+          x: tMax / 2,
+          y: hz + gap + hb / 2,
+          src: (darkMode.matches ? el.dataset.dark : el.dataset.light) as string,
+          width: innerW,
+          height: hb,
+          preserveAspectRatio: 'none',
+        }),
+        Plot.ruleY([yS(0.5)], { x1: 0, x2: tMax, stroke: 'var(--ink-3)', strokeWidth: 0.9 }),
+        // 零点の位置を下段へ下ろす補助線
+        Plot.ruleX(zeroPts, { x: 't', y1: yZ(0), y2: hz + gap * 0.55, stroke: 'var(--hair)' }),
+        Plot.ruleY([yZ(0)], { x1: 0, x2: tMax, stroke: 'var(--ink)', strokeWidth: 0.75 }),
+        Plot.line(curve, { x: 't', y: 'y', stroke: 'var(--ink)', strokeWidth: 1.6, strokeLinejoin: 'round', strokeLinecap: 'round' }),
+        Plot.dot(zeroPts, { x: 't', y: 'y', r: 3.6, fill: 'var(--paper)', stroke: 'var(--ink)', strokeWidth: 1.4 }),
+        Plot.text([zeroPts[0]], {
+          x: 't',
+          y: 'y',
+          text: () => (narrow ? 't = 14.13' : '最初の零点 t = 14.134725'),
+          textAnchor: 'end',
+          dx: -9,
+          dy: -13,
+          fill: 'var(--ink)',
+          fontFamily: narrow ? undefined : sans,
+        }),
+        Plot.axisX([0, 10, 20, 30, 40, 50, 60], { anchor: 'bottom', tickSize: 4, tickPadding: 5, label: null }),
+        Plot.axisY([...yTicks.keys()], {
+          anchor: 'left',
+          tickSize: 4,
+          tickPadding: 5,
+          label: null,
+          tickFormat: (d: number) => yTicks.get(d) ?? '',
+        }),
+        Plot.ruleX(hover, Plot.pointerX({ x: 't', y1: 0, y2: innerH, stroke: 'var(--ink)', strokeOpacity: 0.55, strokeWidth: 0.75 })),
+        Plot.dot(hover, Plot.pointerX({ x: 't', y: 'y', r: 3.8, fill: 'var(--ai)', stroke: 'var(--paper)', strokeWidth: 1.5 })),
+        Plot.tip(
+          hover,
+          Plot.pointerX({
+            x: 't',
+            y: 'y',
+            title: (d) => (d.k ? `第 ${d.k} 零点\nt = ${d.t.toFixed(6)}` : `t = ${d.t.toFixed(2)}\nZ(t) = ${minus(d.z.toFixed(3))}`),
+            fill: 'var(--paper)',
+            stroke: 'var(--ink-3)',
+            fontFamily: sans,
+            fontSize: 12,
+            lineHeight: 1.4,
+          }),
+        ),
+      ],
+    });
+    el.replaceChildren(plot);
+    el.style.minHeight = '0';
+
+    // 軸の名前(KaTeX)を所定の位置へ
+    const w = `${mL - 9}px`;
+    labRe.style.width = w;
+    labRe.style.top = `${mT}px`;
+    labZ.style.width = w;
+    labZ.style.top = `${mT + hb + (gap - 12) / 2}px`;
+    labT.style.right = `${mR}px`;
+    labT.style.top = `${mT + innerH + 24}px`;
+    labRe.hidden = labZ.hidden = labT.hidden = false;
+  }
+
+  if (el) {
+    draw();
+    let last = el.clientWidth;
+    new ResizeObserver(() => {
+      if (el.clientWidth !== last) {
+        last = el.clientWidth;
+        draw();
+      }
+    }).observe(el);
+    darkMode.addEventListener('change', draw);
+  }
+</script>

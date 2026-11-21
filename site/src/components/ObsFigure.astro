@@ -1,0 +1,181 @@
+---
+// 図 2 と表 2: 定点観測(ビルド開始から 50 分ごと)。
+// 初期表示はビルド時点のデータ。公開サイトでは observations.json を読み直して、図と表を最新にする
+// (読み込みは layouts/Report.astro。届いたら 'rh:obs' イベントで知らせてくる)。
+import Tbl from './Tbl.astro';
+import data from '../data/generated.json';
+import { obsRow, type Obs } from '../lib/fmt';
+
+const obs = data.obs as Obs;
+---
+
+<figure class="bleed my-8">
+  <div id="obsfig" class="plot-host min-h-[19rem]" role="img" aria-label="コンパイル済みモジュール数の推移。値は表 2 にあります。"></div>
+  <figcaption class="cap mt-2 max-w-[var(--measure)]">
+    <b>図 2</b>コンパイル済みモジュール数の推移(横軸は日本時間)。実線は成果物の更新時刻から 5 分刻みで求めた値、白丸は 50
+    分ごとの観測点、藍の点は最新の値です。破線は、直近の速度がそのまま続いた場合の見込みで、モジュールごとに重さが違うため目安にとどまります。
+  </figcaption>
+</figure>
+
+<Tbl
+  no="2"
+  title="定点観測の記録。速度は直前の観測点からの 1 分あたりのモジュール数、負荷は 1 分間のロードアベレージ(論理 128 コア)、メモリは使用中の量、空きはビルド生成物を置いているディスクの残り。"
+  wide
+>
+  <thead>
+    <tr>
+      <th class="num">回</th>
+      <th class="num">時刻</th>
+      <th class="num">経過</th>
+      <th class="num">完了モジュール</th>
+      <th class="num">進捗</th>
+      <th class="num">速度 /分</th>
+      <th class="num">負荷</th>
+      <th class="num">メモリ GiB</th>
+      <th class="num">空き GiB</th>
+      <th class="num">エラー行</th>
+      <th>段階</th>
+    </tr>
+  </thead>
+  <tbody id="obs-rows" set:html={obs.points.map((p) => obsRow(p, obs.total)).join('')} />
+  <p slot="foot" class="cap mt-2">
+    * 印の回は、記録用の常駐プログラムを動かす前の時点です。成果物(<span class="font-mono text-[0.92em]">.olean</span
+    >)の更新時刻から、その時点で完成していたモジュール数だけを復元しました。エラー行は、ビルドログのうちエラーを示す行の数を自動で数えた値で、内容の精査は含みません。
+  </p>
+</Tbl>
+
+<script>
+  import * as Plot from '@observablehq/plot';
+  import data from '../data/generated.json';
+  import { fmtInt, obsRow, type Obs } from '../lib/fmt';
+
+  const el = document.getElementById('obsfig');
+  const rows = document.getElementById('obs-rows');
+  const sans = 'var(--font-sans)';
+  const state = { obs: data.obs as Obs, done: data.obs.latest.done as number, at: data.obs.latest.t_utc as string };
+
+  // 日本時間で目盛りを振るため、時刻を +9 時間ずらして UTC の目盛りに載せる
+  const J = (ms: number) => new Date(ms + 9 * 3600 * 1000);
+  const hm = (d: Date) => `${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+
+  function draw() {
+    if (!el) return;
+    const width = el.clientWidth;
+    if (!width) return;
+    const { obs } = state;
+    const narrow = width < 560;
+    const t0 = Date.parse(obs.t0_utc);
+    const stepMs = obs.step_min * 60000;
+    const series = obs.series.map((n, i) => ({ t: J(t0 + i * stepMs), n }));
+    const tip = { t: J(Math.max(Date.parse(state.at), Date.parse(obs.latest.t_utc))), n: state.done };
+    if (tip.t > series[series.length - 1].t) series.push(tip);
+    const pts = obs.points.map((p) => ({ t: J(Date.parse(p.t_utc)), n: p.done }));
+    const pct = (n: number) => ((n / obs.total) * 100).toFixed(1);
+
+    // 見込み: 直近の速度が続いた場合に全モジュールへ届く時刻
+    const rate = obs.projection?.rate_per_min ?? 0;
+    const eta = rate > 0 && tip.n < obs.total ? new Date(tip.t.getTime() + ((obs.total - tip.n) / rate) * 60000) : null;
+    const end = new Date((eta ?? tip.t).getTime() + (eta ? 25 : 10) * 60000);
+    const spanH = (end.getTime() - J(t0).getTime()) / 3600000;
+    const every = spanH > 30 ? 12 : spanH > 14 && narrow ? 6 : spanH > 7 ? 3 : 1;
+
+    const plot = Plot.plot({
+      width,
+      height: narrow ? 250 : 300,
+      marginLeft: narrow ? 50 : 60,
+      marginRight: narrow ? 8 : 14,
+      marginTop: 24,
+      marginBottom: 32,
+      style: { background: 'transparent', fontSize: '12px', color: 'var(--ink)' },
+      x: { type: 'utc', domain: [J(t0), end], axis: null },
+      y: { domain: [0, obs.total], axis: null },
+      marks: [
+        Plot.gridY([50000, 100000, 150000], { stroke: 'var(--hair)', strokeOpacity: 1 }),
+        Plot.ruleY([0, obs.total], { stroke: 'var(--ink)', strokeWidth: 0.75 }),
+        Plot.text([0], {
+          x: J(t0),
+          y: obs.total,
+          text: () => `全 ${fmtInt(obs.total)} モジュール`,
+          textAnchor: 'start',
+          dy: -9,
+          fill: 'var(--ink-2)',
+          fontFamily: sans,
+        }),
+        eta
+          ? Plot.line([tip, { t: eta, n: obs.total }], { x: 't', y: 'n', stroke: 'var(--ink-2)', strokeWidth: 1, strokeDasharray: '3,4' })
+          : null,
+        eta
+          ? Plot.text([0], {
+              x: eta,
+              y: obs.total,
+              text: () => `見込み ${eta.getUTCMonth() + 1}/${eta.getUTCDate()} ${hm(eta)} ごろ`,
+              textAnchor: 'end',
+              dx: 6,
+              dy: -9,
+              fill: 'var(--ink-2)',
+              fontFamily: sans,
+            })
+          : null,
+        Plot.line(series, { x: 't', y: 'n', stroke: 'var(--ink)', strokeWidth: 1.6, strokeLinejoin: 'round' }),
+        Plot.dot(pts, { x: 't', y: 'n', r: 3.6, fill: 'var(--paper)', stroke: 'var(--ink)', strokeWidth: 1.4 }),
+        Plot.dot([tip], { x: 't', y: 'n', r: 4.2, fill: 'var(--ai)', stroke: 'var(--paper)', strokeWidth: 1.5 }),
+        Plot.text([tip], {
+          x: 't',
+          y: 'n',
+          text: (d) => `${fmtInt(d.n)}(${pct(d.n)}%)`,
+          textAnchor: 'start',
+          dx: 10,
+          dy: 5,
+          fill: 'var(--ink)',
+          fontFamily: sans,
+        }),
+        Plot.axisX({
+          anchor: 'bottom',
+          ticks: `${every} hours` as any,
+          tickSize: 4,
+          tickPadding: 5,
+          label: null,
+          tickFormat: (d: Date) => (d.getUTCHours() === 0 ? `${d.getUTCMonth() + 1}/${d.getUTCDate()}` : `${d.getUTCHours()}:00`),
+        }),
+        Plot.axisY([0, 50000, 100000, 150000], { anchor: 'left', tickSize: 4, tickPadding: 5, label: null, tickFormat: fmtInt }),
+        Plot.ruleX(series, Plot.pointerX({ x: 't', stroke: 'var(--ink)', strokeOpacity: 0.55, strokeWidth: 0.75 })),
+        Plot.dot(series, Plot.pointerX({ x: 't', y: 'n', r: 3.8, fill: 'var(--ai)', stroke: 'var(--paper)', strokeWidth: 1.5 })),
+        Plot.tip(
+          series,
+          Plot.pointerX({
+            x: 't',
+            y: 'n',
+            title: (d) => `${d.t.getUTCMonth() + 1}/${d.t.getUTCDate()} ${hm(d.t)}\n${fmtInt(d.n)} モジュール(${pct(d.n)}%)`,
+            fill: 'var(--paper)',
+            stroke: 'var(--ink-3)',
+            fontFamily: sans,
+            fontSize: 12,
+            lineHeight: 1.4,
+          }),
+        ),
+      ],
+    });
+    el.replaceChildren(plot);
+    el.style.minHeight = '0';
+  }
+
+  function update(detail: { obs: Obs; done: number; at: string }) {
+    state.obs = detail.obs;
+    state.done = detail.done;
+    state.at = detail.at;
+    if (rows) rows.innerHTML = detail.obs.points.map((p) => obsRow(p, detail.obs.total)).join('');
+    draw();
+  }
+
+  if (el) {
+    draw();
+    let last = el.clientWidth;
+    new ResizeObserver(() => {
+      if (el.clientWidth !== last) {
+        last = el.clientWidth;
+        draw();
+      }
+    }).observe(el);
+    document.addEventListener('rh:obs', (e) => update((e as CustomEvent).detail));
+  }
+</script>

@@ -16,7 +16,7 @@ Lean 4 の形式証明(リーマン予想・一般化リーマン予想の証明
 | 依存ライブラリの真正性(Mathlib 公式タグ `v4.33.1`) | 完了 |
 | ソースの静的スキャン(`sorry` / `axiom` / `native_decide` ほか) | 0 件 |
 | import グラフ(欠落 0・循環 0・全モジュールが `Main` から到達可能) | 完了 |
-| 全 175,187 モジュールのコンパイル(`lake build`) | **進行中**(2026-11-21 10:42 JST 開始) |
+| 全 175,187 モジュールのコンパイル(`lake build`) | **進行中**(2026-11-21 10:42 JST 開始。50 分ごとの定点観測はレポートの 2 節) |
 | 主定理が依存する公理(`#print axioms`) | 未実施(ビルド完了後) |
 | 主張の一致確認・主張の依存解析 | 未実施(ビルド完了後) |
 | カーネルによる再検査(`leanchecker`) | 未実施(ビルド完了後) |
@@ -44,7 +44,7 @@ evidence/       原本(書き換え禁止)。取得記録とハッシュつき �
   03-lean-tarball-parts/   Lean 配布物の 14 分割(原本)
   04-tarball-contents/     tarball の一覧と、展開後 175,190 ファイルの SHA-256
 scripts/        検証手順を再実行するスクリプト
-verification/   検査の結果・ログ・検査用 Lean ファイル
+verification/   検査の結果・ログ・検査用 Lean ファイル、定点観測の記録(observations.jsonl)
 site/           GitHub Pages 用レポートサイトの原稿(Astro プロジェクト。ビルド結果を gh-pages ブランチへ公開)
 lean/           展開した Lean プロジェクト(git 管理外。原本から再構成する)
 ```
@@ -73,27 +73,49 @@ scripts/run_nanoda.sh                  # 主定理の依存一式を別実装カ
 scripts/reconstruct.sh --verify        # ビルド後もソースが原本と一致することを確認
 ```
 
+### 定点観測
+
+ビルドの開始時刻(2026-11-21 10:42:23 JST)を起点に、50 分ごとの時点を観測点として、検証機の状態
+(コンパイル済みモジュール数、ビルドログのエラー行数、負荷、メモリ、ディスクの空き)を記録しています。
+
+```bash
+python3 -I scripts/observe.py --daemon     # 常駐。観測点ごとに記録し、gh-pages の observations.json を更新
+python3 -I scripts/observe.py              # いまの状態でまとめを作り直すだけ(観測点は増やさない)
+```
+
+観測点の一覧は [`verification/observations.jsonl`](verification/observations.jsonl) に残します。
+記録するのは測定値だけで、合否の判定は含みません。
+
 ### レポートの更新と公開
 
-レポートサイトは既存のフレームワークの上に組んでいます(バージョンは `site/package-lock.json` で固定)。
+レポートは「和文の数学論文の組版」に寄せています。本文は明朝、見出しと図表まわりはゴシック、
+欧文と数字は Computer Modern(数式と同じ書体)。枠や角丸の部品は使わず、罫と余白で区切ります。
+色は図 1(ζ の位相図)と同じ 4 色、紙の白・墨・藍・朱だけです。
+
+土台には既存のフレームワークを使っています(バージョンは `site/package-lock.json` で固定)。
 
 | 役割 | 採用したもの | 選んだ理由 |
 |---|---|---|
-| サイト生成 | [Astro](https://astro.build/) 7 | 静的 HTML を出力し、閲覧時の JavaScript を最小にできる。フォントの自前配信と Shiki を標準で備える |
-| CSS・部品 | [Tailwind CSS](https://tailwindcss.com/) 4 + [daisyUI](https://daisyui.com/) 5 + Typography | 統計タイル・タイムライン・バッジ・進捗バー・表・注意書きなど必要な部品が揃っており、明暗 2 テーマを変数で定義できる |
-| 数式 | [KaTeX](https://katex.org/) | ビルド時に HTML へ変換でき、閲覧時に JavaScript が要らない |
+| サイト生成 | [Astro](https://astro.build/) 7 | 静的 HTML を出力し、閲覧時の JavaScript を最小にできる。画像の変換と Shiki を標準で備える |
+| 版面と本文の組み | [Tailwind CSS](https://tailwindcss.com/) 4 | 余白・行長・罫を変数とユーティリティで管理でき、既製部品の見た目を持ち込まずに済む |
+| 数式と欧文の書体 | [KaTeX](https://katex.org/) | 数式をビルド時に HTML へ変換できる。同梱の Computer Modern を本文の欧文・数字にも使い、数式と地の文をそろえる |
 | 図 | [Observable Plot](https://observablehq.com/plot/) | SVG 出力で CSS 変数による配色に追従し、十字線とツールチップを標準で備える |
-| コードの色分け | [Shiki](https://shiki.style/)(Astro 同梱) | Lean 4 の文法定義を持ち、VS Code と同じ精度で色分けできる |
-| 進捗表示・目次の現在位置 | [Alpine.js](https://alpinejs.dev/) | 静的ページに少量の動きを足す用途に合う(宣言的で軽い) |
-| アイコン・書体 | [Heroicons](https://heroicons.com/)、[Fontsource](https://fontsource.org/)(しっぽり明朝、JetBrains Mono) | 外部 CDN に依存せず自前配信できる |
+| コードの色分け | [Shiki](https://shiki.style/)(Astro 同梱) | Lean 4 の文法定義を持つ。色は CSS 変数で紙面の 4 色に合わせる |
+| 観測値の読み込み | [Alpine.js](https://alpinejs.dev/) | 静的ページに少量の動きを足す用途に合う(宣言的で軽い) |
+| コードの書体 | [Fontsource](https://fontsource.org/)(JetBrains Mono) | 外部 CDN に依存せず自前配信できる。Lean の Unicode 記号を広く収録している |
+
+和文の書体は配信せず、閲覧環境の明朝・ゴシックを使います。
 
 ```bash
-python3 -I scripts/gen_zeta_figure.py > verification/zeta-figure.json   # 冒頭の図(臨界線上の ζ)のデータ
+python3 -I scripts/gen_zeta_figure.py > verification/zeta-figure.json   # 図 1 下段(臨界線上の Z 関数)のデータ
+python3 -I scripts/gen_zeta_phase.py site/src/assets                    # 図 1 上段(ζ の位相図。明暗 2 枚の画像)
 scripts/publish_pages.sh "レポートを更新"                               # データ生成 → astro build → gh-pages へ公開
-scripts/status_updater.sh                                               # 進捗(中立な数値のみ)を定期公開
+scripts/status_updater.sh                                               # コンパイル済みモジュール数を 20 分ごとに公開
 ```
 
 サイトのビルドには Node.js 22.23 以上が必要です(`cd site && npm ci && npx astro build`)。
+`site/src/assets/remark-p1.png` は原本 PDF の 1 ページ目を縮小したものです
+(`pdftoppm -f 1 -l 1 -scale-to-x 560 -scale-to-y -1 -png evidence/01-remark-pdf/remark.pdf …`)。
 
 ### ビルド時の注意(ディスク)
 

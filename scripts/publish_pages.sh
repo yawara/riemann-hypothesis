@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # レポートサイト(site/。Astro 製)をビルドし、公開用ブランチ gh-pages に反映して push する。
 #
-#   1. scripts/site_data.py でサイト用データ(図・Lean ファイル全文・ビルド進捗)を生成
+#   1. scripts/observe.py で定点観測のまとめを作り直し、scripts/site_data.py でサイト用データ
+#      (図 1 の数値・Lean ファイル全文・観測記録)を生成
 #   2. site/ を `astro build` で静的ファイル(site/dist/)にする
 #   3. site/dist/ を gh-pages の作業ツリー($WT)へ同期して commit / push
 #
 #   * main ブランチの site/ が原稿、gh-pages ブランチが公開物(GitHub Pages の公開元)。
-#   * status.json(進捗の自動集計)は scripts/status_updater.sh の持ち物なので触らない。
+#   * status.json(進捗の自動集計)は scripts/status_updater.sh、observations.json(定点観測)は
+#     scripts/observe.py の持ち物なので触らない。
 #   * Node.js は $RH_NODE_BIN(既定: 検証機に隔離して入れた場所)にあれば PATH に加える。
 #
 # 使い方: scripts/publish_pages.sh ["コミットメッセージ"] [--no-push]
@@ -24,6 +26,7 @@ export npm_config_cache="${npm_config_cache:-/var/tmp/riemann-hypothesis-ywr/too
 export npm_config_update_notifier=false ASTRO_TELEMETRY_DISABLED=1
 
 cd "$ROOT"
+python3 -I scripts/observe.py
 python3 -I scripts/site_data.py
 (
   cd site
@@ -42,7 +45,7 @@ fi
 
 exec 9>"$LOCK"
 flock 9
-rsync -a --delete --exclude '.git' --exclude 'status.json' "$ROOT/site/dist/" "$WT/"
+rsync -a --delete --exclude '.git' --exclude 'status.json' --exclude 'observations.json' "$ROOT/site/dist/" "$WT/"
 cd "$WT"
 git add -A
 if git diff --cached --quiet; then

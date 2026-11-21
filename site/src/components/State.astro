@@ -1,0 +1,26 @@
+---
+// 検査の状態。塗りの量で表す(済 = 塗りつぶし、実行中 = 半分、未着手 = 輪だけ)。色は 墨 / 藍 / 灰、異常だけ朱。
+interface Props {
+  state: 'ok' | 'run' | 'wait' | 'bad';
+  label: string;
+}
+const { state, label } = Astro.props;
+const tone = { ok: 'text-ink', run: 'text-ai', wait: 'text-ink-3', bad: 'text-shu' }[state];
+---
+
+<span class="inline-flex items-center gap-1.5 font-sans text-[0.8125rem] leading-none font-normal whitespace-nowrap">
+  <svg class:list={['shrink-0', tone]} viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
+    {state === 'ok' && <circle cx="6" cy="6" r="5.4" fill="currentColor" />}
+    {
+      state === 'run' && (
+        <>
+          <circle cx="6" cy="6" r="4.8" fill="none" stroke="currentColor" stroke-width="1.2" />
+          <path d="M6 1.2 A4.8 4.8 0 0 1 6 10.8 Z" fill="currentColor" />
+        </>
+      )
+    }
+    {state === 'wait' && <circle cx="6" cy="6" r="4.8" fill="none" stroke="currentColor" stroke-width="1.2" />}
+    {state === 'bad' && <path d="M2 2 L10 10 M10 2 L2 10" fill="none" stroke="currentColor" stroke-width="1.8" />}
+  </svg>
+  <span class:list={[state === 'wait' ? 'text-ink-2' : state === 'bad' ? 'text-shu' : 'text-ink']}>{label}</span>
+</span>

@@ -1,0 +1,19 @@
+---
+// 節。広い画面では節番号(Computer Modern の数字)を左余白にぶら下げる。
+interface Props {
+  id: string;
+  no: string;
+  title: string;
+}
+const { id, no, title } = Astro.props;
+---
+
+<section id={id} aria-labelledby={`h-${id}`}>
+  <h2 id={`h-${id}`} class="sec-head mb-5 font-sans text-[1.4rem] leading-[1.45] font-bold">
+    <span class="font-serif text-[1.9rem] leading-none font-normal text-ink-2 wide:pr-4 wide:text-right" aria-hidden="true">{no}</span>
+    <span class="text-balance"><span class="sr-only">{no} </span>{title}</span>
+  </h2>
+  <div class="honbun flow-root">
+    <slot />
+  </div>
+</section>

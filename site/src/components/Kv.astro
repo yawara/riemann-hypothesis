@@ -1,22 +1,24 @@
 ---
-// 「項目名: 値」の表。値は信頼できる固定の HTML(リンクやインラインの <code> を含む)。
-import Table from './Table.astro';
+// 「項目名 — 値」の表。値は信頼できる固定の HTML(リンクや <code> を含む)。
+import Tbl from './Tbl.astro';
 
 interface Props {
   rows: [string, string][];
+  no?: string;
+  title?: string;
 }
-const { rows } = Astro.props;
+const { rows, no, title } = Astro.props;
 ---
 
-<Table>
+<Tbl no={no} title={title}>
   <tbody>
     {
       rows.map(([k, v]) => (
         <tr>
-          <th class="w-36 align-top font-semibold whitespace-normal text-base-content/70 sm:w-44">{k}</th>
-          <td class="leading-relaxed" set:html={v} />
+          <th class="w-[7.5rem] sm:w-[9.5rem]">{k}</th>
+          <td set:html={v} />
         </tr>
       ))
     }
   </tbody>
-</Table>
+</Tbl>

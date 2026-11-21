@@ -1,0 +1,12 @@
+---
+// 余白の注。広い画面では右余白に、狭い画面では本文の中に字下げして置く。
+interface Props {
+  label?: string;
+}
+const { label } = Astro.props;
+---
+
+<aside class="side">
+  {label && <b class="mr-[0.5em] text-ink">{label}</b>}
+  <slot />
+</aside>

@@ -1,69 +1,77 @@
 ---
 // 検証レポート本体。数値・ハッシュはリポジトリの verification/ と evidence/ から転記したもの。
+import { Image } from 'astro:assets';
 import Report from '../layouts/Report.astro';
-import Section from '../components/Section.astro';
-import Status from '../components/Status.astro';
-import Checks, { type Check } from '../components/Checks.astro';
-import BuildProgress from '../components/BuildProgress.astro';
-import ZetaPlot from '../components/ZetaPlot.astro';
-import CodeFile from '../components/CodeFile.astro';
-import Table from '../components/Table.astro';
+import Sec from '../components/Sec.astro';
+import Sub from '../components/Sub.astro';
+import State from '../components/State.astro';
+import Side from '../components/Side.astro';
+import Tbl from '../components/Tbl.astro';
 import Kv from '../components/Kv.astro';
-import Note from '../components/Note.astro';
+import Listing from '../components/Listing.astro';
+import ZetaFigure from '../components/ZetaFigure.astro';
+import ObsFigure from '../components/ObsFigure.astro';
 import M from '../components/M.astro';
+import remarkP1 from '../assets/remark-p1.png';
 import data from '../data/generated.json';
+import { fmtInt, jstMdHm } from '../lib/fmt';
 
 const title = 'リーマン予想 Lean 証明の独立検証';
 const description =
   'alpo.ge で公開されたリーマン予想の Lean 形式証明(175,187 ファイル・17,374,215 行・約 1.03 GB)を、原本を保全したうえで独立にコンパイル・検査している記録。';
 
 const toc = [
-  { id: 'summary', mark: '要旨', title: '現時点の結論' },
-  { id: 'target', mark: '§1', title: '検証対象' },
-  { id: 'evidence', mark: '§2', title: '原本の保全' },
-  { id: 'scale', mark: '§3', title: 'Lean コードの規模' },
-  { id: 'statements', mark: '§4', title: '主定理の主張' },
-  { id: 'checks', mark: '§5', title: '検査の内容と結果' },
-  { id: 'hardware', mark: '§6', title: '検証に使った計算機' },
-  { id: 'limits', mark: '§7', title: '言えること・言えないこと' },
-  { id: 'reproduce', mark: '§8', title: '再現手順' },
+  { id: 'summary', no: '1', title: '現時点の結論' },
+  { id: 'observations', no: '2', title: '定点観測' },
+  { id: 'target', no: '3', title: '検証対象' },
+  { id: 'evidence', no: '4', title: '原本の保全' },
+  { id: 'scale', no: '5', title: 'Lean コードの規模' },
+  { id: 'statements', no: '6', title: '主定理の主張' },
+  { id: 'checks', no: '7', title: '検査の内容と結果' },
+  { id: 'hardware', no: '8', title: '検証に使った計算機' },
+  { id: 'limits', no: '9', title: '言えること、言えないこと' },
+  { id: 'reproduce', no: '10', title: '再現手順' },
 ];
 
 const repo = 'https://github.com/yawara/riemann-hypothesis';
-const link = (href: string, text: string) => `<a class="link link-primary" href="${href}">${text}</a>`;
+const obs = data.obs;
+const latest = obs.latest;
+const pct = ((latest.done / obs.total) * 100).toFixed(1);
 
-// ---- 要旨: 検査の一覧(進行順) ----
-const checks: Check[] = [
-  { state: 'ok', label: '完了', title: '原本の取得と保全', detail: 'PDF 1 個と Lean 配布物 14 分割を取得し、応答ヘッダ・取得時刻・SHA-256 とともに保存。' },
-  { state: 'ok', label: '完了', title: '配布物の完全性', detail: '14 分割を連結すると正常な gzip。中身は通常ファイルのみ 175,190 個で、危険なパスやリンクは無し。' },
-  { state: 'ok', label: '完了', title: '依存ライブラリの真正性', detail: '固定された Mathlib のコミットは公式リポジトリのタグ <code>v4.33.1</code> そのもの。他の依存も Mathlib 自身の固定版と一致。' },
-  { state: 'ok', label: '0 件', title: 'ソースの静的スキャン', detail: '<code>sorry</code>・<code>axiom</code>・<code>native_decide</code>・<code>unsafe</code>・カーネル検査のスキップ指定などは、全ソース中に 1 件も無し。' },
-  { state: 'ok', label: '完了', title: 'import グラフ', detail: '存在しないモジュールへの import は 0、循環は 0。全 175,187 モジュールが <code>Main</code> から到達可能。' },
-  { state: 'run', label: '進行中', title: '全モジュールのコンパイル', detail: '2026-11-21 10:42 JST 開始。毎秒 3〜4 モジュールで進行中。完走まで半日程度の見込み。' },
-  { state: 'wait', label: '未実施', title: '主定理が依存する公理', detail: 'ビルド完了後に <code>#print axioms</code> で確認。' },
-  { state: 'wait', label: '未実施', title: '主張の一致確認', detail: '検証者が Mathlib だけで書いた命題と、主定理の型が一致するかをカーネルに判定させる。' },
-  { state: 'wait', label: '未実施', title: 'カーネルによる再検査', detail: 'ツールチェーン同梱の <code>leanchecker</code> で全モジュールの宣言をカーネルに再生させる。' },
-  { state: 'wait', label: '未実施', title: '別実装のカーネルによる照合', detail: '主定理の依存一式を書き出し、Rust 製の別実装カーネル <code>nanoda</code> で検査する。道具は準備済みで、小さな対象では動作を確認。' },
-  { state: 'wait', label: '未実施', title: 'ビルド後のソース不変確認', detail: 'ビルドに使った全ファイルが原本と 1 バイトも違わないことを再照合する。' },
+type St = 'ok' | 'run' | 'wait' | 'bad';
+// ---- 1 節: 検査の一覧(実施順) ----
+const checks: { state: St; label: string; title: string; detail: string; ref: string }[] = [
+  { state: 'ok', label: '済', title: '原本の取得と保全', detail: 'PDF 1 個と Lean 配布物 14 分割を取得し、応答ヘッダ・取得時刻・SHA-256 とともに保存。', ref: '4' },
+  { state: 'ok', label: '済', title: '配布物の完全性', detail: '14 分割を連結すると正常な gzip。中身は通常ファイルのみ 175,190 個で、危険なパスやリンクは無し。', ref: '4' },
+  { state: 'ok', label: '済', title: 'ソースの静的スキャン', detail: '<code>sorry</code>・<code>axiom</code>・<code>native_decide</code>・<code>unsafe</code>、カーネル検査のスキップ指定などは、全ソース中に 0 件。', ref: '7.1' },
+  { state: 'ok', label: '済', title: '依存ライブラリの真正性', detail: '固定された Mathlib のコミットは、公式リポジトリのタグ <code>v4.33.1</code> そのもの。他の依存も Mathlib 自身の固定版と一致。', ref: '7.2' },
+  { state: 'ok', label: '済', title: 'import グラフ', detail: '存在しないモジュールへの import は 0、循環は 0。全 175,187 モジュールが <code>Main</code> から到達可能。', ref: '5' },
+  { state: 'run', label: '実行中', title: '全モジュールのコンパイル', detail: '2026-11-21 10:42 JST に開始。進み具合は 2 節の定点観測に記録。', ref: '7.3' },
+  { state: 'wait', label: '未着手', title: '主定理が依存する公理', detail: 'ビルド完了後に <code>#print axioms</code> で確認。', ref: '7.4' },
+  { state: 'wait', label: '未着手', title: '主張の一致確認', detail: '検証者が Mathlib だけで書いた命題と、主定理の型が一致するかをカーネルに判定させる。', ref: '7.5' },
+  { state: 'wait', label: '未着手', title: 'カーネルによる再検査', detail: 'ツールチェーン同梱の <code>leanchecker</code> で、全モジュールの宣言をカーネルに再生させる。', ref: '7.6' },
+  { state: 'wait', label: '未着手', title: '別実装のカーネルによる照合', detail: '主定理の依存一式を書き出し、Rust 製の別実装カーネル <code>nanoda</code> で検査する。道具は準備済み。', ref: '7.7' },
+  { state: 'wait', label: '未着手', title: 'ビルド後のソース不変確認', detail: 'ビルドに使った全ファイルが、原本と 1 バイトも違わないことを再照合する。', ref: '7.8' },
 ];
 
-// ---- §1 ----
+// ---- 3 節 ----
 const targetRows: [string, string][] = [
-  ['起点の文書', `${link('https://alpo.ge/remark.pdf', 'https://alpo.ge/remark.pdf')}(4 ページ、作成日時 2026-11-20 21:52:48 JST)`],
+  ['起点の文書', `<a href="https://alpo.ge/remark.pdf">https://alpo.ge/remark.pdf</a>(4 ページ、作成日時 2026-11-20 21:52:48 JST)`],
   ['Lean コード', '<code>https://alpo.ge/lean.tar.gz.part01</code> 〜 <code>part14</code>(連結すると 1 個の tar.gz)'],
   ['文書の主張', 'リーマン予想と、Dirichlet L 関数に対する一般化リーマン予想の証明。Lean による形式化は完了済み。'],
-  ['著者表記', 'PDF 本文にもメタデータにも著者名は書かれていません。配布元は個人ドメイン <code>alpo.ge</code> です。'],
+  ['著者表記', 'PDF の本文にもメタデータにも、著者名はありません。配布元は個人ドメイン <code>alpo.ge</code> です。'],
 ];
 
-// ---- §2 ----
-const chain = [
-  { t: 'remark.pdf', d: '245,114 バイト。取得 2026-11-21 10:24:45 JST。', hash: '3fc97784b71ddd44ff8aa0a177e99622a1c61b13cfa843a0989ee4a7a0cfeb8d' },
-  { t: 'lean.tar.gz.part01 〜 part14', d: 'part01〜13 は各 18,000,000 バイト、part14 は 5,275,554 バイト。取得 2026-11-21 10:25:45〜10:25:50 JST。各分割の SHA-256 は SHA256SUMS に記録。' },
-  { t: '連結した lean.tar.gz', d: '239,275,554 バイト。gzip -t 正常。展開後の tar は 1,270,753,280 バイト。', hash: '9631b4f020199e580ba86178cb56c6e9b09f690c2369a80dc4334aa93f49c7fc' },
-  { t: '展開した Lean プロジェクト(lean/)', d: '175,190 ファイル。全ファイルの SHA-256 一覧を保存し、ビルドに使うツリーが原本と一致することをスクリプトで照合できます。' },
+// ---- 4 節 ----
+const hex = (h: string) => [h.slice(0, 32), h.slice(32)].map((l) => l.match(/.{8}/g)!.join(' '));
+const exhibits: { no: string; name: string; size: string; when: string; hash?: string; note?: string }[] = [
+  { no: '1', name: 'remark.pdf', size: '245,114', when: '10:24:45', hash: '3fc97784b71ddd44ff8aa0a177e99622a1c61b13cfa843a0989ee4a7a0cfeb8d' },
+  { no: '2', name: 'lean.tar.gz.part01 〜 part14', size: '239,275,554', when: '10:25:45 〜 10:25:50', note: 'part01〜13 は各 18,000,000 バイト、part14 は 5,275,554 バイト。分割ごとの SHA-256 は <code>SHA256SUMS</code> に記録' },
+  { no: '3', name: '連結した lean.tar.gz', size: '239,275,554', when: '—', hash: '9631b4f020199e580ba86178cb56c6e9b09f690c2369a80dc4334aa93f49c7fc' },
+  { no: '4', name: '展開したツリー lean/', size: '175,190 ファイル', when: '—', note: '全ファイルの SHA-256 一覧を保存。<code>gzip -t</code> は正常、展開後の tar は 1,270,753,280 バイト' },
 ];
 
-// ---- §3 ----
+// ---- 5 節 ----
 const dirs: [string, string, string, string, string][] = [
   ['Development', '141,928', '12,232,663', '767,288,236', '81.0%'],
   ['Formalism', '18,254', '3,200,748', '164,903,481', '10.4%'],
@@ -77,8 +85,8 @@ const dirs: [string, string, string, string, string][] = [
   ['(直下)Main.lean, Statements.lean', '2', '28', '1,216', '0.0%'],
 ];
 const sizeRows: [string, string][] = [
-  ['Lean ソースの合計', '<b>1,030,531,854 バイト</b>(約 1.03 GB、983 MiB)。<code>.lean</code> ファイル 175,187 個の合計'],
-  ['行数の合計', '<b>17,374,215 行</b>(改行の数)'],
+  ['Lean ソースの合計', '1,030,531,854 バイト(約 1.03 GB、983 MiB)。<code>.lean</code> ファイル 175,187 個の合計'],
+  ['行数の合計', '17,374,215 行(改行の数)'],
   ['配布アーカイブ', '239,275,554 バイト(約 239 MB)。gzip 圧縮された 14 分割の合計'],
   ['展開後の tar', '1,270,753,280 バイト(約 1.27 GB)'],
   ['展開後のディスク占有', '約 1.4 GB(4 KiB ブロック単位。XFS 上での実測)'],
@@ -94,7 +102,7 @@ const toolRows: [string, string][] = [
   ['外部への import', '<code>Mathlib</code>(136,003 ファイルが全体を import)、<code>Batteries</code>、<code>Lean</code> のみ'],
 ];
 
-// ---- §4 ----
+// ---- 6 節 ----
 const theorems: [string, string][] = [
   ['riemannHypothesis', 'Mathlib が定義する <code>RiemannHypothesis</code> そのもの。ζ(s) = 0 で、s が自明な零点(−2, −4, …)でも 1 でもなければ Re s = 1/2。'],
   ['riemannZeta_eq_zero_re', '同じ主張を、Mathlib の定義名を使わずに書き下したもの。'],
@@ -103,7 +111,15 @@ const theorems: [string, string][] = [
   ['LFunction_eq_zero_re_of_isPrimitive', '上と同じ主張を原始指標に限ったもの。'],
 ];
 
-// ---- §5.1 ----
+// Mathlib v4.33.1 の RiemannHypothesis の定義(改行位置だけ変更)
+const mathlibDef = `def RiemannHypothesis : Prop :=
+  ∀ (s : ℂ)
+  (_ : riemannZeta s = 0)
+  (_ : ¬∃ n : ℕ, s = -2 * (n + 1))
+  (_ : s ≠ 1),
+  s.re = 1 / 2`;
+
+// ---- 7.1 ----
 const scan: [string, string, string, string][] = [
   ['<code>sorry</code>(大文字小文字無視・部分一致)', '0', '0', '証明の穴埋め'],
   ['<code>admit</code>', '0', '0', '同上'],
@@ -113,22 +129,13 @@ const scan: [string, string, string, string][] = [
   ['<code>debug.skipKernelTC</code> ほか <code>set_option debug.*</code>', '0', '0', 'カーネル検査のスキップ'],
   ['<code>#guard_msgs</code> / <code>#eval</code> / <code>initialize</code>', '0', '0', 'エラーの握りつぶし、ビルド時のコード実行'],
   ['<code>syntax</code> / 大域の <code>notation</code>', '0', '0', '識別子や記法のすり替え(<code>local</code> / <code>scoped</code> な記法は 1,791 件あり、いずれもファイル内・名前空間内に限定)'],
-  ['<code>addDecl</code>', '1', '2', '宣言を別名で複製するコマンド。通常のカーネル検査を通る経路を使用(下記)'],
+  ['<code>addDecl</code>', '1', '2', '宣言を別名で複製するコマンド。通常のカーネル検査を通る経路を使用(本文参照)'],
   ['<code>run_cmd</code> / <code>modifyEnv</code>', '5', '5', '<code>BuildAid/D1〜D5.lean</code>。補題検索の除外リストに名前を足すだけ'],
-  ['<code>elab</code>', '3', '4', '証明補助のタクティク定義(下記)'],
+  ['<code>elab</code>', '3', '4', '証明補助のタクティク定義(本文参照)'],
   ['<code>macro</code>', '64', '87', 'タクティクの略記。全件が <code>tactic</code> か局所的な項マクロ'],
 ];
 
-// ---- §5.3 ----
-const b = data.build;
-const buildRows: [string, string][] = [
-  ['開始', '2026-11-21 10:42:23 JST'],
-  ['進捗', '冒頭の「全体ビルドの進捗」を参照(自動集計)'],
-  ['エラー', b.errors === null || b.errors === undefined ? '集計なし' : `${b.stamp} 時点で ${b.errors} 件` + (b.errors === 0 ? '(リンタの警告のみ)' : '')],
-  ['並列度', 'Lean プロセス約 90 並列、ロードアベレージ約 150'],
-];
-
-// ---- §6 ----
+// ---- 8 節 ----
 const hardware: [string, string][] = [
   ['CPU', 'AMD EPYC 7742(64 コア / 128 スレッド、1 ソケット、x86_64、最大 3.41 GHz)'],
   ['キャッシュ', 'L1d 2 MiB / L1i 2 MiB / L2 32 MiB / L3 256 MiB、NUMA 4 ノード'],
@@ -139,7 +146,7 @@ const hardware: [string, string][] = [
   ['ツール', 'elan 4.2.3、Lean 4.33.1、Lake 5.0.0、git 2.43.0、curl 8.5.0、GNU tar 1.35、ripgrep 13.0.0、Python 3.12.3'],
 ];
 
-// ---- §8 ----
+// ---- 10 節 ----
 const reproduce = `git clone https://github.com/yawara/riemann-hypothesis.git
 cd riemann-hypothesis
 
@@ -154,146 +161,240 @@ scripts/run_leanchecker.sh             # 全モジュールのカーネル再検
 scripts/setup_external_checkers.sh     # lean4export / nanoda / lean4lean を用意
 scripts/run_nanoda.sh                  # 主定理の依存一式を別実装カーネル nanoda で検査
 scripts/reconstruct.sh --verify        # ビルド後もソースが原本と一致することを確認`;
+
+// 奥付
+const colophon: [string, string][] = [
+  ['更新', 'このページは検証の進行に合わせて更新します。数値とハッシュは、リポジトリに保存したログと証拠ファイルから転記したものです。巻頭の進み具合と 2 節の観測値は、検証機が自動で測った値で、合否の判定は含みません。'],
+  ['組版', '本文は明朝、見出しと図表まわりはゴシック(いずれも閲覧環境の書体)。欧文と数字は Computer Modern、コードは JetBrains Mono。'],
+  ['図', `図 1 は <a href="${repo}/blob/main/scripts/gen_zeta_phase.py">gen_zeta_phase.py</a> と <a href="${repo}/blob/main/scripts/gen_zeta_figure.py">gen_zeta_figure.py</a> が計算したもの。図 2 と表 2 は <a href="${repo}/blob/main/scripts/observe.py">observe.py</a> の記録。`],
+  ['道具', 'Astro(サイト生成)、Tailwind CSS(版面と本文の組み)、KaTeX(数式と欧文の書体)、Observable Plot(図)、Shiki(コードの色分け)、Alpine.js(観測値の読み込み)。'],
+  ['所在', `<a href="${repo}">github.com/yawara/riemann-hypothesis</a>`],
+];
 ---
 
-<Report title={title} description={description} toc={toc}>
-  <header slot="masthead" class="flex flex-col gap-6">
-    <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b-2 border-base-content pb-3">
-      <p class="font-serif text-[0.95rem] font-bold tracking-[0.18em]">独立検証レポート</p>
-      <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-base-content/70">
-        <Status state="run" label="検証中" />
-        <span>最終更新 <time class="tabular-nums text-base-content">{data.generatedAt}</time></span>
-      </p>
+<Report title={title} description={description}>
+  <header slot="masthead">
+    <div class="bleed flex flex-wrap items-baseline justify-between gap-x-6 gap-y-0.5 border-b border-ink pb-2 font-sans text-[0.8125rem] leading-[1.7]">
+      <p class="font-bold tracking-[0.06em]">独立検証の記録</p>
+      <p class="text-ink-2">{data.generatedAt} 版</p>
     </div>
-    <h1 class="mt-1 font-serif text-[clamp(1.75rem,5.4vw,2.9rem)] leading-[1.32] font-bold text-balance">{title}</h1>
-    <p class="max-w-2xl leading-[1.9] text-base-content/70">
-      2026 年 11 月 20 日付で <a class="link link-primary" href="https://alpo.ge/remark.pdf">alpo.ge/remark.pdf</a>
+
+    <h1
+      class="bleed mt-12 font-sans text-[clamp(1.7rem,6.2vw,2.75rem)] leading-[1.3] font-bold tracking-[0.01em] text-balance [font-feature-settings:'palt']"
+    >
+      {title}
+    </h1>
+    <p class="mt-6">
+      2026 年 11 月 20 日付で <a href="https://alpo.ge/remark.pdf">alpo.ge/remark.pdf</a>{' '}
       に公開された文書と、そこから配布されている Lean 4 の形式証明を、原本を保全したうえで手元の計算機で再コンパイルし、検査している記録です。
     </p>
-    <dl class="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-5 gap-y-2 border-y border-base-300 py-4">
-      <dt class="font-serif text-xs font-bold tracking-[0.14em] text-base-content/70">予想</dt>
-      <dd class="flex flex-wrap gap-x-[0.9em] text-[clamp(1.02rem,3.1vw,1.4rem)] leading-[1.6]">
-        <span class="whitespace-nowrap"><M tex={String.raw`\zeta(s)=0,`} /></span>
-        <span class="whitespace-nowrap"><M tex={String.raw`s\notin\{-2,-4,-6,\dots\}`} /></span>
-        <span class="whitespace-nowrap"><M tex={String.raw`\Longrightarrow\ \operatorname{Re}s=\tfrac12`} /></span>
-      </dd>
-      <dt class="font-serif text-xs font-bold tracking-[0.14em] text-base-content/70">Lean</dt>
-      <dd class="font-mono text-[clamp(0.8rem,2.5vw,1rem)] wrap-anywhere">theorem riemannHypothesis : RiemannHypothesis</dd>
+
+    <dl class="ledger bleed mt-9">
+      <div>
+        <dt>判定</dt>
+        <dd>
+          <p class="font-sans text-[1.2rem] leading-[1.5] font-bold">まだ出ていません</p>
+          <p class="mt-1 text-[0.9375rem] leading-[1.8]">
+            全 175,187
+            モジュールのコンパイルと、そのあとの検査(公理の確認、カーネルによる再検査、別実装のカーネルによる照合)が終わるまで、この証明が正しいとも誤りとも言えません。
+          </p>
+        </dd>
+      </div>
+      <div>
+        <dt>進み具合</dt>
+        <dd>
+          <p>
+            コンパイル済み <span class="text-[1.3rem] leading-none" x-text="fmt(done)">{fmtInt(latest.done)}</span> / 175,187 モジュール(<span
+              x-text="pct()">{pct}</span
+            >%)
+          </p>
+          <div class="ruler mt-1.5 max-w-[var(--measure)]" role="img" aria-label="全体ビルドの進み具合">
+            <span style={`width:${pct}%`} x-bind:style="'width:' + pct() + '%'"></span>
+          </div>
+          <p class="cap mt-1.5">
+            <span x-text="stamp()">{jstMdHm(latest.t_utc)}</span> JST 時点の自動集計。<span x-show="errors !== null"
+              >ビルドログのエラー行は <span x-text="errors">{latest.error_lines}</span>。</span
+            >
+          </p>
+        </dd>
+      </div>
+      <div>
+        <dt>規模</dt>
+        <dd>
+          Lean ファイル <span class="text-[1.3rem] leading-none">175,187</span> 個、<span class="text-[1.3rem] leading-none">17,374,215</span>{' '}
+          行、<span class="text-[1.3rem] leading-none">1.03</span> GB(1,030,531,854 バイト)。配布アーカイブは 14 分割で 239 MB。
+        </dd>
+      </div>
+      <div>
+        <dt>観測</dt>
+        <dd>
+          ビルド開始(11 月 21 日 10:42 JST)から 50 分ごとに、検証機の状態を記録しています。記録は <a href="#observations">2 節</a> に。
+        </dd>
+      </div>
     </dl>
-    <ZetaPlot />
+
+    <ZetaFigure />
   </header>
 
-  <Section id="summary" mark="要旨" title="現時点の結論">
-    <div class="not-prose flex flex-col gap-6">
-      <div class="stats stats-vertical w-full border border-base-300 bg-base-100 lg:stats-horizontal">
-        <div class="stat">
-          <div class="stat-title">Lean ファイル</div>
-          <div class="stat-value text-[1.75rem]">175,187</div>
-          <div class="stat-desc">個(<span class="font-mono">.lean</span>)</div>
-        </div>
-        <div class="stat">
-          <div class="stat-title">行数</div>
-          <div class="stat-value text-[1.75rem]">17,374,215</div>
-          <div class="stat-desc">行(改行の数)</div>
-        </div>
-        <div class="stat">
-          <div class="stat-title">ソースの合計サイズ</div>
-          <div class="stat-value text-[1.75rem]">1.03 GB</div>
-          <div class="stat-desc">1,030,531,854 バイト</div>
-        </div>
-        <div class="stat">
-          <div class="stat-title">配布アーカイブ</div>
-          <div class="stat-value text-[1.75rem]">239 MB</div>
-          <div class="stat-desc">gzip 圧縮・14 分割の合計</div>
-        </div>
-      </div>
+  <nav class="bleed mb-16 font-sans text-[0.8125rem] leading-[1.9]" aria-label="目次">
+    <ol class="flex flex-wrap gap-x-5">
+      <li class="font-bold" aria-hidden="true">目次</li>
+      {
+        toc.map((s) => (
+          <li class="whitespace-nowrap">
+            <a href={`#${s.id}`} class="text-ink no-underline hover:underline">
+              <span class="mr-[0.45em] font-serif text-[0.9375rem] text-ink-2">{s.no}</span>
+              {s.title}
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+  </nav>
 
-      <div class="card border border-base-300 bg-base-100">
-        <div class="card-body gap-6">
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Status state="run" label="進行中" size="md" />
-            <h3 class="font-serif text-[clamp(1.15rem,3.6vw,1.4rem)] leading-snug font-bold">証明の正否は、まだ判定できません</h3>
-          </div>
-          <p class="max-w-3xl leading-[1.9]">
-            配布物の取得・保全と、コンパイル前に行える検査はすべて終わり、いずれも問題は見つかっていません。ただし決定的な検査である「全
-            175,187
-            ファイルのコンパイル」「主定理が依存する公理の確認」「カーネルによる再検査」「別実装のカーネルによる照合」はこれからです。これらが終わるまで、この証明が正しいとも誤りとも言えません。
-          </p>
-          <BuildProgress />
-          <Checks items={checks} />
-        </div>
-      </div>
-    </div>
-  </Section>
+  <Sec id="summary" no="1" title="現時点の結論">
+    <p>
+      配布物の取得と保全、そしてコンパイルの前にできる検査は、すべて終わりました。ここまでに問題は見つかっていません。
+    </p>
+    <p>
+      決定的な検査はこれからです。全 175,187
+      ファイルのコンパイル、主定理が依存する公理の確認、カーネルによる再検査、別実装のカーネルによる照合の 4
+      つで、結果が出るまで判定は保留します。
+    </p>
+    <Tbl no="1" title="検査の一覧(実施順)。右端は詳しい説明のある節。" wide stack>
+      <thead>
+        <tr>
+          <th class="w-[1.6rem]"></th>
+          <th class="w-[12.5rem]">検査</th>
+          <th>内容</th>
+          <th class="w-[4.6rem]">状態</th>
+          <th class="num w-[2rem]">節</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          checks.map((c, i) => (
+            <tr>
+              <td class="num text-ink-2">{i + 1}</td>
+              <th>{c.title}</th>
+              <td class="st-body" set:html={c.detail} />
+              <td class="st-state">
+                <State state={c.state} label={c.label} />
+              </td>
+              <td class="num st-hide">{c.ref}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </Tbl>
+  </Sec>
 
-  <Section id="target" mark="§1" title="検証対象">
+  <Sec id="observations" no="2" title="定点観測">
+    <p>
+      全体ビルドは半日以上かかります。その間の様子を残すため、ビルドの開始時刻(2026-11-21 10:42:23 JST)を起点に、50
+      分ごとの時点を観測点として、検証機の状態を記録しています。記録するのは、コンパイル済みモジュール数、ビルドログのエラー行数、負荷、メモリ、ディスクの空きです。
+    </p>
+    <p>
+      値は検証機が自動で測って書き出したもので、合否の判定は含みません。エラー行が現れた場合は、原因(証明の誤りか、計算機側の都合か)を調べてから本文に書きます。
+    </p>
+    <ObsFigure />
+  </Sec>
+
+  <Sec id="target" no="3" title="検証対象">
+    <Side>
+      <a href={`${repo}/blob/main/evidence/01-remark-pdf/remark.pdf`} class="block w-[10rem] border border-hair wide:w-full">
+        <Image src={remarkP1} alt="remark.pdf の 1 ページ目の縮小画像" widths={[240, 480]} sizes="240px" loading="eager" class="block h-auto w-full" />
+      </a>
+      <span class="mt-2 block">原本 <span class="font-mono text-[0.92em]">remark.pdf</span> の 1 ページ目。表題はなく、本文から始まります。脚注 1 が Lean コードの所在です。</span>
+    </Side>
     <p>
       起点は 4 ページの PDF です。本文は、著者が Claude
       と共同でリーマン予想の証明を発見し、さらに一般化リーマン予想まで解決したと述べ、議論を「仮定なしに」形式化したとしています。人間が読める証明文書は公開されておらず、提示されているのは
       Lean のコードだけです。コードの所在は脚注 1 に 14 個の URL として書かれています。
     </p>
     <Kv rows={targetRows} />
-    <p class="text-sm text-base-content/70">
-      この検証は「配布された Lean コードが、Lean
-      の検査を本当に通るか」「通ったとして、それは本当にリーマン予想の主張か」を確かめるものです。証明の数学的な中身を人間が読んで理解・査読する作業は含みません。
+    <p>
+      この検証で確かめるのは 2 点です。配布された Lean コードが Lean
+      の検査を本当に通るか。通ったとして、それは本当にリーマン予想の主張か。証明の数学的な中身を人間が読んで査読する作業は含みません。
     </p>
-  </Section>
+  </Sec>
 
-  <Section id="evidence" mark="§2" title="原本の保全">
+  <Sec id="evidence" no="4" title="原本の保全">
     <p>
       取得したファイルはバイト列のままリポジトリの <a href={`${repo}/tree/main/evidence`}><code>evidence/</code></a>
       に保存し、以後いっさい書き換えていません。サーバの応答ヘッダと取得時刻も併せて残しています。
     </p>
-    <ul class="not-prose steps steps-vertical my-4 w-full">
-      {
-        chain.map((c) => (
-          <li class="step step-primary">
-            <div class="py-3 text-left">
-              <div class="font-bold">{c.t}</div>
-              <div class="text-sm leading-[1.75] text-base-content/70">{c.d}</div>
-              {c.hash && (
-                <div class="mt-0.5 text-sm text-base-content/70">
-                  SHA-256 <code class="font-mono text-xs break-all text-base-content">{c.hash}</code>
-                </div>
-              )}
-            </div>
-          </li>
-        ))
-      }
-    </ul>
+    <Tbl no="3" title="保全した原本と、そこから作ったもの。取得時刻は 2026-11-21 の日本時間。" wide>
+      <thead>
+        <tr>
+          <th class="w-[1.6rem]"></th>
+          <th>ファイル</th>
+          <th class="num">バイト数</th>
+          <th class="num">取得時刻</th>
+          <th>SHA-256</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          exhibits.map((e) => (
+            <tr>
+              <td class="num text-ink-2">{e.no}</td>
+              <th class="font-mono text-[0.8rem] font-normal">{e.name}</th>
+              <td class="num">{e.size}</td>
+              <td class="num">{e.when}</td>
+              <td>
+                {e.hash ? (
+                  <span class="block font-mono text-[0.76rem] leading-[1.6] whitespace-nowrap">
+                    {hex(e.hash).map((l) => (
+                      <span class="block">{l}</span>
+                    ))}
+                  </span>
+                ) : (
+                  <span class="font-sans text-[0.8125rem] leading-[1.7] text-ink-2" set:html={e.note} />
+                )}
+              </td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </Tbl>
     <p>
-      tarball の中身は通常ファイルだけで、シンボリックリンクや絶対パス、<code>..</code>
-      を含むパスはありません。所有者・時刻は正規化されています(0/0、1970-01-01)。展開ツリーは原本から完全に再構成できるため、git には原本(14
-      分割)だけを入れ、展開ツリーは入れていません。
+      tarball の中身は通常ファイルだけで、シンボリックリンクや絶対パス、<code>..</code>{' '}
+      を含むパスはありません。所有者と時刻は正規化されています(0/0、1970-01-01)。展開ツリーは原本から完全に再構成できるため、git
+      には原本(14 分割)だけを入れ、展開ツリーは入れていません。
     </p>
-  </Section>
+  </Sec>
 
-  <Section id="scale" mark="§3" title="Lean コードの規模">
+  <Sec id="scale" no="5" title="Lean コードの規模">
+    <Side>
+      <b class="text-ink">行数の比較</b>(同じ縮尺)
+      <span class="mt-2 block">本配布物 <span class="font-serif text-[0.9375rem] text-ink">17,374,215</span> 行</span>
+      <span class="mt-1 block h-[5px] bg-ink"></span>
+      <span class="mt-2.5 block">Mathlib v4.33.1 <span class="font-serif text-[0.9375rem] text-ink">2,293,877</span> 行</span>
+      <span class="mt-1 block h-[5px] w-[13.2%] bg-ink"></span>
+    </Side>
     <p>
-      配布物に入っている Lean ファイルは <strong>175,187 個</strong>、合計
-      <strong>17,374,215 行</strong>、<strong>1,030,531,854 バイト(約 1.03 GB)</strong>です。Lean
+      配布物に入っている Lean ファイルは 175,187 個、合計 17,374,215 行、1,030,531,854 バイト(約 1.03 GB)です。Lean
       ファイル以外に入っているのは、ビルド設定の 3 ファイル(<code>lakefile.toml</code>、<code>lake-manifest.json</code>、<code
         >lean-toolchain</code
       >)だけです。
     </p>
-    <h3>行数とサイズ</h3>
-    <Kv rows={sizeRows} />
-    <h3>ディレクトリ別の内訳</h3>
-    <Table>
+    <Kv no="4" title="行数とサイズ。" rows={sizeRows} />
+    <Tbl no="5" title="ディレクトリ別の内訳(<span class='font-mono text-[0.92em]'>lean/src/</span> 直下)。">
       <thead>
         <tr>
-          <th>ディレクトリ(<code>lean/src/</code> 直下)</th>
-          <th class="text-right">ファイル数</th>
-          <th class="text-right">行数</th>
-          <th class="text-right">バイト数</th>
-          <th class="text-right">ファイル数の割合</th>
+          <th>ディレクトリ</th>
+          <th class="num">ファイル数</th>
+          <th class="num">行数</th>
+          <th class="num">バイト数</th>
+          <th class="num">割合</th>
         </tr>
       </thead>
       <tbody>
         {
           dirs.map(([name, files, lines, bytes, share]) => (
             <tr>
-              <th class="font-semibold whitespace-nowrap">{name}</th>
+              <th class="font-mono text-[0.8rem] font-normal">{name}</th>
               <td class="num">{files}</td>
               <td class="num">{lines}</td>
               <td class="num">{bytes}</td>
@@ -303,68 +404,73 @@ scripts/reconstruct.sh --verify        # ビルド後もソースが原本と一
         }
       </tbody>
       <tfoot>
-        <tr class="border-t-2 border-base-300 text-base-content">
-          <th class="font-bold">合計</th>
-          <td class="num font-bold">175,187</td>
-          <td class="num font-bold">17,374,215</td>
-          <td class="num font-bold">1,030,531,854</td>
-          <td class="num font-bold">100%</td>
+        <tr>
+          <th>合計</th>
+          <td class="num">175,187</td>
+          <td class="num">17,374,215</td>
+          <td class="num">1,030,531,854</td>
+          <td class="num">100%</td>
         </tr>
       </tfoot>
-    </Table>
+    </Tbl>
     <h3>依存関係の形</h3>
     <p>
       各ファイル冒頭の <code>import</code> 行を読んで依存グラフを作ると、プロジェクト内の import は 753,261 本、最長の連鎖は 203
-      段でした。<strong>175,187 モジュールのすべてが <code>Main</code> の推移的な import に含まれます。</strong
-      >つまり主定理を検査するには、1 ファイルも飛ばさずに全部をコンパイルする必要があります。
+      段でした。175,187 モジュールのすべてが <code>Main</code> の推移的な import
+      に含まれます。つまり主定理を検査するには、1 ファイルも飛ばさずに全部をコンパイルする必要があります。
     </p>
-    <Kv rows={toolRows} />
-  </Section>
+    <Kv no="6" title="ツールチェーンと依存。" rows={toolRows} />
+  </Sec>
 
-  <Section id="statements" mark="§4" title="主定理として何が主張されているか">
+  <Sec id="statements" no="6" title="主定理として何が主張されているか">
     <p>
-      最終的な主張は、配布物の <code>Main.lean</code> にある 5 つの定理です。そのうち 4 つの命題は <code>Statements.lean</code>
-      で定義されています。この <code>Statements.lean</code> は <code>import Mathlib</code>
+      最終的な主張は、配布物の <code>Main.lean</code> にある 5 つの定理です。そのうち 4 つの命題は <code>Statements.lean</code>{' '}
+      で定義されています。この <code>Statements.lean</code> は <code>import Mathlib</code>{' '}
       だけを行うファイルで、プロジェクト側の定義を一切使っていません。
     </p>
-    <CodeFile path="lean/src/Main.lean" note="配布物のまま・全文" code={data.lean.main} />
-    <CodeFile path="lean/src/Statements.lean" note="配布物のまま・全文" code={data.lean.statements} />
-    <Table>
+    <Listing no="1" path="lean/src/Main.lean" note="配布物のまま、全文" code={data.lean.main} />
+    <Listing no="2" path="lean/src/Statements.lean" note="配布物のまま、全文" code={data.lean.statements} />
+    <Tbl no="7" title="5 つの主定理。" wide stack>
       <thead>
-        <tr><th>定理名</th><th>主張の内容</th></tr>
+        <tr><th class="w-[21rem]">定理名</th><th>主張の内容</th></tr>
       </thead>
       <tbody>
         {
           theorems.map(([name, claim]) => (
             <tr>
-              <th class="w-2/5 align-top font-normal wrap-anywhere"><code>{name}</code></th>
-              <td class="leading-relaxed" set:html={claim} />
+              <th class="st-full font-mono text-[0.8rem] font-normal [overflow-wrap:anywhere]">{name}</th>
+              <td class="st-full" set:html={claim} />
             </tr>
           ))
         }
       </tbody>
-    </Table>
+    </Tbl>
+    <Side>
+      <b class="text-ink">Mathlib での定義</b>
+      <pre class="mt-1.5 overflow-x-auto font-mono text-[0.7rem] leading-[1.7] text-ink">{mathlibDef}</pre>
+      <span class="mt-1.5 block"
+        ><span class="font-mono text-[0.92em]">Mathlib/NumberTheory/LSeries/RiemannZeta.lean</span> より。改行の位置は余白の幅に合わせて変えています。</span
+      >
+    </Side>
     <p>
       主張の書き方そのものは、Mathlib の既存の定義(<code>riemannZeta</code>、<code>DirichletCharacter.LFunction</code
       >)に対する標準的な定式化です。主定理の直前の数ファイル(関数等式で左半分を右半分に移す議論など)は目で読み、Mathlib
       の定理を使った通常の議論であることを確認しました。膨大な本体部分は読んでおらず、そこは Lean のカーネルによる検査に委ねます。
     </p>
-  </Section>
+  </Sec>
 
-  <Section id="checks" mark="§5" title="検査の内容と結果">
-    <h3 class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span class="font-serif font-normal text-primary">5.1</span>ソースの静的スキャン <Status state="ok" label="0 件" />
-    </h3>
+  <Sec id="checks" no="7" title="検査の内容と結果">
+    <Sub no="7.1" title="ソースの静的スキャン" state="ok" label="済(該当 0 件)" />
     <p>
       Lean を動かす前に、全ソース(1.03
       GB)を文字列検索しました。「証明済み」に見せかける抜け道になりうる記述と、ビルド時に任意のコードを実行しうる記述を数えています。
     </p>
-    <Table>
+    <Tbl no="8" title="静的スキャンの結果。" stack>
       <thead>
         <tr>
-          <th>検索対象</th>
-          <th class="text-right">ファイル数</th>
-          <th class="text-right">一致行数</th>
+          <th class="w-[36%]">検索対象</th>
+          <th class="num">ファイル数</th>
+          <th class="num">一致行数</th>
           <th>意味</th>
         </tr>
       </thead>
@@ -372,119 +478,111 @@ scripts/reconstruct.sh --verify        # ビルド後もソースが原本と一
         {
           scan.map(([target, files, lines, meaning]) => (
             <tr>
-              <th class="w-[34%] align-top leading-relaxed font-normal" set:html={target} />
-              <td class="num align-top">{files}</td>
-              <td class="num align-top">{lines}</td>
-              <td class="align-top leading-relaxed" set:html={meaning} />
+              <td class="st-full" set:html={target} />
+              <td class="num" data-label="ファイル数">{files}</td>
+              <td class="num" data-label="一致行数">{lines}</td>
+              <td class="st-full" set:html={meaning} />
             </tr>
           ))
         }
       </tbody>
-    </Table>
+    </Tbl>
     <p>
-      メタプログラムを含むファイルは人間が読んで確認しました。<code>CutCptCopy.lean</code>
-      は既存の定義・定理を、名前を付け替えて <code>addDecl</code> で登録し直すコマンドを定義しています。<code>addDecl</code>
-      は通常どおりカーネル検査を経由するので、これ自体は健全性を損ないません。<code>OwnStruct.lean</code> と
+      メタプログラムを含むファイルは人間が読んで確認しました。<code>CutCptCopy.lean</code>{' '}
+      は既存の定義・定理を、名前を付け替えて <code>addDecl</code> で登録し直すコマンドを定義しています。<code>addDecl</code>{' '}
+      は通常どおりカーネル検査を経由するので、これ自体は健全性を損ないません。<code>OwnStruct.lean</code> と{' '}
       <code>HeckeNonvanishing/Imports.lean</code> は、項を組み立ててゴールに割り当てるタクティク(<code>kcopy</code>、<code
         >kexactB</code
       >)で、最終的な型の一致はカーネルが判定します。いずれも、後述のカーネル再検査の対象です。
     </p>
-    <p class="text-sm text-base-content/70">
-      静的スキャンは補助的な検査です。文字列検索をすり抜ける細工の可能性は残るため、最終判断はカーネルによる検査で行います。全項目の結果は
+    <p class="note">
+      <b class="mr-[0.5em] text-[0.8125rem]">注</b
+      >静的スキャンは補助的な検査です。文字列検索をすり抜ける細工の可能性は残るため、最終判断はカーネルによる検査で行います。全項目の結果は{' '}
       <a href={`${repo}/tree/main/verification/static-scan`}><code>verification/static-scan/</code></a> にあります。
     </p>
 
-    <h3 class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span class="font-serif font-normal text-primary">5.2</span>依存ライブラリの真正性 <Status state="ok" label="完了" />
-    </h3>
+    <Sub no="7.2" title="依存ライブラリの真正性" state="ok" label="済" />
     <p>
-      配布物が固定している Mathlib のコミット <code>0df444a360eaa60ab8c11dca51a86af692955474</code> は、公式リポジトリ
-      <code>leanprover-community/mathlib4</code> のタグ <code>v4.33.1</code> と一致しました。<code>master</code>
+      配布物が固定している Mathlib のコミット <code>0df444a360eaa60ab8c11dca51a86af692955474</code> は、公式リポジトリ{' '}
+      <code>leanprover-community/mathlib4</code> のタグ <code>v4.33.1</code> と一致しました。<code>master</code>{' '}
       ブランチとの差は <code>lean-toolchain</code> の 1 行だけです。Batteries や Aesop など他の 8 つの依存も、Mathlib
       自身が固定している版と完全に一致します。改変された Mathlib を掴まされている、という可能性はありません。
     </p>
 
-    <h3 class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span class="font-serif font-normal text-primary">5.3</span>全モジュールのコンパイル <Status state="run" label="進行中" />
-    </h3>
+    <Sub no="7.3" title="全モジュールのコンパイル" state="run" label="実行中" />
     <p>
-      配布物の <code>lakefile.toml</code>・<code>lake-manifest.json</code>・<code>lean-toolchain</code>
+      配布物の <code>lakefile.toml</code>・<code>lake-manifest.json</code>・<code>lean-toolchain</code>{' '}
       をそのまま使い、ソースに一切手を加えずに <code>lake build</code> を実行しています。Mathlib
-      は公式のビルド済みキャッシュを取得して利用しました。
+      は公式のビルド済みキャッシュを取得して利用しました。開始は 2026-11-21 10:42:23 JST で、進み具合は <a href="#observations">2 節</a
+      > に記録しています。
     </p>
-    <Kv rows={buildRows} />
-    <Note>
-      ビルド手順に加えた工夫が 1 つあります。Lake 5 はモジュールごとに、推移的に import する全成果物のパスを列挙した
-      <code class="font-mono text-[0.86em]">setup.json</code> を書き出します。<code class="font-mono text-[0.86em]">import Mathlib</code>
-      だけで約 6 MB あり、このプロジェクト全体では合計 1.4 TB
-      を超える見積もりになって検証機のディスクに収まりません。そこで、ビルド済みモジュールの
-      <code class="font-mono text-[0.86em]">setup.json</code>
-      を随時削除するスクリプトを並走させています。このファイルは Lean
-      起動時の入力にすぎず、削除しても再ビルドが起きないこと(成果物として追跡されていないこと)を事前に小さな例で確認しました。ソース・設定・コンパイラには触れていません。
-    </Note>
+    <p class="note">
+      <b class="mr-[0.5em] text-[0.8125rem]">注</b>ビルド手順に加えた工夫が 1 つあります。Lake 5 はモジュールごとに、推移的に import
+      する全成果物のパスを列挙した <code>setup.json</code> を書き出します。<code>import Mathlib</code> だけで約 6 MB
+      あり、このプロジェクト全体では合計 1.4 TB を超える見積もりになって、検証機のディスクに収まりません。そこで、ビルド済みモジュールの{' '}
+      <code>setup.json</code> を随時削除するスクリプトを並走させています。このファイルは Lean
+      起動時の入力にすぎず、削除しても再ビルドが起きないこと(成果物として追跡されていないこと)を、事前に小さな例で確認しました。ソース・設定・コンパイラには触れていません。
+    </p>
 
-    <h3 class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span class="font-serif font-normal text-primary">5.4</span>主定理が依存する公理 <Status state="wait" label="未実施" />
-    </h3>
+    <Sub no="7.4" title="主定理が依存する公理" state="wait" label="未着手" />
+    <Side>
+      <b class="text-ink">標準の 3 公理</b>
+      <span class="mt-1 block"><span class="font-mono text-[0.92em] text-ink">propext</span> 同値な命題は等しい。</span>
+      <span class="block"><span class="font-mono text-[0.92em] text-ink">Classical.choice</span> 空でない型から要素を 1 つ選べる(選択公理)。</span>
+      <span class="block"><span class="font-mono text-[0.92em] text-ink">Quot.sound</span> 関係のある 2 つの元は、商では等しい。</span>
+    </Side>
     <p>
-      ビルド完了後、5 つの主定理それぞれについて <code>#print axioms</code> を実行します。Lean 4 と Mathlib の標準は
-      <code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code> の 3 つです。これ以外(<code>sorryAx</code>
+      ビルド完了後、5 つの主定理それぞれについて <code>#print axioms</code> を実行します。Lean 4 と Mathlib の標準は{' '}
+      <code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code> の 3 つです。これ以外(<code>sorryAx</code>{' '}
       や独自公理)が現れた場合、その定理は無条件に証明されたとは言えません。
     </p>
 
-    <h3 class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span class="font-serif font-normal text-primary">5.5</span>主張の一致確認 <Status state="wait" label="未実施" />
-    </h3>
+    <Sub no="7.5" title="主張の一致確認" state="wait" label="未着手" />
     <p>
       検証者が Mathlib だけを import して書いた命題(<a href={`${repo}/blob/main/verification/lean-checks/RHReference.lean`}
         ><code>RHReference.lean</code></a
       >)を、配布物の主定理でそのまま証明できるかをカーネルに判定させます。あわせて、主定理の型に現れる定数を定義の中身まで推移的に辿り、主張がプロジェクト側の定義に依存していないことを機械的に確認します。
     </p>
 
-    <h3 class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span class="font-serif font-normal text-primary">5.6</span>カーネルによる再検査 <Status state="wait" label="未実施" />
-    </h3>
+    <Sub no="7.6" title="カーネルによる再検査" state="wait" label="未着手" />
     <p>
-      ツールチェーン同梱の <code>leanchecker</code>
+      ツールチェーン同梱の <code>leanchecker</code>{' '}
       で、全モジュールの宣言をカーネルに再生させます。エラボレータやメタプログラムを経由しない検査なので、カーネルを迂回して環境に宣言を押し込む細工があれば検出できます。公式キャッシュから取得した
       Mathlib 側のモジュールも同じ方法で再検査します。
     </p>
 
-    <h3 class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span class="font-serif font-normal text-primary">5.7</span>別実装のカーネルによる照合 <Status state="wait" label="未実施" />
-    </h3>
+    <Sub no="7.7" title="別実装のカーネルによる照合" state="wait" label="未着手" />
     <p>
       ここまでの検査はすべて Lean 本体のカーネル(C++ 実装)に依存します。カーネル自体の不具合を突かれている可能性を減らすため、主定理 5
-      件が推移的に依存する定義・定理・公理をすべて <code>lean4export</code> で書き出し、Rust で書かれた別実装の型検査器
+      件が推移的に依存する定義・定理・公理をすべて <code>lean4export</code> で書き出し、Rust で書かれた別実装の型検査器{' '}
       <code>nanoda</code> に検査させます。許可する公理は標準の 3 つだけです。
     </p>
-    <p class="text-sm text-base-content/70">
-      準備として、主張の定義 <code>RiemannZetaZerosOnLine</code>(Mathlib のみに依存)の依存一式を書き出して検査し、53,240
-      宣言がエラーなく通ることを確認しました。使用した版は lean4export <code>v4.33.0</code>、nanoda_lib <code>0da9f98</code>(v0.4.32)です。
+    <p class="note">
+      <b class="mr-[0.5em] text-[0.8125rem]">注</b>準備として、主張の定義 <code>RiemannZetaZerosOnLine</code>(Mathlib
+      のみに依存)の依存一式を書き出して検査し、53,240 宣言がエラーなく通ることを確認しました。使用した版は lean4export{' '}
+      <code>v4.33.0</code>、nanoda_lib <code>0da9f98</code>(v0.4.32)です。
     </p>
 
-    <h3 class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span class="font-serif font-normal text-primary">5.8</span>ビルド後のソース不変確認 <Status state="wait" label="未実施" />
-    </h3>
+    <Sub no="7.8" title="ビルド後のソース不変確認" state="wait" label="未着手" />
     <p>
       ビルドに使った 175,190 ファイルが原本と 1 バイトも違わないことを、保存してある SHA-256
       一覧と再照合します(ビルド開始前の照合は一致済み)。
     </p>
-  </Section>
+  </Sec>
 
-  <Section id="hardware" mark="§6" title="検証に使った計算機">
+  <Sec id="hardware" no="8" title="検証に使った計算機">
     <p>検証は 1 台の計算機で行っています。Lean のコンパイルとカーネル検査は CPU とメモリだけを使う処理で、GPU は関与しません。</p>
-    <Kv rows={hardware} />
-    <p class="text-sm text-base-content/70">
+    <Kv no="9" title="検証機の構成。" rows={hardware} />
+    <p>
       採取した生の情報は <a href={`${repo}/blob/main/verification/hardware.txt`}><code>verification/hardware.txt</code></a> にあります。
     </p>
-  </Section>
+  </Sec>
 
-  <Section id="limits" mark="§7" title="この検証で言えること、言えないこと">
+  <Sec id="limits" no="9" title="この検証で言えること、言えないこと">
     <h3>すべての検査が通った場合に言えること</h3>
     <p>
       配布された Lean ソースが、指定どおりの Lean 4.33.1 と Mathlib v4.33.1 のもとでエラーなくコンパイルでき、主定理が標準の 3
-      公理だけに依存している、ということです。Lean のカーネルが正しく、Mathlib の <code>riemannZeta</code>
+      公理だけに依存している、ということです。Lean のカーネルが正しく、Mathlib の <code>riemannZeta</code>{' '}
       などの定義が意図どおりである限り、これは Mathlib の <code>RiemannHypothesis</code> が証明されたことを意味します。
     </p>
     <h3>言えないこと</h3>
@@ -495,23 +593,26 @@ scripts/reconstruct.sh --verify        # ビルド後もソースが原本と一
       <li>検証は 1 台の計算機、1 回の実行によるものです。</li>
       <li>配布元と著者については、PDF とサーバ応答から分かる範囲しか確認していません。</li>
     </ul>
-  </Section>
+  </Sec>
 
-  <Section id="reproduce" mark="§8" title="再現手順">
+  <Sec id="reproduce" no="10" title="再現手順">
     <p>
       リポジトリには原本と、ここまでの全手順を再実行するスクリプトが入っています。<code>elan</code>、<code>zstd</code>、<code>ripgrep</code
       >、Python 3 が必要です。ビルド生成物の置き場所として数百 GB の空きを用意してください。
     </p>
-    <CodeFile path="再現手順" note="bash" code={reproduce} lang="bash" />
-  </Section>
+    <Listing no="3" path="再現手順" note="bash" code={reproduce} lang="bash" />
+  </Sec>
 
   <Fragment slot="footer">
-    <p class="max-w-3xl">
-      このページは検証の進行に合わせて更新します。数値とハッシュは、リポジトリに保存したログと証拠ファイルから転記したものです。冒頭の進捗は検証機が自動で集計した値で、合否の判定は含みません。
-    </p>
-    <p class="mt-2 max-w-3xl">
-      サイトは Astro で生成し、部品とテーマに Tailwind CSS と daisyUI、数式に KaTeX、図に Observable Plot、コードの色分けに Shiki、進捗表示に Alpine.js
-      を使っています。リポジトリ <a class="link link-primary" href={repo}>yawara/riemann-hypothesis</a>
-    </p>
+    <dl class="bleed border-t border-ink pt-5 font-sans text-[0.8125rem] leading-[1.8] text-ink-2">
+      {
+        colophon.map(([k, v]) => (
+          <div class="grid grid-cols-[3.2rem_minmax(0,1fr)] gap-x-4 py-[0.2rem]">
+            <dt class="font-bold text-ink">{k}</dt>
+            <dd class="max-w-[46rem]" set:html={v} />
+          </div>
+        ))
+      }
+    </dl>
   </Fragment>
 </Report>

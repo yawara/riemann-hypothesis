@@ -1,0 +1,22 @@
+---
+// コードのリスト(Shiki の css-variables テーマ)。Lean のファイルには行番号を付ける。
+import { Code } from 'astro:components';
+
+interface Props {
+  no: string;
+  path: string;
+  note?: string;
+  code: string;
+  lang?: 'lean4' | 'bash';
+}
+const { no, path, note, code, lang = 'lean4' } = Astro.props;
+---
+
+<figure class:list={['bleed my-7', lang === 'lean4' && 'listing-numbered']}>
+  <figcaption class="cap mb-2">
+    <b>リスト {no}</b><span class="font-mono text-[0.78rem] text-ink">{path}</span>{note && <span>({note})</span>}
+  </figcaption>
+  <div class="border-y border-hair">
+    <Code code={code} lang={lang} theme="css-variables" class="overflow-x-auto py-3 text-[0.8rem] leading-[1.75]" />
+  </div>
+</figure>
