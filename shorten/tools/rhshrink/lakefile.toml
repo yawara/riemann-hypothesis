@@ -1,0 +1,7 @@
+name = "rhshrink"
+version = "0.1.0"
+defaultTargets = ["rhshrink"]
+
+[[lean_exe]]
+name = "rhshrink"
+root = "Main"
