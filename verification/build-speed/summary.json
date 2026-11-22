@@ -1,88 +1,88 @@
 {
- "as_of_utc": "2026-11-21T12:10:33Z",
+ "as_of_utc": "2026-11-22T00:23:28Z",
  "t0_utc": "2026-11-21T01:42:23Z",
  "modules_total": 175187,
- "built": 94734,
- "remaining": 80453,
+ "built": 175187,
+ "remaining": 0,
  "external_modules": 8700,
  "files_with_module_header": 0,
  "regression": {
-  "n": 94708,
-  "intercept_s": 36.7,
-  "slope_s_per_1000": 5.42
+  "n": 175163,
+  "intercept_s": 42.4,
+  "slope_s_per_1000": 4.94
  },
  "bins": [
   {
    "lo": 0,
    "hi": 100,
-   "built": 26766,
-   "median_s": 35.0,
-   "mean_s": 36.5,
-   "remaining": 24405
+   "built": 51171,
+   "median_s": 40.0,
+   "mean_s": 42.3,
+   "remaining": 0
   },
   {
    "lo": 100,
    "hi": 300,
-   "built": 10810,
-   "median_s": 36.0,
-   "mean_s": 37.2,
-   "remaining": 6806
+   "built": 17615,
+   "median_s": 39.0,
+   "mean_s": 42.5,
+   "remaining": 0
   },
   {
    "lo": 300,
    "hi": 1000,
-   "built": 16554,
-   "median_s": 38.0,
-   "mean_s": 39.8,
-   "remaining": 12926
+   "built": 29477,
+   "median_s": 42.0,
+   "mean_s": 45.1,
+   "remaining": 0
   },
   {
    "lo": 1000,
    "hi": 3000,
-   "built": 14999,
-   "median_s": 46.0,
-   "mean_s": 48.9,
-   "remaining": 12699
+   "built": 27699,
+   "median_s": 48.0,
+   "mean_s": 51.3,
+   "remaining": 0
   },
   {
    "lo": 3000,
    "hi": 6000,
-   "built": 6329,
-   "median_s": 60.0,
-   "mean_s": 61.1,
-   "remaining": 6423
+   "built": 12752,
+   "median_s": 62.0,
+   "mean_s": 64.3,
+   "remaining": 0
   },
   {
    "lo": 6000,
    "hi": 10000,
-   "built": 16550,
-   "median_s": 77.0,
-   "mean_s": 78.1,
-   "remaining": 7554
+   "built": 24107,
+   "median_s": 79.0,
+   "mean_s": 80.6,
+   "remaining": 0
   },
   {
    "lo": 10000,
    "hi": 15000,
-   "built": 2091,
-   "median_s": 98.0,
-   "mean_s": 101.6,
-   "remaining": 2980
+   "built": 5073,
+   "median_s": 99.0,
+   "mean_s": 101.8,
+   "remaining": 0
   },
   {
    "lo": 15000,
    "hi": 25000,
-   "built": 597,
-   "median_s": 140.0,
-   "mean_s": 148.0,
-   "remaining": 5294
+   "built": 5891,
+   "median_s": 155.0,
+   "mean_s": 151.9,
+   "remaining": 0
   },
   {
    "lo": 25000,
    "hi": null,
-   "built": 12,
-   "median_s": 214.0,
-   "mean_s": 216.2,
-   "remaining": 1366
+   "built": 1378,
+   "median_s": 200.0,
+   "mean_s": 205.8,
+   "remaining": 0
   }
  ],
  "intervals": [
@@ -169,72 +169,179 @@
    "rate_per_min": 119.1,
    "closure_median": 4103,
    "closure_mean": 4637.6
+  },
+  {
+   "seq": 13,
+   "count": 5859,
+   "rate_per_min": 117.2,
+   "closure_median": 3936,
+   "closure_mean": 4927.1
+  },
+  {
+   "seq": 14,
+   "count": 5847,
+   "rate_per_min": 116.9,
+   "closure_median": 2389,
+   "closure_mean": 4555.3
+  },
+  {
+   "seq": 15,
+   "count": 5981,
+   "rate_per_min": 119.6,
+   "closure_median": 2626,
+   "closure_mean": 4709.3
+  },
+  {
+   "seq": 16,
+   "count": 6067,
+   "rate_per_min": 121.3,
+   "closure_median": 1546,
+   "closure_mean": 3779.2
+  },
+  {
+   "seq": 17,
+   "count": 6476,
+   "rate_per_min": 129.5,
+   "closure_median": 402,
+   "closure_mean": 1738.8
+  },
+  {
+   "seq": 18,
+   "count": 5962,
+   "rate_per_min": 119.2,
+   "closure_median": 401,
+   "closure_mean": 3229.0
+  },
+  {
+   "seq": 19,
+   "count": 5787,
+   "rate_per_min": 115.7,
+   "closure_median": 829,
+   "closure_mean": 3546.8
+  },
+  {
+   "seq": 20,
+   "count": 5307,
+   "rate_per_min": 106.1,
+   "closure_median": 846,
+   "closure_mean": 5194.8
+  },
+  {
+   "seq": 21,
+   "count": 5003,
+   "rate_per_min": 100.1,
+   "closure_median": 2080,
+   "closure_mean": 6711.1
+  },
+  {
+   "seq": 22,
+   "count": 5503,
+   "rate_per_min": 110.1,
+   "closure_median": 920,
+   "closure_mean": 3705.7
+  },
+  {
+   "seq": 23,
+   "count": 6052,
+   "rate_per_min": 121.0,
+   "closure_median": 22,
+   "closure_mean": 829.8
+  },
+  {
+   "seq": 24,
+   "count": 5987,
+   "rate_per_min": 119.7,
+   "closure_median": 109,
+   "closure_mean": 782.7
+  },
+  {
+   "seq": 25,
+   "count": 5670,
+   "rate_per_min": 113.4,
+   "closure_median": 143,
+   "closure_mean": 1966.5
+  },
+  {
+   "seq": 26,
+   "count": 5094,
+   "rate_per_min": 101.9,
+   "closure_median": 1458,
+   "closure_mean": 4480.7
+  },
+  {
+   "seq": 27,
+   "count": 3285,
+   "rate_per_min": 65.7,
+   "closure_median": 10367,
+   "closure_mean": 12281.2
   }
  ],
  "recent": {
-  "rate_per_min": 118.1,
-  "closure_mean": 4993
+  "rate_per_min": 93.7,
+  "closure_mean": 5290
  },
- "remaining_closure": {
-  "median": 790,
-  "mean": 3851,
-  "p90": 11455,
-  "p99": 28187,
-  "max": 175186
- },
- "critical_path": {
-  "hours": 4.1,
-  "length": 56
- },
- "tail": [
+ "remaining_closure": null,
+ "critical_path": null,
+ "tail": [],
+ "finished": true,
+ "chain_length": 203,
+ "chain_tail": [
   {
-   "module": "Development.AutomorphicArithmetic.AutomorphicVarieties.ModularityArgument.ThresholdArguments.DenseThresholdCases.TemperedProductOfSquareIntegrable",
-   "closure": 146662,
-   "predicted_s": 832
+   "module": "Development.AutomorphicArithmetic.Foundations.GaloisRepresentations.IntegralStructures.GeometricFlagBases.WeightOneGeometricRealization",
+   "closure": 45859,
+   "predicted_s": 269,
+   "actual_s": 17.0,
+   "finished_at_utc": "2026-11-22T00:08:43Z"
   },
   {
-   "module": "Development.AutomorphicArithmetic.AutomorphicVarieties.ModularityArgument.ThresholdArguments.DenseThresholdCases.TopMainZj",
-   "closure": 157602,
-   "predicted_s": 891
+   "module": "Development.AutomorphicArithmetic.Foundations.GaloisRepresentations.IntegralStructures.GaloisRepresentationsOfThetaLift",
+   "closure": 61080,
+   "predicted_s": 344,
+   "actual_s": 17.0,
+   "finished_at_utc": "2026-11-22T00:09:00Z"
   },
   {
-   "module": "Development.AutomorphicArithmetic.AutomorphicVarieties.ModularityArgument.ThresholdArguments.DenseThresholdCases.VwinOfRow",
-   "closure": 157603,
-   "predicted_s": 891
+   "module": "Development.AutomorphicArithmetic.Foundations.GaloisRepresentations.IntegralStructures.RowSrc",
+   "closure": 66167,
+   "predicted_s": 369,
+   "actual_s": 18.0,
+   "finished_at_utc": "2026-11-22T00:09:19Z"
   },
   {
    "module": "Development.AutomorphicArithmetic.CharacterBoxes.MainConclusion",
    "closure": 175173,
-   "predicted_s": 986
+   "predicted_s": 908,
+   "actual_s": 38.0,
+   "finished_at_utc": "2026-11-22T00:18:58Z"
   },
   {
    "module": "Supplements.Kernels.MainTheorems",
    "closure": 175178,
-   "predicted_s": 986
+   "predicted_s": 908,
+   "actual_s": 47.0,
+   "finished_at_utc": "2026-11-22T00:19:49Z"
   },
   {
    "module": "Supplements.Kernels.MainTheoremsCritical",
    "closure": 175182,
-   "predicted_s": 986
+   "predicted_s": 908,
+   "actual_s": 37.0,
+   "finished_at_utc": "2026-11-22T00:20:28Z"
   },
   {
    "module": "Supplements.Kernels.MainTheoremsAll",
    "closure": 175184,
-   "predicted_s": 986
+   "predicted_s": 908,
+   "actual_s": 37.0,
+   "finished_at_utc": "2026-11-22T00:21:06Z"
   },
   {
    "module": "Main",
    "closure": 175186,
-   "predicted_s": 986
+   "predicted_s": 908,
+   "actual_s": 46.0,
+   "finished_at_utc": "2026-11-22T00:21:51Z"
   }
  ],
- "cpu": {
-  "seconds": 22.0,
-  "cores": 128,
-  "busy_cores": 78.7,
-  "lake_cores": 34.9,
-  "lean_procs_median": 35,
-  "lean_age_median_s": 7.2,
-  "lean_age_p90_s": 16.8
- }
+ "cpu": null
 }

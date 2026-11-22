@@ -1,0 +1,71 @@
+run_dir: /var/tmp/riemann-hypothesis-ywr/runs/build-20261121T014223Z
+run_dir: /var/tmp/riemann-hypothesis-ywr/runs/build-20261121T014223Z
+started_at_utc: 2026-11-21T01:42:23Z
+targets: <default targets>
+lake: Lake version 5.0.0-src+819816b (Lean version 4.33.1)
+lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+nproc: 128
+sha256 lakefile.toml: b831ad8cac0babb7bf713433259bdfe5163e58c90734e86d71536d4e30ddec4c
+sha256 lake-manifest.json: fee57ee9ed399d0a638ca955e5ad40a37a36eeb9b6dfd9f5964114fa7bbe4774
+sha256 lean-toolchain: 3aac669c7a910ec2389f4e4f921b605adf6ebf2d1e0c9b9cd0be4d33f3f5db71
+finished_at_utc: 2026-11-22T00:22:01Z
+exit_code: 0
+
+## /usr/bin/time -v (lake プロセスとその子孫の合計)
+User time (seconds): 5524468.14
+System time (seconds): 1228659.25
+Elapsed (wall clock) time (h:mm:ss or m:ss): 22:39:37
+Maximum resident set size (kbytes): 74882416
+Exit status: 0
+
+## ログ集計
+log_bytes: 177170330
+built_lines(✔ 警告なしで完了): 71120
+built_lines(⚠ 警告つきで完了): 104043
+replayed_lines(前回の成果物を再利用): 2
+failed_lines(✖): 0
+error_lines(error:): 0
+warning_lines(warning:): 460321
+last_line: Build completed successfully (183903 jobs).
+
+## 成果物
+olean_files: 175187
+build_lib_size: 96G
+
+## モジュールごとの所要時間(Lake の表示値の合計。並列実行なので実時間ではない)
+modules_with_time: 175184
+sum_seconds: 10123411 (= 2812.1 時間)
+mean_seconds: 57.8
+slowest 15:
+      1763 s  Development.AbelianVarietyTheory.Proofs.InertiaEigenvalues.LanglandsQuotientOfSpehTypeProductIsL
+      1672 s  Development.AbelianVarietyTheory.Proofs.IwasawaDecomposition.ChartTiedLevelChain
+      1521 s  Development.AbelianVarietyTheory.Proofs.InertiaEigenvalues.H1fClassWachPairJumps
+      1377 s  Development.AutomorphicSpectrum.Proofs.BlockDecomposition.UnlinkedCommuteOfIrreducible
+      1310 s  GroundTheory.PAdicHodge.FundamentalSeq
+      1270 s  GroundTheory.ProfiniteCohomology.GlobalEulerCharacteristic.CardCohomologyZeroMackeyRepOfNeTop
+      1225 s  GroundTheory.ProfiniteCohomology.RestrictedRamification.BaseMain
+      1097 s  Development.AbelianVarietyTheory.Proofs.IwasawaDecomposition.GeoHalfUpd
+      1042 s  Development.AbelianVarietyTheory.Proofs.DecoratedLatticeProofs.LevelGroupReferenceTuple
+      1002 s  Development.AbelianVarietyTheory.Definitions.AutomorphicMembership.OmPinsTr
+       984 s  GroundTheory.AutomorphicForms.MultiplicityOne.ContinuousWhittakerOneRconvIntertwiner
+       931 s  Development.AutomorphicArithmetic.CharacterBoxes.RiemannHypothesisOfEveryCharacter
+       913 s  Development.WeilBound.RepresentationTheoryGL.GenericUnitaryGL.ComplementarySeries.HighestDerivativeProducts.IsSmoothCharDpowM
+       904 s  Development.AbelianVarietyTheory.Proofs.IwasawaDecomposition.TrueColumnChoiceTwistedChainsFormsClasses
+       875 s  GroundTheory.AutomorphicForms.CuspidalProjection.OrthogonalProjectionOntoCompSubtypeL
+
+## 警告の種類(上位)
+ 113963 this tactic is never executed
+  97363 Try this: 
+  28291 This simp argument is unused:
+  14777 automatically included section variable(s) unused in theorem `GlobalTh
+  12272 Unused tactic linter: `(intros;
+   8685 automatically included section variable(s) unused in theorem `Formalis
+   6651 `Set.mem_setOf_eq` has been deprecated: Use `Set.mem_ofPred_eq` instea
+   6397 `push_neg` has been deprecated. Prefer using `push Not` instead.
+   2815 automatically included section variable(s) unused in theorem `_private
+   2444 Used `tac1 <;> tac2` where `(tac1; tac2)` would suffice
+   1811 automatically included section variable(s) unused in theorem `Positivi
+   1799 try 'simp' instead of 'simpa'
+   1526 Variable name `inst` is not explicitly referenced.
+   1428 automatically included section variable(s) unused in theorem `Reciproc
+   1176 `continuous_finset_sum` has been deprecated: Use `continuous_finsetSum

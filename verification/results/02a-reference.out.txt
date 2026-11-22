@@ -1,0 +1,8 @@
+# 02a-reference
+# started_at_utc: 2026-11-22T00:26:37Z
+# lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+# command: lean --root=/home/ywr/riemann-hypothesis/verification/lean-checks -o /var/tmp/riemann-hypothesis-ywr/checks/RHReference.olean -i /var/tmp/riemann-hypothesis-ywr/checks/RHReference.ilean /home/ywr/riemann-hypothesis/verification/lean-checks/RHReference.lean
+
+# wall=8.10s user=4.55s sys=3.59s maxrss=7142768KB
+# exit_code: 0
+# finished_at_utc: 2026-11-22T00:26:45Z

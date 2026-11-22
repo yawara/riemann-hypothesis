@@ -6,6 +6,7 @@
   * lean  … 配布物の Main.lean / Statements.lean の全文(lean/ が無ければ既存の値を引き継ぐ)
   * obs   … 定点観測のまとめ(scripts/observe.py の出力。無ければ既存の値を引き継ぐ)
   * speed … ビルド速度の集計(verification/build-speed/summary.json。scripts/build_speed_analysis.py の出力)
+  * speedSnapshot … 同じ集計を、ビルド途中の 2026-11-21 21:10 JST に取ったもの
 
 生成物はリポジトリに含めるので、lean/ を再構成していない環境でもサイトをビルドできる。
 
@@ -57,6 +58,13 @@ def main():
         with open(speed_path, encoding="utf-8") as fh:
             speed = json.load(fh)
     assert speed, "ビルド速度の集計が無い(先に scripts/build_speed_analysis.py を実行する)"
+    # ビルド途中(2026-11-21 21:10 JST)の集計。CPU の計測値と、当時の見積もりを本文で引く
+    snapshot = prev.get("speedSnapshot")
+    snapshot_path = os.path.join(ROOT, "verification", "build-speed", "snapshot-20261121T1210Z.json")
+    if os.path.isfile(snapshot_path):
+        with open(snapshot_path, encoding="utf-8") as fh:
+            snapshot = json.load(fh)
+    assert snapshot, "ビルド途中の集計(snapshot)が無い"
 
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
     out = {
@@ -65,6 +73,7 @@ def main():
         "lean": lean,
         "obs": obs,
         "speed": speed,
+        "speedSnapshot": snapshot,
     }
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as fh:

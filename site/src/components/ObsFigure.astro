@@ -13,7 +13,7 @@ const obs = data.obs as Obs;
   <div id="obsfig" class="plot-host min-h-[19rem]" role="img" aria-label="コンパイル済みモジュール数の推移。値は表 2 にあります。"></div>
   <figcaption class="cap mt-2 max-w-[var(--measure)]">
     <b>図 2</b>コンパイル済みモジュール数の推移(横軸は日本時間)。実線は成果物の更新時刻から 5 分刻みで求めた値、白丸は 50
-    分ごとの観測点、朱の点は最新の値です。破線は、直近の速度がそのまま続いた場合の見込みで、モジュールごとに重さが違うため目安にとどまります。
+    分ごとの観測点、朱の点は最新の値です。{obs.projection && '破線は、直近の速度がそのまま続いた場合の見込みで、モジュールごとに重さが違うため目安にとどまります。'}
   </figcaption>
 </figure>
 

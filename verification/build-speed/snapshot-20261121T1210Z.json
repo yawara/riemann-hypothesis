@@ -1,0 +1,240 @@
+{
+ "as_of_utc": "2026-11-21T12:10:33Z",
+ "t0_utc": "2026-11-21T01:42:23Z",
+ "modules_total": 175187,
+ "built": 94734,
+ "remaining": 80453,
+ "external_modules": 8700,
+ "files_with_module_header": 0,
+ "regression": {
+  "n": 94708,
+  "intercept_s": 36.7,
+  "slope_s_per_1000": 5.42
+ },
+ "bins": [
+  {
+   "lo": 0,
+   "hi": 100,
+   "built": 26766,
+   "median_s": 35.0,
+   "mean_s": 36.5,
+   "remaining": 24405
+  },
+  {
+   "lo": 100,
+   "hi": 300,
+   "built": 10810,
+   "median_s": 36.0,
+   "mean_s": 37.2,
+   "remaining": 6806
+  },
+  {
+   "lo": 300,
+   "hi": 1000,
+   "built": 16554,
+   "median_s": 38.0,
+   "mean_s": 39.8,
+   "remaining": 12926
+  },
+  {
+   "lo": 1000,
+   "hi": 3000,
+   "built": 14999,
+   "median_s": 46.0,
+   "mean_s": 48.9,
+   "remaining": 12699
+  },
+  {
+   "lo": 3000,
+   "hi": 6000,
+   "built": 6329,
+   "median_s": 60.0,
+   "mean_s": 61.1,
+   "remaining": 6423
+  },
+  {
+   "lo": 6000,
+   "hi": 10000,
+   "built": 16550,
+   "median_s": 77.0,
+   "mean_s": 78.1,
+   "remaining": 7554
+  },
+  {
+   "lo": 10000,
+   "hi": 15000,
+   "built": 2091,
+   "median_s": 98.0,
+   "mean_s": 101.6,
+   "remaining": 2980
+  },
+  {
+   "lo": 15000,
+   "hi": 25000,
+   "built": 597,
+   "median_s": 140.0,
+   "mean_s": 148.0,
+   "remaining": 5294
+  },
+  {
+   "lo": 25000,
+   "hi": null,
+   "built": 12,
+   "median_s": 214.0,
+   "mean_s": 216.2,
+   "remaining": 1366
+  }
+ ],
+ "intervals": [
+  {
+   "seq": 1,
+   "count": 11048,
+   "rate_per_min": 221.0,
+   "closure_median": 69,
+   "closure_mean": 253.8
+  },
+  {
+   "seq": 2,
+   "count": 10192,
+   "rate_per_min": 203.8,
+   "closure_median": 129,
+   "closure_mean": 412.7
+  },
+  {
+   "seq": 3,
+   "count": 10267,
+   "rate_per_min": 205.3,
+   "closure_median": 305,
+   "closure_mean": 658.9
+  },
+  {
+   "seq": 4,
+   "count": 8323,
+   "rate_per_min": 166.5,
+   "closure_median": 548,
+   "closure_mean": 1635.5
+  },
+  {
+   "seq": 5,
+   "count": 6895,
+   "rate_per_min": 137.9,
+   "closure_median": 792,
+   "closure_mean": 3278.4
+  },
+  {
+   "seq": 6,
+   "count": 7071,
+   "rate_per_min": 141.4,
+   "closure_median": 1160,
+   "closure_mean": 2556.8
+  },
+  {
+   "seq": 7,
+   "count": 6897,
+   "rate_per_min": 137.9,
+   "closure_median": 1362,
+   "closure_mean": 2584.2
+  },
+  {
+   "seq": 8,
+   "count": 6576,
+   "rate_per_min": 131.5,
+   "closure_median": 2751,
+   "closure_mean": 3552.3
+  },
+  {
+   "seq": 9,
+   "count": 6300,
+   "rate_per_min": 126.0,
+   "closure_median": 2834,
+   "closure_mean": 3736.4
+  },
+  {
+   "seq": 10,
+   "count": 5873,
+   "rate_per_min": 117.5,
+   "closure_median": 7038,
+   "closure_mean": 5313.4
+  },
+  {
+   "seq": 11,
+   "count": 5891,
+   "rate_per_min": 117.8,
+   "closure_median": 4436,
+   "closure_mean": 5031.6
+  },
+  {
+   "seq": 12,
+   "count": 5955,
+   "rate_per_min": 119.1,
+   "closure_median": 4103,
+   "closure_mean": 4637.6
+  }
+ ],
+ "recent": {
+  "rate_per_min": 118.1,
+  "closure_mean": 4993
+ },
+ "remaining_closure": {
+  "median": 790,
+  "mean": 3851,
+  "p90": 11455,
+  "p99": 28187,
+  "max": 175186
+ },
+ "critical_path": {
+  "hours": 4.1,
+  "length": 56
+ },
+ "tail": [
+  {
+   "module": "Development.AutomorphicArithmetic.AutomorphicVarieties.ModularityArgument.ThresholdArguments.DenseThresholdCases.TemperedProductOfSquareIntegrable",
+   "closure": 146662,
+   "predicted_s": 832
+  },
+  {
+   "module": "Development.AutomorphicArithmetic.AutomorphicVarieties.ModularityArgument.ThresholdArguments.DenseThresholdCases.TopMainZj",
+   "closure": 157602,
+   "predicted_s": 891
+  },
+  {
+   "module": "Development.AutomorphicArithmetic.AutomorphicVarieties.ModularityArgument.ThresholdArguments.DenseThresholdCases.VwinOfRow",
+   "closure": 157603,
+   "predicted_s": 891
+  },
+  {
+   "module": "Development.AutomorphicArithmetic.CharacterBoxes.MainConclusion",
+   "closure": 175173,
+   "predicted_s": 986
+  },
+  {
+   "module": "Supplements.Kernels.MainTheorems",
+   "closure": 175178,
+   "predicted_s": 986
+  },
+  {
+   "module": "Supplements.Kernels.MainTheoremsCritical",
+   "closure": 175182,
+   "predicted_s": 986
+  },
+  {
+   "module": "Supplements.Kernels.MainTheoremsAll",
+   "closure": 175184,
+   "predicted_s": 986
+  },
+  {
+   "module": "Main",
+   "closure": 175186,
+   "predicted_s": 986
+  }
+ ],
+ "cpu": {
+  "seconds": 22.0,
+  "cores": 128,
+  "busy_cores": 78.7,
+  "lake_cores": 34.9,
+  "lean_procs_median": 35,
+  "lean_age_median_s": 7.2,
+  "lean_age_p90_s": 16.8
+ }
+}

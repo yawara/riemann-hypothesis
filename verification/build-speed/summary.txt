@@ -1,17 +1,17 @@
-集計時刻: 2026-11-21T12:10:33Z  済 94734 / 残り 80453 / 全 175187
+集計時刻: 2026-11-22T00:23:28Z  済 175187 / 残り 0 / 全 175187
 外部ライブラリの .olean: 8700 個  `module` 宣言のあるファイル: 0 個
-当てはめ(済 94708 件): 所要時間 ≒ 36.7 秒 + 5.42 秒 × (import 数 / 1000)
+当てはめ(済 175163 件): 所要時間 ≒ 42.4 秒 + 4.94 秒 × (import 数 / 1000)
 
 推移的 import 数(プロジェクト内)ごとの所要時間
-            0〜99  済  26766 件  中央値 35.0 秒  平均 36.5 秒  残り  24405 件
-         100〜299  済  10810 件  中央値 36.0 秒  平均 37.2 秒  残り   6806 件
-         300〜999  済  16554 件  中央値 38.0 秒  平均 39.8 秒  残り  12926 件
-       1000〜2999  済  14999 件  中央値 46.0 秒  平均 48.9 秒  残り  12699 件
-       3000〜5999  済   6329 件  中央値 60.0 秒  平均 61.1 秒  残り   6423 件
-       6000〜9999  済  16550 件  中央値 77.0 秒  平均 78.1 秒  残り   7554 件
-     10000〜14999  済   2091 件  中央値 98.0 秒  平均 101.6 秒  残り   2980 件
-     15000〜24999  済    597 件  中央値 140.0 秒  平均 148.0 秒  残り   5294 件
-          25000〜  済     12 件  中央値 214.0 秒  平均 216.2 秒  残り   1366 件
+            0〜99  済  51171 件  中央値 40.0 秒  平均 42.3 秒  残り      0 件
+         100〜299  済  17615 件  中央値 39.0 秒  平均 42.5 秒  残り      0 件
+         300〜999  済  29477 件  中央値 42.0 秒  平均 45.1 秒  残り      0 件
+       1000〜2999  済  27699 件  中央値 48.0 秒  平均 51.3 秒  残り      0 件
+       3000〜5999  済  12752 件  中央値 62.0 秒  平均 64.3 秒  残り      0 件
+       6000〜9999  済  24107 件  中央値 79.0 秒  平均 80.6 秒  残り      0 件
+     10000〜14999  済   5073 件  中央値 99.0 秒  平均 101.8 秒  残り      0 件
+     15000〜24999  済   5891 件  中央値 155.0 秒  平均 151.9 秒  残り      0 件
+          25000〜  済   1378 件  中央値 200.0 秒  平均 205.8 秒  残り      0 件
 
 50 分ごとの区間に完成したモジュール
   # 1   11048 件   221.0 /分  import 数 中央値     69  平均    253.8
@@ -26,17 +26,28 @@
   #10    5873 件   117.5 /分  import 数 中央値   7038  平均   5313.4
   #11    5891 件   117.8 /分  import 数 中央値   4436  平均   5031.6
   #12    5955 件   119.1 /分  import 数 中央値   4103  平均   4637.6
+  #13    5859 件   117.2 /分  import 数 中央値   3936  平均   4927.1
+  #14    5847 件   116.9 /分  import 数 中央値   2389  平均   4555.3
+  #15    5981 件   119.6 /分  import 数 中央値   2626  平均   4709.3
+  #16    6067 件   121.3 /分  import 数 中央値   1546  平均   3779.2
+  #17    6476 件   129.5 /分  import 数 中央値    402  平均   1738.8
+  #18    5962 件   119.2 /分  import 数 中央値    401  平均   3229.0
+  #19    5787 件   115.7 /分  import 数 中央値    829  平均   3546.8
+  #20    5307 件   106.1 /分  import 数 中央値    846  平均   5194.8
+  #21    5003 件   100.1 /分  import 数 中央値   2080  平均   6711.1
+  #22    5503 件   110.1 /分  import 数 中央値    920  平均   3705.7
+  #23    6052 件   121.0 /分  import 数 中央値     22  平均    829.8
+  #24    5987 件   119.7 /分  import 数 中央値    109  平均    782.7
+  #25    5670 件   113.4 /分  import 数 中央値    143  平均   1966.5
+  #26    5094 件   101.9 /分  import 数 中央値   1458  平均   4480.7
+  #27    3285 件    65.7 /分  import 数 中央値  10367  平均  12281.2
 
-残り 80453 件の import 数: 中央値 790  平均 3851  90% 11455  99% 28187  最大 175186
-順番にしか進められない鎖: 56 段、見積もり 4.1 時間
-鎖の最後の 8 個:
-  Development.AutomorphicArithmetic.AutomorphicVarieties.ModularityArgument.ThresholdArguments.DenseThresholdCases.TemperedProductOfSquareIntegrable  import 数 146662  見積もり 832 秒
-  Development.AutomorphicArithmetic.AutomorphicVarieties.ModularityArgument.ThresholdArguments.DenseThresholdCases.TopMainZj  import 数 157602  見積もり 891 秒
-  Development.AutomorphicArithmetic.AutomorphicVarieties.ModularityArgument.ThresholdArguments.DenseThresholdCases.VwinOfRow  import 数 157603  見積もり 891 秒
-  Development.AutomorphicArithmetic.CharacterBoxes.MainConclusion  import 数 175173  見積もり 986 秒
-  Supplements.Kernels.MainTheorems  import 数 175178  見積もり 986 秒
-  Supplements.Kernels.MainTheoremsCritical  import 数 175182  見積もり 986 秒
-  Supplements.Kernels.MainTheoremsAll  import 数 175184  見積もり 986 秒
-  Main  import 数 175186  見積もり 986 秒
-
-CPU(22.0 秒間): 128 スレッド中 78.7 本ぶんを使用、うち Lake 本体が 34.9 本ぶん。lean プロセスは中央値 35 個、起動からの経過は中央値 7.2 秒(90% 点 16.8 秒)
+Main に至るいちばん深い鎖(203 段)の最後の 8 個: import 数 / 当てはめの見積もり / 実際
+  Development.AutomorphicArithmetic.Foundations.GaloisRepresentations.IntegralStructures.GeometricFlagBases.WeightOneGeometricRealization  45859  269 秒  17 秒
+  Development.AutomorphicArithmetic.Foundations.GaloisRepresentations.IntegralStructures.GaloisRepresentationsOfThetaLift  61080  344 秒  17 秒
+  Development.AutomorphicArithmetic.Foundations.GaloisRepresentations.IntegralStructures.RowSrc  66167  369 秒  18 秒
+  Development.AutomorphicArithmetic.CharacterBoxes.MainConclusion  175173  908 秒  38 秒
+  Supplements.Kernels.MainTheorems  175178  908 秒  47 秒
+  Supplements.Kernels.MainTheoremsCritical  175182  908 秒  37 秒
+  Supplements.Kernels.MainTheoremsAll  175184  908 秒  37 秒
+  Main  175186  908 秒  46 秒

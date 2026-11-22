@@ -40,23 +40,27 @@ const obs = data.obs;
 const latest = obs.latest;
 const pct = ((latest.done / obs.total) * 100).toFixed(1);
 
-// ---- 2 節: 速度が落ちている理由(scripts/build_speed_analysis.py の集計) ----
-const sp = data.speed;
+// ---- 2 節: 速度が落ちていった理由(scripts/build_speed_analysis.py の集計) ----
+const sp = data.speed; // ビルド完了後の集計
+const snap = data.speedSnapshot; // ビルド途中(2026-11-21 21:10 JST)の集計。CPU の計測値と、当時の見積もりに使う
 const spFirst = sp.intervals[0];
-const spLast = sp.intervals[sp.intervals.length - 1];
-const spAsOf = jstMdHm(sp.as_of_utc);
+const spMid = sp.intervals.filter((i: { seq: number }) => i.seq >= 10 && i.seq <= 26);
+const spMidMin = Math.floor(Math.min(...spMid.map((i: { rate_per_min: number }) => i.rate_per_min)) / 10) * 10;
+const spMidMax = Math.ceil(Math.max(...spMid.map((i: { rate_per_min: number }) => i.rate_per_min)) / 10) * 10;
+const spPeak = sp.intervals.reduce((a: any, b: any) => (b.closure_median > a.closure_median ? b : a));
+const snapAsOf = jstMdHm(snap.as_of_utc);
 const binLabel = (b: { lo: number; hi: number | null }) => (b.hi === null ? `${fmtInt(b.lo)} 以上` : `${fmtInt(b.lo)}〜${fmtInt(b.hi - 1)}`);
-const tailHours = (sp.tail.reduce((sum: number, t: { predicted_s: number }) => sum + t.predicted_s, 0) / 3600).toFixed(1);
-const tailMin = Math.min(...sp.tail.map((t: { closure: number }) => t.closure));
-const tailMax = Math.max(...sp.tail.map((t: { closure: number }) => t.closure));
 const man = (n: number) => (n / 10000).toFixed(1).replace(/\.0$/, '');
-// いまの速度が続いた場合の完走時刻と、最後の鎖のぶんを足した時刻(30 分単位に丸める)
-const etaLinearMs = Date.parse(sp.as_of_utc) + (sp.remaining / sp.recent.rate_per_min) * 60000;
-const round30 = (ms: number) => Math.round(ms / 1800000) * 1800000;
-const etaLinear = jstMdHm(round30(etaLinearMs));
-const etaLate = jstMdHm(round30(etaLinearMs + Number(tailHours) * 3600000));
 const perExternalMs = ((sp.regression.intercept_s / sp.external_modules) * 1000).toFixed(1);
 const perProjectMs = sp.regression.slope_s_per_1000.toFixed(1);
+// Main に至るいちばん深い鎖の最後の 8 個: 当てはめの見積もりと実際
+const ct = sp.chain_tail;
+const ctClosure = ct.map((t: { closure: number }) => t.closure);
+const ctActual = ct.map((t: { actual_s: number }) => t.actual_s);
+const ctPred = ct.map((t: { predicted_s: number }) => t.predicted_s);
+const ctActualSumMin = Math.round(ctActual.reduce((a: number, b: number) => a + b, 0) / 60);
+const round10 = (n: number) => Math.round(n / 10) * 10;
+const snapTailHours = (snap.tail.reduce((sum: number, t: { predicted_s: number }) => sum + t.predicted_s, 0) / 3600).toFixed(1);
 
 type St = 'ok' | 'run' | 'wait' | 'bad';
 // ---- 1 節: 検査の一覧(実施順) ----
@@ -66,10 +70,10 @@ const checks: { state: St; label: string; title: string; detail: string; ref: st
   { state: 'ok', label: '済', title: 'ソースの静的スキャン', detail: '<code>sorry</code>・<code>axiom</code>・<code>native_decide</code>・<code>unsafe</code>、カーネル検査のスキップ指定などは、全ソース中に 0 件。', ref: '7.1' },
   { state: 'ok', label: '済', title: '依存ライブラリの真正性', detail: '固定された Mathlib のコミットは、公式リポジトリのタグ <code>v4.33.1</code> そのもの。他の依存も Mathlib 自身の固定版と一致。', ref: '7.2' },
   { state: 'ok', label: '済', title: 'import グラフ', detail: '存在しないモジュールへの import は 0、循環は 0。全 175,187 モジュールが <code>Main</code> から到達可能。', ref: '5' },
-  { state: 'run', label: '実行中', title: '全モジュールのコンパイル', detail: '2026-11-21 10:42 JST に開始。進み具合は 2 節の定点観測に記録。', ref: '7.3' },
-  { state: 'wait', label: '未着手', title: '主定理が依存する公理', detail: 'ビルド完了後に <code>#print axioms</code> で確認。', ref: '7.4' },
+  { state: 'ok', label: '済', title: '全モジュールのコンパイル', detail: '2026-11-21 10:42 JST に開始し、11-22 9:22 に完走(22 時間 40 分)。全 175,187 モジュールでエラー 0。', ref: '7.3' },
+  { state: 'run', label: '実行中', title: '主定理が依存する公理', detail: '5 つの主定理について <code>#print axioms</code> を実行中。', ref: '7.4' },
   { state: 'wait', label: '未着手', title: '主張の一致確認', detail: '検証者が Mathlib だけで書いた命題と、主定理の型が一致するかをカーネルに判定させる。', ref: '7.5' },
-  { state: 'wait', label: '未着手', title: 'カーネルによる再検査', detail: 'ツールチェーン同梱の <code>leanchecker</code> で、全モジュールの宣言をカーネルに再生させる。', ref: '7.6' },
+  { state: 'run', label: '実行中', title: 'カーネルによる再検査', detail: 'ツールチェーン同梱の <code>leanchecker</code> で、全モジュールの宣言をカーネルに再生させている。', ref: '7.6' },
   { state: 'wait', label: '未着手', title: '別実装のカーネルによる照合', detail: '主定理の依存一式を書き出し、Rust 製の別実装カーネル <code>nanoda</code> で検査する。道具は準備済み。', ref: '7.7' },
   { state: 'wait', label: '未着手', title: 'ビルド後のソース不変確認', detail: 'ビルドに使った全ファイルが、原本と 1 バイトも違わないことを再照合する。', ref: '7.8' },
 ];
@@ -155,6 +159,17 @@ const scan: [string, string, string, string][] = [
   ['<code>macro</code>', '64', '87', 'タクティクの略記。全件が <code>tactic</code> か局所的な項マクロ'],
 ];
 
+// ---- 7.3: 全体ビルドの結果(verification/results/00-build-stats.txt から転記) ----
+const buildRows: [string, string][] = [
+  ['開始と終了', '2026-11-21 10:42:23 JST 〜 2026-11-22 09:22:01 JST'],
+  ['所要時間', '22 時間 39 分 37 秒'],
+  ['CPU 時間', '約 1,876 時間(ユーザー 5,524,468 秒 + システム 1,228,659 秒。<code>lake</code> とその子プロセスの合計)'],
+  ['モジュール', '175,187 個すべての <code>.olean</code> を生成。失敗 0、エラー行 0'],
+  ['警告', '104,043 モジュールで linter の警告(計 460,321 行)。警告なしは 71,120 モジュール'],
+  ['成果物の大きさ', '96 GB(<code>.olean</code> など)'],
+  ['最も時間のかかったモジュール', '<code>Development.AbelianVarietyTheory.Proofs.InertiaEigenvalues.LanglandsQuotientOfSpehTypeProductIsL</code>(1,763 秒)'],
+];
+
 // ---- 8 節 ----
 const hardware: [string, string][] = [
   ['CPU', 'AMD EPYC 7742(64 コア / 128 スレッド、1 ソケット、x86_64、最大 3.41 GHz)'],
@@ -225,7 +240,7 @@ const colophon: [string, string][] = [
           <p class="font-display text-[clamp(1.15rem,4.9vw,1.35rem)] leading-[1.5] font-extrabold tracking-[0.03em] whitespace-nowrap">まだ出ていません</p>
           <p class="mt-1 text-[0.9375rem] leading-[1.8]">
             全 175,187
-            モジュールのコンパイルと、そのあとの検査(公理の確認、カーネルによる再検査、別実装のカーネルによる照合)が終わるまで、この証明が正しいとも誤りとも言えません。
+            モジュールのコンパイルは、エラーなしで完走しました。そのあとの検査(公理の確認、カーネルによる再検査、別実装のカーネルによる照合)が終わるまでは、この証明が正しいとも誤りとも言えません。
           </p>
         </dd>
       </div>
@@ -257,7 +272,7 @@ const colophon: [string, string][] = [
       <div>
         <dt>観測</dt>
         <dd>
-          ビルド開始(11 月 21 日 10:42 JST)から 50 分ごとに、検証機の状態を記録しています。記録は <a href="#observations">2 節</a> に。
+          ビルド開始(11 月 21 日 10:42 JST)から 50 分ごとに、検証機の状態を記録しています。ビルド後の検査のあいだも続けます。記録は <a href="#observations">2 節</a> に。
         </dd>
       </div>
     </dl>
@@ -282,12 +297,11 @@ const colophon: [string, string][] = [
 
   <Sec id="summary" no="1" title="現時点の結論">
     <p>
-      配布物の取得と保全、そしてコンパイルの前にできる検査は、すべて終わりました。ここまでに問題は見つかっていません。
+      配布物の取得と保全、コンパイルの前にできる検査に続いて、全 175,187 ファイルのコンパイルが終わりました。22 時間 40
+      分かかり、エラーは 1 件もありませんでした。ここまでに問題は見つかっていません。
     </p>
     <p>
-      決定的な検査はこれからです。全 175,187
-      ファイルのコンパイル、主定理が依存する公理の確認、カーネルによる再検査、別実装のカーネルによる照合の 4
-      つで、結果が出るまで判定は保留します。
+      決定的な検査は、まだ残っています。主定理が依存する公理の確認、主張の一致確認、カーネルによる再検査、別実装のカーネルによる照合です。結果が出るまで判定は保留します。
     </p>
     <Tbl no="1" title="検査の一覧(実施順)。印は、朱の「済」が完了、藍の「中」が実行中、灰の「未」が未着手。右端は詳しい説明のある節。" wide stack>
       <thead>
@@ -319,7 +333,8 @@ const colophon: [string, string][] = [
 
   <Sec id="observations" no="2" title="定点観測">
     <p>
-      全体ビルドは半日以上かかります。その間の様子を残すため、ビルドの開始時刻(2026-11-21 10:42:23 JST)を起点に、50
+      全体ビルドには 22 時間 40 分かかりました。その間と、そのあとの検査の様子を残すため、ビルドの開始時刻(2026-11-21 10:42:23
+      JST)を起点に、50
       分ごとの時点を観測点として、検証機の状態を記録しています。記録するのは、コンパイル済みモジュール数、ビルドログのエラー行数、負荷、メモリ、ディスクの空きです。
     </p>
     <p>
@@ -327,39 +342,37 @@ const colophon: [string, string][] = [
     </p>
     <ObsFigure />
 
-    <h3>速度が落ちている理由</h3>
+    <h3>速度が落ちていった理由</h3>
     <p>
-      速度は観測のたびに少しずつ落ちています。第 {spFirst.seq} 回は 1 分あたり {spFirst.rate_per_min.toFixed(0)} モジュール、第 {spLast.seq} 回は{' '}
-      {spLast.rate_per_min.toFixed(0)} モジュールでした。計算機の不調ではありません。{spAsOf} JST ごろに {sp.cpu.seconds.toFixed(0)} 秒間測ったところ、CPU は{' '}
-      {sp.cpu.cores} スレッドのうち {sp.cpu.busy_cores.toFixed(0)} 本ぶんしか使っておらず、メモリとディスクにも余裕があります(表 2)。Lean
-      のコンパイル自体も速いままです。計測のあいだに動いていた <code>lean</code> プロセスは、起動からの経過時間が中央値{' '}
-      {sp.cpu.lean_age_median_s.toFixed(0)} 秒、90% 点でも {sp.cpu.lean_age_p90_s.toFixed(0)} 秒でした。
+      速度は観測のたびに少しずつ落ちていきました。第 {spFirst.seq} 回は 1 分あたり {spFirst.rate_per_min.toFixed(0)} モジュール、第 10 回から第 26 回までは{' '}
+      {spMidMin}〜{spMidMax} の間でした。計算機の不調ではありません。ビルドの途中({snapAsOf} JST ごろ)に {snap.cpu.seconds.toFixed(0)} 秒間測ったところ、CPU は{' '}
+      {snap.cpu.cores} スレッドのうち {snap.cpu.busy_cores.toFixed(0)} 本ぶんしか使っておらず、メモリとディスクにも余裕がありました(表 2)。Lean
+      のコンパイル自体も速いままでした。計測のあいだに動いていた <code>lean</code> プロセスは、起動からの経過時間が中央値{' '}
+      {snap.cpu.lean_age_median_s.toFixed(0)} 秒、90% 点でも {snap.cpu.lean_age_p90_s.toFixed(0)} 秒でした。
     </p>
     <p>
-      時間を使っているのは、ビルドツール Lake の準備です。同じ計測で、Lake 本体が CPU を {sp.cpu.lake_cores.toFixed(0)} 本ぶん使っていました。Lake は 1
+      時間を使っていたのは、ビルドツール Lake の準備です。同じ計測で、Lake 本体が CPU を {snap.cpu.lake_cores.toFixed(0)} 本ぶん使っていました。Lake は 1
       モジュールをコンパイルする前に、そのモジュールが推移的に import するモジュールを、毎回最初から 1 つずつたどって、成果物の一覧を作ります(Lake
       の <code>fetchTransImportArts</code>。7.3 節の注に書いた <code>setup.json</code> の中身です)。たどる数は、Mathlib など外部の約{' '}
       {fmtInt(sp.external_modules)} 個に、プロジェクト内の import を足した数です。配布物の Lean ファイルは <code>module</code> 宣言を 1
       つも使っていないので({sp.files_with_module_header} / {fmtInt(sp.modules_total)})、一覧には import 先の成果物がすべて入ります。
     </p>
     <p>
-      実測でも、1 モジュールの所要時間は import の数とともに伸びています(表 3)。済んだ {fmtInt(sp.regression.n)} 件に直線を当てはめると、約{' '}
+      実測でも、1 モジュールの所要時間は import の数とともに伸びていました(表 3)。全体に直線を当てはめると、約{' '}
       {sp.regression.intercept_s.toFixed(0)} 秒 + プロジェクト内の import 1,000 個あたり約 {sp.regression.slope_s_per_1000.toFixed(1)}{' '}
-      秒でした。たどる 1 個あたりに直すと、外部の分が約 {perExternalMs} ミリ秒、プロジェクト内の分が約 {perProjectMs}{' '}
-      ミリ秒です。ビルドが依存の深いところへ進むにつれ、各回に完成したモジュールの import 数(中央値)は、第 {spFirst.seq} 回の{' '}
-      {fmtInt(spFirst.closure_median)} 個から第 {spLast.seq} 回の {fmtInt(spLast.closure_median)} 個に増えました。
+      秒です。ビルドが依存の深いところへ進むにつれ、各回に完成したモジュールの import 数(中央値)は、第 {spFirst.seq} 回の{' '}
+      {fmtInt(spFirst.closure_median)} 個から、多い回(第 {spPeak.seq} 回)では {fmtInt(spPeak.closure_median)} 個に増えました。
     </p>
     <Tbl
       no="3"
-      title={`推移的な import の数(プロジェクト内)と、1 モジュールの所要時間(中央値と平均。狭い画面では中央値のみ)。所要時間は Lake がビルドログに報告した値で、準備とコンパイルの合計。${spAsOf} JST 時点の集計。`}
+      title="推移的な import の数(プロジェクト内)と、1 モジュールの所要時間(中央値と平均。狭い画面では中央値のみ)。所要時間は Lake がビルドログに報告した値で、準備とコンパイルの合計。ビルド完了後の集計。"
     >
       <thead>
         <tr>
           <th class="pr-2.5 sm:pr-4">import の数</th>
-          <th class="num pr-2.5 sm:pr-4">済んだ件数</th>
+          <th class="num pr-2.5 sm:pr-4">モジュール数</th>
           <th class="num pr-2.5 sm:pr-4">中央値</th>
-          <th class="num pr-2.5 max-sm:hidden sm:pr-4">平均</th>
-          <th class="num">残りの件数</th>
+          <th class="num max-sm:hidden">平均</th>
         </tr>
       </thead>
       <tbody>
@@ -369,30 +382,29 @@ const colophon: [string, string][] = [
               <td class="pr-2.5 whitespace-nowrap sm:pr-4">{binLabel(b)}</td>
               <td class="num pr-2.5 sm:pr-4">{fmtInt(b.built)}</td>
               <td class="num pr-2.5 sm:pr-4">{b.median_s === null ? '—' : `${b.median_s.toFixed(0)} 秒`}</td>
-              <td class="num pr-2.5 max-sm:hidden sm:pr-4">{b.mean_s === null ? '—' : `${b.mean_s.toFixed(1)} 秒`}</td>
-              <td class="num">{fmtInt(b.remaining)}</td>
+              <td class="num max-sm:hidden">{b.mean_s === null ? '—' : `${b.mean_s.toFixed(1)} 秒`}</td>
             </tr>
           ))
         }
       </tbody>
     </Tbl>
     <p>
-      今後の見込みです。残りの {fmtInt(sp.remaining)} 個は、import 数の平均が約 {fmtInt(sp.remaining_closure.mean)} 個で、直近 3
-      回に処理した分(平均 約 {fmtInt(sp.recent.closure_mean)} 個)より軽めです。全体がこのまま遅くなり続けるとは見ていません。ただし最後は遅くなります。<code
-        >Main</code
-      > に至る依存の鎖の最後の {sp.tail.length} 個は、それぞれ {man(tailMin)} 万〜{man(tailMax)} 万個を import していて、順番にしか進められません。直線を延長した見積もりでは、この{' '}
-      {sp.tail.length} 個だけで約 {tailHours} 時間かかります。
+      ただし、この時間の大半は作業の量そのものではなく、混雑によるものでした。<code>Main</code> に至るいちばん深い依存の鎖の、最後の {ct.length} 個は、{man(
+        Math.min(...ctClosure),
+      )} 万〜{man(Math.max(...ctClosure))} 万個を import しています。当てはめの式では 1 個あたり {round10(Math.min(...ctPred))}〜{round10(Math.max(...ctPred))}{' '}
+      秒かかる計算ですが、実際には {Math.min(...ctActual).toFixed(0)}〜{Math.max(...ctActual).toFixed(0)} 秒で終わりました(合計で約 {ctActualSumMin}{' '}
+      分)。この {ct.length} 個が走ったのは、ほかに処理するモジュールが無くなり、負荷がほぼ 0 になったあとです。Lake
+      の準備は、多数のモジュールを同時に処理しているあいだだけ、大きく遅くなっていたことになります。
     </p>
     <p>
-      いまの速度が続いた場合、完走は {etaLinear} ごろです。そこへ最後の鎖の待ち時間が加わるので、遅ければ {etaLate}{' '}
-      ごろになると見ています。import が 2.5 万個を超える範囲は実績がほとんど無く、見積もりには幅があります。図 2
-      の破線は直近の速度の延長なので、最後の遅れを含んでいません。
+      ビルドの途中({snapAsOf} JST ごろ)には、途中までの当てはめを延長して「最後の {snap.tail.length} 個だけで約 {snapTailHours}{' '}
+      時間かかる」と見積もり、このページにもそう書いていました。この見積もりは外れました。
     </p>
     <p class="note">
-      <b class="mr-[0.5em] text-[0.8125rem] text-shu">注</b>この処理はビルドの準備で、証明の検査結果には影響しません。たどる 1
-      個あたりの時間は、所要時間と import 数の関係から出した値で、Lake の内部を直接計測したものではありません。集計は{' '}
+      <b class="mr-[0.5em] text-[0.8125rem] text-shu">注</b>この処理はビルドの準備で、証明の検査結果には影響しません。Lake
+      の内部を直接計測したわけではなく、所要時間と import 数の関係、CPU の使われ方、最後の鎖の実績から、こう判断しています。集計は{' '}
       <a href={`${repo}/blob/main/scripts/build_speed_analysis.py`}><code>build_speed_analysis.py</code></a>、結果は{' '}
-      <a href={`${repo}/tree/main/verification/build-speed`}><code>verification/build-speed/</code></a> にあります。
+      <a href={`${repo}/tree/main/verification/build-speed`}><code>verification/build-speed/</code></a> にあります(途中の集計も残してあります)。
     </p>
   </Sec>
 
@@ -610,12 +622,18 @@ const colophon: [string, string][] = [
       自身が固定している版と完全に一致します。改変された Mathlib を掴まされている、という可能性はありません。
     </p>
 
-    <Sub no="7.3" title="全モジュールのコンパイル" state="run" label="実行中" />
+    <Sub no="7.3" title="全モジュールのコンパイル" state="ok" label="エラー 0" />
     <p>
       配布物の <code>lakefile.toml</code>・<code>lake-manifest.json</code>・<code>lean-toolchain</code>{' '}
-      をそのまま使い、ソースに一切手を加えずに <code>lake build</code> を実行しています。Mathlib
-      は公式のビルド済みキャッシュを取得して利用しました。開始は 2026-11-21 10:42:23 JST で、進み具合は <a href="#observations">2 節</a
+      をそのまま使い、ソースに一切手を加えずに <code>lake build</code> を実行しました。Mathlib
+      は公式のビルド済みキャッシュを取得して利用しました。全 175,187 モジュールがエラーなしでコンパイルでき、Lake は{' '}
+      <code>Build completed successfully (183903 jobs).</code> と報告して終了コード 0 で終わりました。途中の様子は <a href="#observations">2 節</a
       > に記録しています。
+    </p>
+    <Kv no="10" title="全体ビルドの結果。" rows={buildRows} />
+    <p>
+      警告はすべて linter によるもので、多い順に「実行されないタクティク」「未使用の <code>simp</code>{' '}
+      引数」「未使用のセクション変数」「非推奨になった名前」などです。エラーではなく、コンパイルの成否には関係しません。
     </p>
     <p class="note">
       <b class="mr-[0.5em] text-[0.8125rem] text-shu">注</b>ビルド手順に加えた工夫が 1 つあります。Lake 5 はモジュールごとに、推移的に import
@@ -625,7 +643,7 @@ const colophon: [string, string][] = [
       起動時の入力にすぎず、削除しても再ビルドが起きないこと(成果物として追跡されていないこと)を、事前に小さな例で確認しました。ソース・設定・コンパイラには触れていません。
     </p>
 
-    <Sub no="7.4" title="主定理が依存する公理" state="wait" label="未着手" />
+    <Sub no="7.4" title="主定理が依存する公理" state="run" label="実行中" />
     <Side>
       <b class="text-ink">標準の 3 公理</b>
       <span class="mt-1 block"><span class="font-mono text-[0.92em] text-ink">propext</span> 同値な命題は等しい。</span>
@@ -633,7 +651,7 @@ const colophon: [string, string][] = [
       <span class="block"><span class="font-mono text-[0.92em] text-ink">Quot.sound</span> 関係のある 2 つの元は、商では等しい。</span>
     </Side>
     <p>
-      ビルド完了後、5 つの主定理それぞれについて <code>#print axioms</code> を実行します。Lean 4 と Mathlib の標準は{' '}
+      5 つの主定理それぞれについて <code>#print axioms</code> を実行します。Lean 4 と Mathlib の標準は{' '}
       <code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code> の 3 つです。これ以外(<code>sorryAx</code>{' '}
       や独自公理)が現れた場合、その定理は無条件に証明されたとは言えません。
     </p>
@@ -645,7 +663,7 @@ const colophon: [string, string][] = [
       >)を、配布物の主定理でそのまま証明できるかをカーネルに判定させます。あわせて、主定理の型に現れる定数を定義の中身まで推移的に辿り、主張がプロジェクト側の定義に依存していないことを機械的に確認します。
     </p>
 
-    <Sub no="7.6" title="カーネルによる再検査" state="wait" label="未着手" />
+    <Sub no="7.6" title="カーネルによる再検査" state="run" label="実行中" />
     <p>
       ツールチェーン同梱の <code>leanchecker</code>{' '}
       で、全モジュールの宣言をカーネルに再生させます。エラボレータやメタプログラムを経由しない検査なので、カーネルを迂回して環境に宣言を押し込む細工があれば検出できます。公式キャッシュから取得した
@@ -673,7 +691,7 @@ const colophon: [string, string][] = [
 
   <Sec id="hardware" no="8" title="検証に使った計算機">
     <p>検証は 1 台の計算機で行っています。Lean のコンパイルとカーネル検査は CPU とメモリだけを使う処理で、GPU は関与しません。</p>
-    <Kv no="10" title="検証機の構成。" rows={hardware} />
+    <Kv no="11" title="検証機の構成。" rows={hardware} />
     <p>
       採取した生の情報は <a href={`${repo}/blob/main/verification/hardware.txt`}><code>verification/hardware.txt</code></a> にあります。
     </p>

@@ -10,13 +10,15 @@ Lake は 1 モジュールをコンパイルする前に、そのモジュール
   * 50 分ごとの区間に完成したモジュールの数と、その import 数
   * まだビルドされていないモジュールの import 数の分布
   * 最後に残る、順番にしか進められない部分(依存の鎖のうち、見積もり時間の合計が最長のもの)
+  * Main に至るいちばん深い依存の鎖の、最後の 8 個の実績(ビルド済みなら実際の所要時間)
   * 計測時点の CPU の使われ方(全体、Lake 本体、lean プロセスの数と経過時間)
 
 外部ライブラリは使わない。推移閉包は Python の整数をビット集合として数える(メモリを数 GB 使う)。
 
 出力: verification/build-speed/summary.json と summary.txt
+(ビルド途中の 2026-11-21 21:10 JST に実行した結果は snapshot-20261121T1210Z.* として残してある)
 
-使い方: python3 -I scripts/build_speed_analysis.py [--no-cpu]
+使い方: python3 -I scripts/build_speed_analysis.py [--no-cpu]     # ビルドが終わったあとは --no-cpu を付ける
 """
 import datetime
 import json
@@ -251,6 +253,18 @@ def main():
     path.reverse()
     tail = [{"module": m, "closure": size[m], "predicted_s": round(predict(m))} for m in path[-8:]]
 
+    # ---- Main に至るいちばん深い依存の鎖(深さが最大の import を順にたどる)。最後の 8 個の実績 ----
+    chain = []
+    cur = "Main" if "Main" in modules else None
+    while cur is not None:
+        chain.append(cur)
+        cur = max(deps[cur], key=lambda d: depth[d]) if deps[cur] else None
+    chain.reverse()
+    chain_tail = [{
+        "module": m, "closure": size[m], "predicted_s": round(predict(m)),
+        "actual_s": dur.get(m), "finished_at_utc": iso(mtime[m]) if m in mtime else None,
+    } for m in chain[-8:]]
+
     recent = intervals[-3:]
     out = {
         "as_of_utc": iso(now),
@@ -273,6 +287,9 @@ def main():
         } if rest_sizes else None,
         "critical_path": {"hours": round(best[path[-1]] / 3600, 1), "length": len(path)} if path else None,
         "tail": tail,
+        "finished": not rest,
+        "chain_length": len(chain),
+        "chain_tail": chain_tail,
         "cpu": sample_cpu() if want_cpu else None,
     }
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -299,6 +316,10 @@ def main():
     if path:
         lines += [f"順番にしか進められない鎖: {out['critical_path']['length']} 段、見積もり {out['critical_path']['hours']} 時間", "鎖の最後の 8 個:"]
         lines += [f"  {t['module']}  import 数 {t['closure']}  見積もり {t['predicted_s']} 秒" for t in tail]
+    lines += ["", f"Main に至るいちばん深い鎖({len(chain)} 段)の最後の 8 個: import 数 / 当てはめの見積もり / 実際"]
+    for t in chain_tail:
+        actual = f"{t['actual_s']:.0f} 秒" if t["actual_s"] is not None else "未"
+        lines.append(f"  {t['module']}  {t['closure']}  {t['predicted_s']} 秒  {actual}")
     if out["cpu"]:
         c = out["cpu"]
         lines += ["", f"CPU({c['seconds']} 秒間): {c['cores']} スレッド中 {c['busy_cores']} 本ぶんを使用、うち Lake 本体が {c['lake_cores']} 本ぶん。"
