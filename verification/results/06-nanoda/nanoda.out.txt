@@ -1,0 +1,57 @@
+theorem riemannHypothesis : RiemannHypothesis := _
+
+def RiemannHypothesis :
+  Prop :=
+  forall (s : Complex),
+  Eq (riemannZeta s) (OfNat.ofNat 0) → Not
+      (Exists
+        (fun (n : Nat) => Eq s (HMul.hMul (Neg.neg (OfNat.ofNat 2)) (HAdd.hAdd (Nat.cast n) (OfNat.ofNat 1))))) →
+  Ne s (OfNat.ofNat 1) → Eq (Complex.re s) (HDiv.hDiv (OfNat.ofNat 1) (OfNat.ofNat 2))
+
+theorem riemannZeta_eq_zero_re : RiemannZetaZerosOnLine := _
+
+theorem LFunction_ne_zero_of_half_lt_re : DirichletLNonvanishingRightOfHalf := _
+
+theorem LFunction_eq_zero_re : DirichletLZerosOnLine := _
+
+theorem LFunction_eq_zero_re_of_isPrimitive : PrimitiveDirichletLZerosOnLine := _
+
+def RiemannZetaZerosOnLine :
+  Prop :=
+  forall (s : Complex),
+  Eq (riemannZeta s) (OfNat.ofNat 0) → Not
+      (Exists
+        (fun (n : Nat) => Eq s (HMul.hMul (Neg.neg (OfNat.ofNat 2)) (HAdd.hAdd (Nat.cast n) (OfNat.ofNat 1))))) →
+  Ne s (OfNat.ofNat 1) → Eq (Complex.re s) (HDiv.hDiv (OfNat.ofNat 1) (OfNat.ofNat 2))
+
+def DirichletLNonvanishingRightOfHalf :
+  Prop :=
+  forall (N : Nat) [inst._@.Statements.2658817955._hygCtx._hyg.8 : NeZero N] (χ : DirichletCharacter Complex N)
+    (s : Complex),
+  LT.lt (HDiv.hDiv (OfNat.ofNat 1) (OfNat.ofNat 2)) (Complex.re s) → Or (Ne χ (OfNat.ofNat 1))
+      (Ne s (OfNat.ofNat 1)) →
+  Ne (DirichletCharacter.LFunction χ s) (OfNat.ofNat 0)
+
+def DirichletLZerosOnLine :
+  Prop :=
+  forall (N : Nat) [inst._@.Statements.2306055118._hygCtx._hyg.8 : NeZero N] (χ : DirichletCharacter Complex N)
+    (s : Complex),
+  LT.lt (OfNat.ofNat 0) (Complex.re s) → LT.lt (Complex.re s) (OfNat.ofNat 1) → Eq
+      (DirichletCharacter.LFunction χ s) (OfNat.ofNat 0) →
+  Eq (Complex.re s) (HDiv.hDiv (OfNat.ofNat 1) (OfNat.ofNat 2))
+
+def PrimitiveDirichletLZerosOnLine :
+  Prop :=
+  forall (N : Nat) [inst._@.Statements.1090354679._hygCtx._hyg.8 : NeZero N] (χ : DirichletCharacter Complex N),
+  DirichletCharacter.IsPrimitive χ → (forall (s : Complex),
+  LT.lt (OfNat.ofNat 0) (Complex.re s) → LT.lt (Complex.re s) (OfNat.ofNat 1) → Eq
+      (DirichletCharacter.LFunction χ s) (OfNat.ofNat 0) →
+  Eq (Complex.re s) (HDiv.hDiv (OfNat.ofNat 1) (OfNat.ofNat 2)))
+
+axiom propext {a b : Prop} : Iff a b → Eq a b
+
+axiom Quot.sound.{u} {α : Sort u} {r : α → α → Prop} {a b : α} : r a b → Eq (Quot.mk r a) (Quot.mk r b)
+
+axiom Classical.choice.{u} {α : Sort u} : Nonempty α → α
+
+Checked 1484729 declarations with no errors

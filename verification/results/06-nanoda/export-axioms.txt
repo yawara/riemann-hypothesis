@@ -1,0 +1,5 @@
+# 書き出した依存一式(export.ndjson.zst)の中の axiom 宣言(grep -F '"axiom' の結果のうち、宣言の行)
+{"axiom":{"isUnsafe":false,"levelParams":[],"name":2657,"type":13643}}
+{"axiom":{"isUnsafe":false,"levelParams":[2],"name":3046,"type":15910}}
+{"axiom":{"isUnsafe":false,"levelParams":[2],"name":4988,"type":39114}}
+# 名前の番号を名前の表で引いた結果: 2657 = propext、3046 = Quot.sound、4988 = Classical.choice

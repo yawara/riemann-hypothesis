@@ -1,0 +1,6 @@
+started_at_utc: 2026-11-22T13:41:58Z
+mathlib_rev: 0df444a360eaa60ab8c11dca51a86af692955474
+toolchain: leanprover/lean4:v4.33.1
+build_exit_code: 0
+build_finished_at_utc: 2026-11-22T14:08:23Z
+finished_at_utc: 2026-11-22T14:08:24Z

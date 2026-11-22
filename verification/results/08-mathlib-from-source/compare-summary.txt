@@ -1,0 +1,9 @@
+mathlib: source-built=8312 identical=8311 different=1 missing-in-cache=0
+batteries: source-built=192 identical=192 different=0 missing-in-cache=0
+aesop: source-built=132 identical=132 different=0 missing-in-cache=0
+Qq: source-built=14 identical=14 different=0 missing-in-cache=0
+proofwidgets: source-built=13 identical=13 different=0 missing-in-cache=0
+importGraph: source-built=10 identical=10 different=0 missing-in-cache=0
+LeanSearchClient: source-built=4 identical=4 different=0 missing-in-cache=0
+plausible: source-built=13 identical=13 different=0 missing-in-cache=0
+TOTAL: source-built=8690 identical=8689 different=1 missing-in-cache=0

@@ -79,8 +79,9 @@ const checks: { state: St; label: string; title: string; detail: string; ref: st
   { state: 'ok', label: '済', title: '主定理が依存する公理', detail: '5 つの主定理すべてが、標準の 3 公理(<code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code>)だけに依存。', ref: '7.4' },
   { state: 'ok', label: '済', title: '主張の一致確認', detail: '検証者が Mathlib だけで書いた命題と、主定理の型が一致。主張に現れる定数は Lean・Mathlib と <code>Statements.lean</code> の定義だけ。', ref: '7.5' },
   { state: 'ok', label: '済', title: 'カーネルによる再検査', detail: '<code>leanchecker</code> と同じ再生処理で、配布物の 175,187 モジュールと、Mathlib など依存ライブラリの 8,700 モジュールのすべてがカーネルの検査を通った(失敗 0)。', ref: '7.6' },
-  { state: 'run', label: '実行中', title: '別実装のカーネルによる照合', detail: '主定理の依存一式(10.8 億行・61.6 GB)を書き出し終え、Rust 製の別実装カーネル <code>nanoda</code> で検査している(書き出しは 11-22 21:30 JST に完了)。', ref: '7.7' },
-  { state: 'wait', label: '未着手', title: 'ビルド後のソース不変確認', detail: 'ビルドに使った全ファイルが、原本と 1 バイトも違わないことを再照合する。', ref: '7.8' },
+  { state: 'ok', label: '済', title: '別実装のカーネルによる照合', detail: '主定理 5 件が推移的に依存する宣言の一式(Lean 本体と Mathlib を含む 1,484,729 個)を書き出し、Rust 製の別実装カーネル <code>nanoda</code> で検査した。エラー 0。一式に含まれる公理は標準の 3 つだけ。', ref: '7.7' },
+  { state: 'ok', label: '済', title: 'ビルド後のソース不変確認', detail: 'ビルドとすべての検査を終えたあとも、175,190 ファイルすべてが原本と 1 バイトも違わない(SHA-256 で再照合)。', ref: '7.8' },
+  { state: 'ok', label: '済', title: 'Mathlib のソースからの再ビルド照合', detail: 'Mathlib など依存の 8,690 モジュールをソースから作り直すと、8,689 は公式キャッシュとバイト単位で一致。残る 1 つの違いは、主定理に関係しない自動生成の等式補題 1 個の書き方だけ。', ref: '7.9' },
 ];
 
 // ---- 3 節 ----
@@ -191,6 +192,36 @@ const cone: [string, string, string, string][] = [
   ['LFunction_eq_zero_re_of_isPrimitive', '5,333', '5,331', '2'],
 ];
 
+// ---- 7.7: nanoda の出力(verification/results/06-nanoda/nanoda.out.txt から抜粋) ----
+const nanodaOut = `theorem riemannHypothesis : RiemannHypothesis := _
+
+def RiemannHypothesis :
+  Prop :=
+  forall (s : Complex),
+  Eq (riemannZeta s) (OfNat.ofNat 0) → Not
+      (Exists
+        (fun (n : Nat) => Eq s (HMul.hMul (Neg.neg (OfNat.ofNat 2)) (HAdd.hAdd (Nat.cast n) (OfNat.ofNat 1))))) →
+  Ne s (OfNat.ofNat 1) → Eq (Complex.re s) (HDiv.hDiv (OfNat.ofNat 1) (OfNat.ofNat 2))
+
+(中略: ほかの主定理 4 件と、その主張の定義)
+
+axiom propext {a b : Prop} : Iff a b → Eq a b
+
+axiom Quot.sound.{u} {α : Sort u} {r : α → α → Prop} {a b : α} : r a b → Eq (Quot.mk r a) (Quot.mk r b)
+
+axiom Classical.choice.{u} {α : Sort u} : Nonempty α → α
+
+Checked 1484729 declarations with no errors`;
+
+// ---- 7.9: Mathlib をソースから作り直した結果(verification/results/08-mathlib-from-source/ から転記) ----
+const mathlibRows: [string, string][] = [
+  ['作り直したもの', 'Mathlib のコミット <code>0df444a360ea…</code>(<code>v4.33.1</code>)を公式リポジトリから取得し、キャッシュを取得せずに <code>lake build Mathlib</code>。依存も、Mathlib 自身が固定した版をソースから取得してコンパイル'],
+  ['所要時間', '25 分 48 秒(<code>lake build</code> の実時間。2026-11-22 22:42 JST に開始)'],
+  ['突き合わせ', '<code>.olean</code> 8,690 個を SHA-256 で比較。Mathlib 8,312、Batteries 192、Aesop 132、そのほか 54'],
+  ['一致', '8,689 個(Mathlib の 8,311 個と、ほかの依存のすべて)'],
+  ['違ったもの', '<code>Mathlib.Combinatorics.SimpleGraph.Walk.Operations</code> の 1 個。宣言のうち違うのは、自動生成の等式補題 <code>SimpleGraph.Walk.take.eq_2</code> だけ'],
+];
+
 // ---- 8 節 ----
 const hardware: [string, string][] = [
   ['CPU', 'AMD EPYC 7742(64 コア / 128 スレッド、1 ソケット、x86_64、最大 3.41 GHz)'],
@@ -216,7 +247,8 @@ scripts/run_checks.sh                  # 公理の一覧、主張の一致確認
 scripts/run_leanchecker.sh             # 全モジュールのカーネル再検査
 scripts/setup_external_checkers.sh     # lean4export / nanoda / lean4lean を用意
 scripts/run_nanoda.sh                  # 主定理の依存一式を別実装カーネル nanoda で検査
-scripts/reconstruct.sh --verify        # ビルド後もソースが原本と一致することを確認`;
+scripts/reconstruct.sh --verify        # ビルド後もソースが原本と一致することを確認
+scripts/rebuild_mathlib_from_source.sh # Mathlib をソースから作り直し、キャッシュとバイト単位で突き合わせる`;
 
 // 奥付
 const colophon: [string, string][] = [
@@ -262,7 +294,7 @@ const colophon: [string, string][] = [
           <p class="mt-1 text-[0.9375rem] leading-[1.8]">
             全 175,187
             モジュールのコンパイルはエラーなしで完走しました。主定理が依存する公理は標準の 3
-            つだけで、主張は検証者が書いた命題と一致し、配布物本体の定義には依存していませんでした。配布物と依存ライブラリの全モジュールの宣言は、カーネルによる再検査も通りました。残っているのは、別実装のカーネルによる照合と、ソースの不変確認です。
+            つだけで、主張は検証者が書いた命題と一致し、配布物本体の定義には依存していませんでした。配布物と依存ライブラリの全モジュールの宣言はカーネルによる再検査を通り、主定理の依存一式は別実装のカーネルでも通りました。ビルドのあともソースは原本と一致しています。予定していた検査はすべて終わりました。最終判定は、結果を精査したうえで掲げます。
           </p>
         </dd>
       </div>
@@ -303,7 +335,7 @@ const colophon: [string, string][] = [
       <div>
         <dt>観測</dt>
         <dd>
-          ビルド開始(11 月 21 日 10:42 JST)から 50 分ごとに、検証機の状態を記録しています。ビルド後の検査のあいだも続けます。記録は <a href="#observations">2 節</a> に。
+          ビルド開始(11 月 21 日 10:42 JST)から 50 分ごとに、検証機の状態を記録しました。検査がすべて終わったあとの第 44 回(11 月 22 日 23:22 JST)で終えています。記録は <a href="#observations">2 節</a> に。
         </dd>
       </div>
     </dl>
@@ -338,7 +370,12 @@ const colophon: [string, string][] = [
     </p>
     <p>
       配布物の全 175,187 モジュールと、Mathlib など依存ライブラリの 8,700 モジュールは、カーネルによる再検査も通りました(失敗
-      0)。残っているのは、別実装のカーネルによる照合と、ビルド後のソース不変確認で、すべて終わるまで最終判定は保留します。
+      0)。主定理 5 件が依存する宣言の一式(1,484,729 個)は、Rust で書かれた別実装のカーネル <code>nanoda</code>{' '}
+      でも検査し、エラーはありませんでした。ビルドと検査のあとも、ソースは原本と 1 バイトも違いません。
+    </p>
+    <p>
+      追加の照合として、Mathlib などの依存をソースから作り直し、公式キャッシュと突き合わせました。8,690 モジュールのうち 8,689
+      はバイト単位で一致し、残る 1 つの違いは主定理に関係しない自動生成の補題の書き方でした(7.9 節)。予定していた検査はすべて終わり、問題は見つかっていません。最終判定は、結果を精査したうえで巻頭に掲げます。
     </p>
     <Tbl no="1" title="検査の一覧(実施順)。印は、朱の「済」が完了、藍の「中」が実行中、灰の「未」が未着手。右端は詳しい説明のある節。" wide stack>
       <thead>
@@ -372,7 +409,8 @@ const colophon: [string, string][] = [
     <p>
       全体ビルドには 22 時間 40 分かかりました。その間と、そのあとの検査の様子を残すため、ビルドの開始時刻(2026-11-21 10:42:23
       JST)を起点に、50
-      分ごとの時点を観測点として、検証機の状態を記録しています。記録するのは、コンパイル済みモジュール数、ビルドログのエラー行数、負荷、メモリ、ディスクの空き、カーネルによる再検査を終えたモジュール数です。
+      分ごとの時点を観測点として、検証機の状態を記録しました。記録したのは、コンパイル済みモジュール数、ビルドログのエラー行数、負荷、メモリ、ディスクの空き、カーネルによる再検査を終えたモジュール数です。観測は、検査がすべて終わったあとの第
+      44 回(2026-11-22 23:22 JST)で終えました。
     </p>
     <p>
       値は検証機が自動で測って書き出したもので、合否の判定は含みません。エラー行が現れた場合は、原因(証明の誤りか、計算機側の都合か)を調べてから本文に書きます。
@@ -695,7 +733,7 @@ const colophon: [string, string][] = [
     <Listing no="3" path="verification/results/01-axioms.out.txt" note="Lean の出力" code={axiomsOut} lang="text" />
     <p>
       この表示は、コンパイルで作られた環境に記録されている証明をたどった結果です。その環境がカーネルの検査を正しく通って作られたことは、7.6
-      節の再検査と 7.7 節の照合で、別に確かめます。
+      節の再検査と 7.7 節の照合で、別に確かめました。
     </p>
 
     <Sub no="7.5" title="主張の一致確認" state="ok" label="一致" />
@@ -774,33 +812,68 @@ const colophon: [string, string][] = [
       など)はツールチェーンの一部として、カーネルと同じく信頼の前提に置いています。
     </p>
 
-    <Sub no="7.7" title="別実装のカーネルによる照合" state="run" label="実行中" />
+    <Sub no="7.7" title="別実装のカーネルによる照合" state="ok" label="エラー 0" />
     <p>
       ここまでの検査はすべて Lean 本体のカーネル(C++ 実装)に依存します。カーネル自体の不具合を突かれている可能性を減らすため、主定理 5
       件が推移的に依存する定義・定理・公理をすべて <code>lean4export</code> で書き出し、Rust で書かれた別実装の型検査器{' '}
-      <code>nanoda</code> に検査させます。許可する公理は標準の 3 つだけです。2026-11-22 17:55 JST に始めました。
+      <code>nanoda</code> に検査させました。許可する公理は標準の 3 つだけです。2026-11-22 17:55 JST に始めました。
     </p>
     <p>
       書き出しは 21:30 JST に終わりました。主定理 5 件が推移的に依存する宣言の一式は、NDJSON で 1,080,769,494 行・61,571,290,481
       バイト(zstd で圧縮して 9,614,952,283 バイト)ありました。書き出しには 3 時間 34 分かかり、最大 144 GiB
-      のメモリを使いました。いまは nanoda がこれを 96 スレッドで検査しています。
+      のメモリを使いました。
     </p>
+    <p>
+      nanoda はこれを 96 スレッドで 1 時間 12 分かけて検査し、22:41 JST に、1,484,729 個の宣言をエラーなしで検査し終えたと報告して、終了コード 0
+      で終わりました(最大 74 GiB のメモリを使用)。検査のあと、nanoda は主定理 5 件と主張の定義を自分の書式で書き出します(リスト 4)。主張は 6
+      節・7.5 節で見たものと同じです。一式に含まれる公理の宣言は <code>propext</code>・<code>Quot.sound</code>・<code>Classical.choice</code>{' '}
+      の 3 つだけで、書き出したファイルの中身を直接調べても同じでした。記録は{' '}
+      <a href={`${repo}/tree/main/verification/results/06-nanoda`}><code>verification/results/06-nanoda/</code></a> にあります。
+    </p>
+    <Listing no="4" path="verification/results/06-nanoda/nanoda.out.txt" note="nanoda の出力(抜粋)" code={nanodaOut} lang="text" />
     <p class="note">
       <b class="mr-[0.5em] text-[0.8125rem] text-shu">注</b>準備として、主張の定義 <code>RiemannZetaZerosOnLine</code>(Mathlib
       のみに依存)の依存一式を書き出して検査し、53,240 宣言がエラーなく通ることを確認しました。使用した版は lean4export{' '}
       <code>v4.33.0</code>、nanoda_lib <code>0da9f98</code>(v0.4.32)です。
     </p>
 
-    <Sub no="7.8" title="ビルド後のソース不変確認" state="wait" label="未着手" />
+    <Sub no="7.8" title="ビルド後のソース不変確認" state="ok" label="原本と一致" />
     <p>
-      ビルドに使った 175,190 ファイルが原本と 1 バイトも違わないことを、保存してある SHA-256
-      一覧と再照合します(ビルド開始前の照合は一致済み)。
+      ビルドとここまでの検査をすべて終えた 2026-11-22 22:41 JST に、ビルドに使った 175,190 ファイルの SHA-256
+      を、保存してある一覧と再照合しました。すべて一致し、原本と 1 バイトも違わないことを確かめました(ビルド開始前の照合も一致済み)。原本の 14
+      分割それぞれの SHA-256 と、連結したストリームの SHA-256・サイズも一致しています。結果は{' '}
+      <a href={`${repo}/blob/main/verification/results/07-source-verify.out.txt`}><code>verification/results/07-source-verify.out.txt</code></a>
+      にあります。
+    </p>
+
+    <Sub no="7.9" title="Mathlib のソースからの再ビルド照合" state="ok" label="8,689 / 8,690 が一致" />
+    <p>
+      本体のビルドでは、Mathlib などの依存の <code>.olean</code> を公式のビルド済みキャッシュから取得しました。主張は Mathlib の定義(<code
+        >riemannZeta</code
+      > など)で書かれているので、キャッシュが本当に Mathlib v4.33.1 のソースをコンパイルしたものかを、追加の照合として確かめました。全検査のあとに、キャッシュを使わずにソースから作り直し、できた{' '}
+      <code>.olean</code> を本体のビルドで使ったものとバイト単位で突き合わせました(表 12)。
+    </p>
+    <Kv no="12" title="Mathlib などの依存をソースから作り直した結果。" rows={mathlibRows} />
+    <p>
+      違った 1 個を宣言ごとに読み比べると、公開部分の 231 個(非公開部分を含めると 263 個)のうち、型や値が違うのは、Lean
+      が自動で作る等式補題 <code>SimpleGraph.Walk.take.eq_2</code> の 1
+      個だけでした。ソースから作った側は「最初の場合に当たらない」という仮定のついた等式、キャッシュ側は場合分け(<code>match</code
+      >)を展開したままの等式で、どちらも成り立つ定理です。キャッシュ側の版は、7.6 節のカーネル再検査を通っています。
+    </p>
+    <p>
+      同じモジュールをこの計算機でスレッド数を変えてコンパイルし直すと、1 スレッドでは <code>take.eq_2</code>{' '}
+      がキャッシュと同じ形になる代わりに、別の等式補題 <code>drop.eq_2</code> がキャッシュと違う形になりました。4
+      スレッドでは、宣言の型と値が Lake で作った版と同じでした。並列にコンパイルするときの進み方によって、自動生成の等式補題の形が揺れるためとみられます。主定理
+      5 件の依存一式(7.7 節)には <code>SimpleGraph</code>{' '}
+      の名前の定数が 1 つも含まれていないので、この違いは主定理に関係しません。記録と、読み比べに使ったプログラムは{' '}
+      <a href={`${repo}/tree/main/verification/results/08-mathlib-from-source`}><code>verification/results/08-mathlib-from-source/</code></a>
+      と <a href={`${repo}/tree/main/verification/olean-diff`}><code>verification/olean-diff/</code></a> にあります。
     </p>
   </Sec>
 
   <Sec id="hardware" no="8" title="検証に使った計算機">
     <p>検証は 1 台の計算機で行っています。Lean のコンパイルとカーネル検査は CPU とメモリだけを使う処理で、GPU は関与しません。</p>
-    <Kv no="12" title="検証機の構成。" rows={hardware} />
+    <Kv no="13" title="検証機の構成。" rows={hardware} />
     <p>
       採取した生の情報は <a href={`${repo}/blob/main/verification/hardware.txt`}><code>verification/hardware.txt</code></a> にあります。
     </p>
@@ -816,8 +889,8 @@ const colophon: [string, string][] = [
     <h3>言えないこと</h3>
     <ul>
       <li>証明の数学的な筋道が正しく理解できるか、既知の障害をどう越えているかは、この検証の対象外です。1,700 万行を人間が読んだわけではありません。</li>
-      <li>Lean のカーネル実装そのものの正しさは前提としています。別実装のカーネル(nanoda)による照合は準備済みですが、この時点ではまだ行っていません。</li>
-      <li>Mathlib 本体は公式のビルド済みキャッシュを使っています。ソースから再ビルドしてキャッシュと突き合わせる照合は、全検査の最後に予定しています。</li>
+      <li>Lean のカーネル実装の正しさは前提にしています。主定理の依存一式は別実装のカーネル(nanoda)でも検査して通りましたが、2 つの実装に共通する誤りがある可能性までは否定できません。</li>
+      <li>Mathlib 本体は公式のビルド済みキャッシュを使いました。ソースから作り直して突き合わせると、8,690 モジュールのうち 8,689 がバイト単位で一致し、残る 1 つの違いは主定理に関係しない自動生成の補題でした(7.9 節)。</li>
       <li>検証は 1 台の計算機、1 回の実行によるものです。</li>
       <li>配布元と著者については、PDF とサーバ応答から分かる範囲しか確認していません。</li>
     </ul>
@@ -828,7 +901,7 @@ const colophon: [string, string][] = [
       リポジトリには原本と、ここまでの全手順を再実行するスクリプトが入っています。<code>elan</code>、<code>zstd</code>、<code>ripgrep</code
       >、Python 3 が必要です。ビルド生成物の置き場所として数百 GB の空きを用意してください。
     </p>
-    <Listing no="4" path="再現手順" note="bash" code={reproduce} lang="bash" />
+    <Listing no="5" path="再現手順" note="bash" code={reproduce} lang="bash" />
   </Sec>
 
   <Fragment slot="footer">

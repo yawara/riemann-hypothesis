@@ -1,0 +1,77 @@
+# 同じモジュールを、この機械で lean を直接呼んでスレッド数を変えてコンパイルし直し(lean -j<N> -o …)、
+# 公式キャッシュの版・Lake でソースから作った版と、宣言ごとに読み比べた結果(型・値が違う定数だけを示す)
+## スレッド 1
+### 公式キャッシュの版と比べて
+== op-t1.olean: constants 231 vs 231, constNames 231 vs 231, extraConstNames 17 vs 17
+   type differs: SimpleGraph.Walk.drop.eq_2
+   value differs: SimpleGraph.Walk.drop.eq_2
+   only-in-source-built 0, only-in-cache 0, type differs 1, value differs 1, kind differs 0
+== op-t1.olean.server: constants 231 vs 231, constNames 231 vs 231, extraConstNames 17 vs 17
+   type differs: SimpleGraph.Walk.drop.eq_2
+   value differs: SimpleGraph.Walk.drop.eq_2
+   only-in-source-built 0, only-in-cache 0, type differs 1, value differs 1, kind differs 0
+== op-t1.olean.private: constants 263 vs 263, constNames 263 vs 263, extraConstNames 24 vs 24
+   type differs: SimpleGraph.Walk.drop.eq_2
+   value differs: SimpleGraph.Walk.drop.eq_2
+   only-in-source-built 0, only-in-cache 0, type differs 1, value differs 1, kind differs 0
+### Lake でソースから作った版と比べて
+== op-t1.olean: constants 231 vs 231, constNames 231 vs 231, extraConstNames 17 vs 17
+   type differs: SimpleGraph.Walk.take.eq_2
+   value differs: SimpleGraph.Walk.take.eq_2
+   type differs: SimpleGraph.Walk.drop.eq_2
+   value differs: SimpleGraph.Walk.drop.eq_2
+   only-in-source-built 0, only-in-cache 0, type differs 2, value differs 2, kind differs 0
+== op-t1.olean.server: constants 231 vs 231, constNames 231 vs 231, extraConstNames 17 vs 17
+   type differs: SimpleGraph.Walk.take.eq_2
+   value differs: SimpleGraph.Walk.take.eq_2
+   type differs: SimpleGraph.Walk.drop.eq_2
+   value differs: SimpleGraph.Walk.drop.eq_2
+   only-in-source-built 0, only-in-cache 0, type differs 2, value differs 2, kind differs 0
+== op-t1.olean.private: constants 263 vs 263, constNames 263 vs 263, extraConstNames 24 vs 24
+   type differs: SimpleGraph.Walk.take.eq_2
+   value differs: SimpleGraph.Walk.take.eq_2
+   type differs: SimpleGraph.Walk.drop.eq_2
+   value differs: SimpleGraph.Walk.drop.eq_2
+   only-in-source-built 0, only-in-cache 0, type differs 2, value differs 2, kind differs 0
+## スレッド 4
+### 公式キャッシュの版と比べて
+== op-t4.olean: constants 231 vs 231, constNames 231 vs 231, extraConstNames 17 vs 17
+   type differs: SimpleGraph.Walk.take.eq_2
+   value differs: SimpleGraph.Walk.take.eq_2
+   only-in-source-built 0, only-in-cache 0, type differs 1, value differs 1, kind differs 0
+== op-t4.olean.server: constants 231 vs 231, constNames 231 vs 231, extraConstNames 17 vs 17
+   type differs: SimpleGraph.Walk.take.eq_2
+   value differs: SimpleGraph.Walk.take.eq_2
+   only-in-source-built 0, only-in-cache 0, type differs 1, value differs 1, kind differs 0
+== op-t4.olean.private: constants 263 vs 263, constNames 263 vs 263, extraConstNames 24 vs 24
+   type differs: SimpleGraph.Walk.take.eq_2
+   value differs: SimpleGraph.Walk.take.eq_2
+   only-in-source-built 0, only-in-cache 0, type differs 1, value differs 1, kind differs 0
+### Lake でソースから作った版と比べて
+== op-t4.olean: constants 231 vs 231, constNames 231 vs 231, extraConstNames 17 vs 17
+   only-in-source-built 0, only-in-cache 0, type differs 0, value differs 0, kind differs 0
+== op-t4.olean.server: constants 231 vs 231, constNames 231 vs 231, extraConstNames 17 vs 17
+   only-in-source-built 0, only-in-cache 0, type differs 0, value differs 0, kind differs 0
+== op-t4.olean.private: constants 263 vs 263, constNames 263 vs 263, extraConstNames 24 vs 24
+   only-in-source-built 0, only-in-cache 0, type differs 0, value differs 0, kind differs 0
+## スレッド 32
+### 公式キャッシュの版と比べて
+== op-t32.olean: constants 231 vs 231, constNames 231 vs 231, extraConstNames 17 vs 17
+   type differs: SimpleGraph.Walk.take.eq_2
+   value differs: SimpleGraph.Walk.take.eq_2
+   only-in-source-built 0, only-in-cache 0, type differs 1, value differs 1, kind differs 0
+== op-t32.olean.server: constants 231 vs 231, constNames 231 vs 231, extraConstNames 17 vs 17
+   type differs: SimpleGraph.Walk.take.eq_2
+   value differs: SimpleGraph.Walk.take.eq_2
+   only-in-source-built 0, only-in-cache 0, type differs 1, value differs 1, kind differs 0
+== op-t32.olean.private: constants 263 vs 263, constNames 263 vs 263, extraConstNames 24 vs 24
+   type differs: SimpleGraph.Walk.take.eq_2
+   value differs: SimpleGraph.Walk.take.eq_2
+   only-in-source-built 0, only-in-cache 0, type differs 1, value differs 1, kind differs 0
+### Lake でソースから作った版と比べて
+== op-t32.olean: constants 231 vs 231, constNames 231 vs 231, extraConstNames 17 vs 17
+   only-in-source-built 0, only-in-cache 0, type differs 0, value differs 0, kind differs 0
+== op-t32.olean.server: constants 231 vs 231, constNames 231 vs 231, extraConstNames 17 vs 17
+   only-in-source-built 0, only-in-cache 0, type differs 0, value differs 0, kind differs 0
+== op-t32.olean.private: constants 263 vs 263, constNames 263 vs 263, extraConstNames 24 vs 24
+   only-in-source-built 0, only-in-cache 0, type differs 0, value differs 0, kind differs 0

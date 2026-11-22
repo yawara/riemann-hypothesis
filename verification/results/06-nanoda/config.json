@@ -1,0 +1,16 @@
+{
+  "use_stdin": true,
+  "num_threads": 96,
+  "stack_size_bytes": 4294967296,
+  "permitted_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "unpermitted_axiom_hard_error": false,
+  "nat_extension": true,
+  "string_extension": true,
+  "pp_declars": ["riemannHypothesis", "RiemannHypothesis", "riemannZeta_eq_zero_re",
+                 "LFunction_ne_zero_of_half_lt_re", "LFunction_eq_zero_re",
+                 "LFunction_eq_zero_re_of_isPrimitive",
+                 "RiemannZetaZerosOnLine", "DirichletLNonvanishingRightOfHalf",
+                 "DirichletLZerosOnLine", "PrimitiveDirichletLZerosOnLine"],
+  "pp_to_stdout": true,
+  "print_success_message": true
+}
