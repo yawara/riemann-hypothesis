@@ -1,0 +1,17 @@
+started_at_utc: 2026-11-22T08:48:44Z
+scope: deps
+modules: 8700
+carried_over_from_previous_runs: 0 (/var/tmp/riemann-hypothesis-ywr/runs/leanchecker-project-20261122T022614Z)
+to_replay_now: 8700
+jobs: 100
+chunk_size: 25
+chunks: 348
+driver: /home/ywr/riemann-hypothesis/verification/leanchecker-driver/.lake/build/bin/rhcheck (7f89fdc83784e8d8…)
+leanchecker: /home/ywr/.elan/toolchains/leanprover--lean4---v4.33.1/bin/leanchecker
+lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+LEAN_PATH: /var/tmp/riemann-hypothesis-ywr/lake/build/lib/lean:/home/ywr/.elan/toolchains/leanprover--lean4---v4.33.1/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/batteries/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/Qq/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/aesop/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/proofwidgets/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/importGraph/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/LeanSearchClient/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/plausible/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/mathlib/.lake/build/lib/lean
+finished_at_utc: 2026-11-22T08:55:06Z
+failed_chunks: 0
+ok_modules: 8700 / 8700
+missing_modules: 0
+failed_modules: 0
