@@ -1,9 +1,9 @@
 {
-  "updated_at_utc": "2026-11-22T03:11:27Z",
+  "updated_at_utc": "2026-11-22T03:31:35Z",
   "phase": "post-build-checks",
   "modules_done": 175187,
   "modules_total": 175187,
-  "replay_ok": 19438,
+  "replay_ok": 28505,
   "replay_total": 175187,
   "replay_deps_ok": 0,
   "replay_deps_total": 0,
