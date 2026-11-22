@@ -2,28 +2,35 @@
 """段階 1a: 主定理の証明に使われていない宣言を消した短縮版のソースを作る。
 
 入力
-  lean/src                         配布物のソース(読むだけ)
-  --decls  rhshrink の decls.tsv.zst(全宣言の行範囲。既定は runs/shorten/latest-analysis)
-  --kept   残す宣言の一覧(モジュール\\t名前)。shorten_source_closure.py の kept-decls.tsv を、
-           rhshrink と交互に閉じるまで回した最後のもの
+  lean/src         配布物のソース(読むだけ)
+  --decls          rhshrink の decls.tsv.zst(全宣言の行範囲)
+  --kept           残す宣言の一覧(モジュール\\t名前)。shorten_source_closure.py の kept-decls.tsv を、
+                   rhshrink と交互に閉じるまで回した最後のもの
+  --protected      shorten_protect.py の protected.tsv(念のため、ここにある宣言も残す)
+  --module-refs    shorten_source_closure.py の module-refs.tsv(宣言の外からの参照の位置。.ilean 由来)
 出力(--out。既定は /var/tmp/riemann-hypothesis-ywr/shorten/stage-1a)
   src/、lakefile.toml、lake-manifest.json、lean-toolchain   短縮版の Lake プロジェクト
   stage1a/report.json            変換前後の規模(モジュール・行・空行を除く行・バイト・宣言)
   stage1a/deleted-modules.txt    丸ごと消したモジュール
   stage1a/deleted-decls.tsv      消した宣言(モジュール、名前、行範囲)
-  stage1a/protected-decls.tsv    使われていないが残した宣言と理由
-  stage1a/open-fixes.tsv         open の行から外した名前空間・名前
+  stage1a/protected-decls.tsv    --kept に無いが残した宣言と理由(閉包が正しければ空)
+  stage1a/edits.tsv              宣言の外の行に加えた修正(open・attribute から外した名前など)
+  stage1a/changes.tsv            モジュールごとの変更の有無
 
-規則(1 版目。保守的に)
-  * 宣言: --kept に無いものは消す。ただし次は残す
-      - `@[… simp …]` の付いたもの(rfl 補題は dsimp が証明項に痕跡を残さず使うことがある)
-      - mutual ブロックを含むモジュールの宣言
-    消す宣言の直前にある `set_option … in` / `open … in` / `omit … in` / `include … in` / `variable … in` も消す
-  * `example` と `#check` などの命令は消す(環境に何も残さない)。範囲は、次に行頭から始まる行の手前まで
-  * モジュール: 残る宣言が無く、大域的なメタ命令(行頭の run_cmd・macro・syntax・notation・scoped、local でない
-    attribute 命令など)も無ければ丸ごと消す。Main・Statements と、Main が直接 import するモジュールは残す
-  * 消したモジュールを import していたモジュールは、そのモジュールの import を(推移的に)引き継ぐ。重複した import は 1 つにする
-  * open: 残すモジュールの open で、短縮版で存在しなくなる配布物の名前空間・名前を外す(外すと空になる行は消す)
+規則
+  * 宣言: --kept に無いものは消す(--protected にあるもの、mutual ブロックを含むモジュールのものは残す)。
+  * 消す命令に掛かる前置き(`set_option … in` / `open … in` / `omit … in` / `include … in` / `variable … in`。
+    2 行以上にわたるもの、空行を挟むもの、連なったものを含む)も消す。
+  * `example` と `#check` などの命令は消す(環境に何も残さない)。範囲は、次に行頭から始まる行の手前まで。
+  * attribute 命令と `open X (名前 …)` からは、消す宣言を指す名前を外す(位置は .ilean の参照で特定する)。
+    名前が残らなければ命令ごと消す。
+  * モジュール: 残る宣言が無く、次のどれも無ければ丸ごと消す。Main・Statements と、Main が直接 import するモジュールは残す。
+      - 宣言の外の大域的なメタ命令(run_cmd・macro_rules・initialize・export など)
+      - local でない attribute 命令で、消さない定数(配布物の外の定数を含む)を指すもの
+  * 消したモジュールを import していたモジュールは、その import を(推移的に)引き継ぎ、推移簡約する(閉包は変わらない)。
+  * open: そのモジュールから見えなくなる配布物の名前空間を外す(import の閉包の中に、その名前空間の宣言や
+    namespace 命令が残っているかで判定する)。外すと空になる行は消す。
+  * 消した宣言や行の前後で続いた空行は 1 行にまとめる(もともと続いていた空行はそのまま)。
 """
 import argparse
 import collections
@@ -33,23 +40,24 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "lean", "src")
-RUN_ROOT = os.environ.get("RH_RUN_ROOT", "/var/tmp/riemann-hypothesis-ywr/runs")
 LAKE = "/var/tmp/riemann-hypothesis-ywr/lake"
 TOOLCHAIN_LIB = os.path.expanduser("~/.elan/toolchains/leanprover--lean4---v4.33.1/lib/lean")
 PROJECT_ROOTS = {"BuildAid", "CompanionTheory", "Development", "Formalism", "GroundTheory", "Lemmata",
                  "PositivityTheory", "ReciprocityTheory", "Supplements", "Main", "Statements"}
 FIXED = {"Main", "Statements"}
 
-META_RE = re.compile(r"^(run_cmd|run_elab|run_meta|initialize|builtin_initialize|scoped|notation|notation3|infix|infixl|"
-                     r"infixr|prefix|postfix|macro|macro_rules|syntax|elab|elab_rules|declare_syntax_cat|export)\b"
-                     r"|^attribute \[(?!local )")
-WRAPPER_RE = re.compile(r"^\s*(set_option|open|omit|include|variable)\s.*\sin\s*$")
+META_CMD_RE = re.compile(r"^(run_cmd|run_elab|run_meta|initialize|builtin_initialize|scoped|notation|notation3|infix|"
+                         r"infixl|infixr|prefix|postfix|macro|macro_rules|syntax|elab|elab_rules|declare_syntax_cat|"
+                         r"export|binder_predicate)\b")
+ATTR_RE = re.compile(r"^(\s*)attribute\s+\[([^\]]*)\]")
+WRAP_START_RE = re.compile(r"^\s*(set_option|open|omit|include|variable)\b")
+WRAP_END_RE = re.compile(r"\sin\s*$")
 DROP_CMD_RE = re.compile(r"^(example\b|#(check|eval|print|reduce|guard|exit)\b)")
 IMPORT_RE = re.compile(r"^import\s+(\S+)\s*$")
-SIMP_RE = re.compile(r"@\[[^\]]*\bsimp\b")
 MUTUAL_RE = re.compile(r"^\s*mutual\s*$")
 NS_RE = re.compile(r"^\s*(?:noncomputable\s+)?(namespace|section|end)\b\s*(\S*)")
 OPEN_RE = re.compile(r"^(\s*)open\s+(.*?)(\s+in)?\s*$")
@@ -107,116 +115,215 @@ def drop_span(lines, i):
     return j
 
 
+def cont_span(lines, i):
+    """行 i から始まる命令が、字下げした続きの行を含めてどこまで続くか [i, j)"""
+    j = i + 1
+    while j < len(lines) and lines[j].strip() != "" and lines[j][0] in " \t":
+        j += 1
+    return j
+
+
+def u16_to_idx(s, u16):
+    """UTF-16 の位置(.ilean の列)を Python の文字位置に直す"""
+    k = 0
+    for idx, ch in enumerate(s):
+        if k >= u16:
+            return idx
+        k += 2 if ord(ch) > 0xFFFF else 1
+    return len(s)
+
+
+def cut_spans(line, spans):
+    """line から spans(文字位置の [a, b) の並び)を取り除き、取り除いた所の空白を詰める"""
+    out = line
+    for a, b in sorted(spans, reverse=True):
+        left, right = out[:a], out[b:]
+        if left.endswith(" ") and right.startswith(" "):
+            right = right.lstrip(" ")
+        elif left.endswith(" ") and (right.startswith(")") or right == ""):
+            left = left.rstrip(" ")
+        out = left + right
+    return out.rstrip()
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--decls", default=os.path.join(RUN_ROOT, "shorten", "latest-analysis", "decls.tsv.zst"))
+    ap.add_argument("--decls", required=True)
     ap.add_argument("--kept", required=True)
-    ap.add_argument("--protected", default=None, help="shorten_protect.py の protected.tsv(念のため、ここにある宣言は残す)")
+    ap.add_argument("--protected", default=None)
+    ap.add_argument("--module-refs", required=True)
     ap.add_argument("--out", default="/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a")
     ap.add_argument("--jobs", type=int, default=24)
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
+    sys.setrecursionlimit(1_000_000)
 
-    # 全モジュール(ソースの一覧から)
+    # ---- 読み込み
     modules = []
     for d, _, fs in os.walk(SRC):
         for f in fs:
             if f.endswith(".lean"):
                 modules.append(os.path.relpath(os.path.join(d, f), SRC)[:-5].replace(os.sep, "."))
     modules.sort()
-    decls = collections.defaultdict(list)  # モジュール -> [(名前, 種類, 開始行, 終了行)](1 始まり、両端を含む)
+    decls = collections.defaultdict(list)  # モジュール -> [(名前, 開始行, 終了行)](1 始まり、両端を含む)
     p = subprocess.Popen(["zstd", "-dc", args.decls], stdout=subprocess.PIPE, text=True)
     next(p.stdout)
     for line in p.stdout:
         mod, name, kind, s, e = line.rstrip("\n").split("\t")[:5]
-        decls[mod].append((name, kind, int(s), int(e)))
+        decls[mod].append((name, int(s), int(e)))
     p.wait()
     with open(args.kept, encoding="utf-8") as fh:
         kept = {tuple(l.rstrip("\n").split("\t", 1)) for l in fh if l.strip()}
-    protected_set = {}
+    protected_in = {}
     if args.protected:
         with open(args.protected, encoding="utf-8") as fh:
             next(fh)
             for l in fh:
                 a, b, r = l.rstrip("\n").split("\t")
-                protected_set[(a, b)] = r
-    print(f"modules={len(modules)} decls={sum(len(v) for v in decls.values())} kept={len(kept)}", flush=True)
-
+                protected_in[(a, b)] = r
+    modrefs = collections.defaultdict(list)  # モジュール -> [(行, 列, 終わりの行, 終わりの列, 参照先モジュール, 名前)]
+    with open(args.module_refs, encoding="utf-8") as fh:
+        next(fh)
+        for l in fh:
+            m, a, b, c, e, rm, rn = l.rstrip("\n").split("\t")
+            modrefs[m].append((int(a), int(b), int(c), int(e), rm, rn))
     text = {}
     for m in modules:
         with open(module_path(m), encoding="utf-8") as fh:
-            text[m] = fh.read().split("\n")  # 末尾の改行は最後の空要素として残る
+            text[m] = fh.read().split("\n")
+    print(f"modules={len(modules)} decls={sum(len(v) for v in decls.values())} kept={len(kept)} "
+          f"module-refs={sum(len(v) for v in modrefs.values())}", flush=True)
 
-    # Main が直接 import するモジュールも残す(Main.lean を書き換えないため)
     fixed = set(FIXED)
     for l in text["Main"]:
         mm = IMPORT_RE.match(l)
         if mm and is_project_module(mm.group(1)):
             fixed.add(mm.group(1))
 
-    # 1. 宣言と命令の削除を行ごとに決める
-    deleted_lines = {}       # モジュール -> 消す行(0 始まり)の集合
-    deleted_decls = []       # (モジュール, 名前, 開始, 終了)
-    protected = []           # (モジュール, 名前, 理由)
-    kept_decl_names = set()
-    deleted_decl_names = set()
-    module_has_kept = {}
+    # ---- 1. 宣言ごとの残す・消す
+    keep_decl = {}             # (モジュール, 名前) -> bool
+    protected = []
+    for m in modules:
+        has_mutual = any(MUTUAL_RE.match(l) for l in text[m])
+        for name, s, e in decls.get(m, []):
+            k = (m, name) in kept or m in fixed
+            if not k and (m, name) in protected_in:
+                protected.append((m, name, protected_in[(m, name)]))
+                k = True
+            elif not k and has_mutual:
+                protected.append((m, name, "mutual を含むモジュール"))
+                k = True
+            keep_decl[(m, name)] = k
+    names_by_module = {m: {n for n, _, _ in v} for m, v in decls.items()}
+
+    def owner(m, n):
+        names = names_by_module.get(m)
+        while names and n:
+            if n in names:
+                return n
+            if "." not in n:
+                return None
+            n = n.rsplit(".", 1)[0]
+        return None
+
+    def ref_deleted(rm, rn):
+        """参照先の定数が、短縮版で消える宣言に属するか(配布物の外や、帰属できない定数は消えないとみなす)"""
+        if not is_project_module(rm):
+            return False
+        o = owner(rm, rn)
+        return o is not None and not keep_decl[(rm, o)]
+
+    # ---- 2. 消す行(宣言、命令、前置き)
+    deleted_lines = {}
+    deleted_decls = []
+    kept_names_by_module = collections.defaultdict(set)
     for m in modules:
         lines = text[m]
         n = len(lines)
-        has_mutual = any(MUTUAL_RE.match(l) for l in lines)
-        cover = [0] * (n + 1)   # 残す宣言が覆う行
+        cover = [False] * (n + 1)
         to_delete = []
-        any_kept = False
-        for name, kind, s, e in decls.get(m, []):
-            keep = (m, name) in kept or m in fixed
-            if not keep:
-                if (m, name) in protected_set:
-                    protected.append((m, name, protected_set[(m, name)]))
-                    keep = True
-                elif has_mutual:
-                    protected.append((m, name, "mutual を含むモジュール"))
-                    keep = True
-            if keep:
-                any_kept = True
-                kept_decl_names.add(name)
+        for name, s, e in decls.get(m, []):
+            if keep_decl[(m, name)]:
+                kept_names_by_module[m].add(name)
                 for i in range(s - 1, e):
-                    cover[i] = 1
+                    cover[i] = True
             else:
                 to_delete.append((name, s, e))
         dl = set()
         for name, s, e in to_delete:
-            for i in range(s - 1, e):
-                if not cover[i]:
-                    dl.add(i)
+            dl.update(i for i in range(s - 1, e) if not cover[i])
             deleted_decls.append((m, name, s, e))
-            deleted_decl_names.add(name)
         for i, l in enumerate(lines):
             if not cover[i] and DROP_CMD_RE.match(l):
-                j = drop_span(lines, i)
-                dl.update(range(i, j))
-        # `… in` の前置きは次の命令に掛かる。次の空でない行が消える命令なら、前置きも消す(下から順に、連なりも)
-        nxt = None  # 下から見て、直前に見た空でない行の番号
-        for i in range(n - 1, -1, -1):
+                dl.update(range(i, drop_span(lines, i)))
+        # 前置き(1 行または字下げで続く複数行で、` in` で終わるもの)は次の命令に掛かる。
+        # 次の空でない行が消えるなら前置きも消す(下から順に見るので、連なった前置きも消える)
+        nxt = None
+        i = n - 1
+        while i >= 0:
             if lines[i].strip() == "":
+                i -= 1
                 continue
-            if not cover[i] and i not in dl and WRAPPER_RE.match(lines[i]) and (nxt is None or nxt in dl):
-                dl.add(i)
+            if not cover[i] and i not in dl and WRAP_END_RE.search(lines[i]):
+                j = i
+                while j > 0 and lines[j][:1] in (" ", "\t") and not cover[j - 1] and lines[j - 1].strip() != "":
+                    j -= 1
+                if WRAP_START_RE.match(lines[j]) and not any(cover[k] for k in range(j, i + 1)):
+                    if nxt is None or nxt in dl:
+                        dl.update(range(j, i + 1))
+                    nxt = j
+                    i = j - 1
+                    continue
             nxt = i
+            i -= 1
         deleted_lines[m] = dl
-        module_has_kept[m] = any_kept
 
-    # 2. 丸ごと消すモジュール
+    # ---- 3. 丸ごと消すモジュール
+    def attr_spans(m):
+        lines = text[m]
+        out = []
+        for i, l in enumerate(lines):
+            mm = ATTR_RE.match(l)
+            if mm and not l[:1].isspace():
+                out.append((i, cont_span(lines, i), mm.group(2).strip().startswith("local")))
+        return out
+
+    refs_by_line = {}
+
+    def module_refs_by_line(m):
+        if m not in refs_by_line:
+            d = collections.defaultdict(list)
+            for r in modrefs.get(m, ()):
+                d[r[0]].append(r)
+            refs_by_line[m] = d
+        return refs_by_line[m]
+
     deleted_modules = set()
+    keep_reason = collections.Counter()
     for m in modules:
-        if m in fixed or module_has_kept[m]:
+        if m in fixed or kept_names_by_module[m]:
             continue
-        if any(META_RE.match(l) for l in text[m]):
+        lines = text[m]
+        dl = deleted_lines[m]
+        if any(META_CMD_RE.match(l) for i, l in enumerate(lines) if i not in dl):
+            keep_reason["宣言の外のメタ命令"] += 1
+            continue
+        rbl = module_refs_by_line(m)
+        live_global_attr = False
+        for s, e, is_local in attr_spans(m):
+            if is_local:
+                continue
+            for i in range(s, e):
+                for r in rbl.get(i, ()):
+                    if not ref_deleted(r[4], r[5]):
+                        live_global_attr = True
+        if live_global_attr:
+            keep_reason["消さない定数を指す大域的な attribute"] += 1
             continue
         deleted_modules.add(m)
-    print(f"deleted modules: {len(deleted_modules)}", flush=True)
+    print(f"deleted modules: {len(deleted_modules)}; kept without decls: {dict(keep_reason)}", flush=True)
 
-    # 3. import のつなぎ直し
+    # ---- 4. import のつなぎ直しと推移簡約
     orig_imports = {m: [mm.group(1) for l in text[m] if (mm := IMPORT_RE.match(l))] for m in modules}
     memo = {}
 
@@ -229,14 +336,9 @@ def main():
                 out.extend(expand(i))
             else:
                 out.append(i)
-        res = list(dict.fromkeys(out))
-        memo[m] = res
-        return res
+        memo[m] = list(dict.fromkeys(out))
+        return memo[m]
 
-    # 3b. import の推移簡約: 消したモジュールの import を引き継いだモジュールでは、ほかの import から
-    #     推移的に入るものを外す(import の閉包は変わらない)
-    import sys
-    sys.setrecursionlimit(1_000_000)
     kept_modules = [m for m in modules if m not in deleted_modules]
     idx = {m: k for k, m in enumerate(kept_modules)}
     closure = {}
@@ -251,89 +353,119 @@ def main():
         closure[m] = c
         return c
 
-    reduced = {}
+    new_imports = {}
     for m in kept_modules:
         ex = expand(m)
         if ex == orig_imports[m]:
+            new_imports[m] = ex
             continue
-        proj = [y for y in ex if y in idx]
         u = 0
-        for y in proj:
-            u |= clos(y)
-        reduced[m] = [y for y in ex if y not in idx or not (u >> idx[y]) & 1]
-    print(f"import 推移簡約: {len(reduced)} モジュール", flush=True)
+        for y in ex:
+            if y in idx:
+                u |= clos(y)
+        new_imports[m] = [y for y in ex if y not in idx or not (u >> idx[y]) & 1]
+    print("imports rewired", flush=True)
 
-    def new_imports(m):
-        return reduced.get(m, orig_imports[m] if expand(m) == orig_imports[m] else expand(m))
-
-    # 4. open の修正: 短縮版で存在しなくなる配布物の名前空間・名前を外す
+    # ---- 5. 名前空間が見えるか(そのモジュールの import の閉包に、名前空間の宣言か namespace 命令が残るか)
     ext_ns, n_ext = external_namespaces(args.jobs)
     print(f"external namespaces: {len(ext_ns)} (from {n_ext} .ilean)", flush=True)
-    # 名前空間: 短縮版に残るもの(残す宣言の名前の接頭辞と、残すモジュールの namespace 命令)と、
-    # 短縮前に配布物にあったもの(全宣言の接頭辞と、全モジュールの namespace 命令)
-    ns_kept = set()
-    for nm in kept_decl_names:
-        ns_kept.update(prefixes(nm))
+    ns_mods = collections.defaultdict(set)
     ns_before = set()
-    for v in decls.values():
-        for name, *_ in v:
-            ns_before.update(prefixes(name))
     for m in modules:
+        for name, _, _ in decls.get(m, []):
+            ps = prefixes(name)
+            ns_before.update(ps)
+            if m in idx and keep_decl[(m, name)]:
+                for q in ps:
+                    ns_mods[q].add(idx[m])
         stack = []
-        for l in text[m]:
+        for i, l in enumerate(text[m]):
             mm = NS_RE.match(l)
             if mm and mm.group(1) == "namespace" and mm.group(2):
                 full = ".".join([x for x in stack if x] + [mm.group(2)])
                 ns_before.update(prefixes(full + ".x"))
-                if m not in deleted_modules:
-                    ns_kept.update(prefixes(full + ".x"))
+                if m in idx and i not in deleted_lines[m]:
+                    for q in prefixes(full + ".x"):
+                        ns_mods[q].add(idx[m])
                 stack.append(mm.group(2))
             elif mm and mm.group(1) == "section":
                 stack.append(None)
             elif mm and mm.group(1) == "end" and stack:
                 stack.pop()
-    exists = ns_kept | ext_ns
-    open_fixes = []
+    bits_cache = {}
 
-    def vanished(tok, cur, opened):
-        """tok が、短縮前は配布物の名前空間として解決でき、短縮版ではどの解決候補も存在しないとき True"""
-        if tok.startswith("_root_."):
-            return False
-        bases = [".".join(cur[:k]) for k in range(1, len(cur) + 1)] + list(opened)
-        cands = [tok] + [f"{b}.{tok}" for b in bases]
-        if any(c in exists for c in cands):
-            return False
-        return any(c in ns_before for c in cands)
+    def ns_bits(q):
+        if q not in bits_cache:
+            b = 0
+            for k in ns_mods.get(q, ()):
+                b |= 1 << k
+            bits_cache[q] = b
+        return bits_cache[q]
 
+    def ns_visible(q, vm):
+        return q in ext_ns or (ns_bits(q) & vm) != 0
+
+    # ---- 6. 書き出す本文
+    edits = []      # (モジュール, 行, 種類, 内容)
     new_text = {}
-    changes = {}  # モジュール -> (消した行, open の修正, import を変えたか)
-    for m in modules:
-        if m in deleted_modules:
-            continue
-        n_fix_before = len(open_fixes)
+    changes = {}
+    for m in kept_modules:
         lines = text[m]
-        dl = deleted_lines[m]
+        if m in fixed:
+            new_text[m] = lines
+            changes[m] = (0, 0, False, False)
+            continue
+        dl = set(deleted_lines[m])
+        rbl = module_refs_by_line(m)
+        vm = clos(m) | (1 << idx[m])
+        # attribute 命令: 消す宣言を指す名前を外す。名前が残らなければ命令ごと消す
+        replace = {}
+        for s, e, _ in attr_spans(m):
+            if any(i in dl for i in range(s, e)):
+                continue
+            new_lines = []
+            removed = []
+            for i in range(s, e):
+                spans = []
+                for (a, b, c, d, rm, rn) in rbl.get(i, ()):
+                    if c == i and ref_deleted(rm, rn):
+                        ia, ib = u16_to_idx(lines[i], b), u16_to_idx(lines[i], d)
+                        spans.append((ia, ib))
+                        removed.append(rn)
+                new_lines.append(cut_spans(lines[i], spans) if spans else lines[i])
+            if not removed:
+                continue
+            rest = " ".join(new_lines)
+            mm = ATTR_RE.match(rest)
+            if mm is None or rest[mm.end():].strip() == "":
+                dl.update(range(s, e))
+                edits.append((m, s + 1, "attribute を削除", " ".join(removed)))
+            else:
+                for i in range(s, e):
+                    replace[i] = new_lines[i - s]
+                edits.append((m, s + 1, "attribute から名前を外す", " ".join(removed)))
         out = []
         stack = []
         opened = set()
         imports_done = False
-        del_since_text = False  # 最後に出した空でない行のあとで、行を消したか
+        del_since_text = False
+        n_open_fix = 0
         for i, l in enumerate(lines):
             if IMPORT_RE.match(l):
                 if not imports_done:
-                    out.extend(f"import {x}" for x in new_imports(m))
+                    out.extend(f"import {x}" for x in new_imports[m])
                     imports_done = True
                 continue
             if i in dl:
                 del_since_text = True
                 continue
             if l.strip() == "":
-                # 消した宣言の前後の空行が続くときは 1 行にまとめる(もともと続いていた空行はそのまま)
                 if del_since_text and out and out[-1].strip() == "":
                     continue
                 out.append(l)
                 continue
             del_since_text = False
+            l = replace.get(i, l)
             mm = NS_RE.match(l)
             if mm and mm.group(1) == "namespace" and mm.group(2):
                 stack.extend(mm.group(2).split("."))
@@ -347,104 +479,119 @@ def main():
                         if stack and stack[-1] is not None:
                             stack.pop()
             om = OPEN_RE.match(l)
-            if om and m not in fixed and ((not OPEN_SIMPLE_RE.match(om.group(2)) and not OPEN_LIST_RE.match(om.group(2)))
-                                          or KEYWORDS & set(om.group(2).split("(")[0].split())):
+            if om and ((not OPEN_SIMPLE_RE.match(om.group(2)) and not OPEN_LIST_RE.match(om.group(2)))
+                       or KEYWORDS & set(om.group(2).split("(")[0].split())):
                 om = None  # 名前空間と名前の並び以外(`open X in theorem …` を 1 行に書いたものなど)は触らない
-            if om and m not in fixed:
+            if om:
                 indent, body, in_kw = om.group(1), om.group(2), om.group(3) or ""
                 cur = [x for x in stack if x]
+                bases = [".".join(cur[:k]) for k in range(1, len(cur) + 1)]
+
+                def cands(tok):
+                    return [tok] + [f"{b}.{tok}" for b in bases + sorted(opened)]
+
+                def vanished(tok):
+                    if tok.startswith("_root_."):
+                        return False
+                    cs = cands(tok)
+                    if any(ns_visible(c, vm) for c in cs):
+                        return False
+                    return any(c in ns_before for c in cs)
+
+                def note_opened(tok):
+                    for c in cands(tok):
+                        if ns_visible(c, vm):
+                            opened.add(c)
+
                 if "(" in body or " renaming " in body or " hiding " in body:
                     ns = body.split()[1] if body.startswith("scoped ") else body.split()[0]
-                    if vanished(ns, cur, opened):
-                        open_fixes.append((m, i + 1, ns, "名前空間が無くなる(行ごと削除)"))
+                    if vanished(ns):
+                        edits.append((m, i + 1, "open を削除(名前空間が見えない)", ns))
+                        n_open_fix += 1
                         del_since_text = True
                         continue
-                    for c in [ns] + [f"{b}.{ns}" for b in [".".join(cur[:k]) for k in range(1, len(cur) + 1)] + list(opened)]:
-                        if c in exists or c in ns_before:
-                            opened.add(c)
-                    # 明示した名前のうち、消した宣言だけを指すものを外す
-                    if "(" in body and ")" in body:
-                        a, b = body.index("("), body.rindex(")")
-                        names = body[a + 1:b].split()
-                        keep_names = []
-                        for x in names:
-                            cands = [f"{ns}.{x}"] + [".".join(cur[:k] + [ns, x]) for k in range(1, len(cur) + 1)]
-                            if any(c in deleted_decl_names for c in cands) and not any(c in kept_decl_names for c in cands):
-                                open_fixes.append((m, i + 1, f"{ns}.{x}", "名前が無くなる"))
-                            else:
-                                keep_names.append(x)
-                        if not keep_names:
+                    note_opened(ns)
+                    # 明示した名前のうち、消す宣言を指すもの(.ilean の参照の位置で特定)を外す
+                    spans, removed = [], []
+                    for (a, b, c, d, rm, rn) in rbl.get(i, ()):
+                        if c == i and ref_deleted(rm, rn):
+                            spans.append((u16_to_idx(lines[i], b), u16_to_idx(lines[i], d)))
+                            removed.append(rn)
+                    if spans:
+                        l2 = cut_spans(lines[i], spans)
+                        n_open_fix += 1
+                        if re.search(r"\(\s*\)", l2):
+                            edits.append((m, i + 1, "open を削除(名前が残らない)", " ".join(removed)))
                             del_since_text = True
                             continue
-                        if len(keep_names) != len(names):
-                            l = f"{indent}open {body[:a]}({' '.join(keep_names)}){body[b + 1:]}{in_kw}"
+                        edits.append((m, i + 1, "open から名前を外す", " ".join(removed)))
+                        l = l2
                 else:
                     toks = body.split()
                     scoped = toks[:1] == ["scoped"]
                     names = toks[1:] if scoped else toks
                     keep_names = []
                     for x in names:
-                        if vanished(x, cur, opened):
-                            open_fixes.append((m, i + 1, x, "名前空間が無くなる"))
+                        if vanished(x):
+                            edits.append((m, i + 1, "open から名前空間を外す", x))
+                            n_open_fix += 1
                         else:
                             keep_names.append(x)
-                            # 相対名の候補に使う、開いた名前空間(実在するものだけを足す)
-                            for c in [x] + [f"{b}.{x}" for b in [".".join(cur[:k]) for k in range(1, len(cur) + 1)] + list(opened)]:
-                                if c in exists or c in ns_before:
-                                    opened.add(c)
+                            note_opened(x)
                     if not keep_names:
                         del_since_text = True
                         continue
                     if len(keep_names) != len(names):
                         l = f"{indent}open {'scoped ' if scoped else ''}{' '.join(keep_names)}{in_kw}"
             out.append(l)
-        if not imports_done and new_imports(m):
-            out = [f"import {x}" for x in new_imports(m)] + out
+        if not imports_done and new_imports[m]:
+            out = [f"import {x}" for x in new_imports[m]] + out
         new_text[m] = out
-        changes[m] = (len(dl), len(open_fixes) - n_fix_before, new_imports(m) != orig_imports[m], out != lines)
+        changes[m] = (len(dl), n_open_fix, new_imports[m] != orig_imports[m], out != lines)
 
-    # 5. 集計
+    # ---- 7. 集計
     def stats(texts):
         st = collections.Counter()
-        for lines in texts:
-            body = "\n".join(lines)
+        for ls in texts:
+            body = "\n".join(ls)
             st["modules"] += 1
             st["lines"] += body.count("\n")  # README の数え方(改行の数)と同じ
-            st["nonblank_lines"] += sum(1 for x in lines if x.strip())
+            st["nonblank_lines"] += sum(1 for x in ls if x.strip())
             st["bytes"] += len(body.encode("utf-8"))
         return st
 
     before = stats(text.values())
     after = stats(new_text.values())
-    after["decls"] = len(kept_decl_names)
     before["decls"] = sum(len(v) for v in decls.values())
+    after["decls"] = sum(1 for m in kept_modules for name, _, _ in decls.get(m, []) if keep_decl[(m, name)])
     report = {
         "kept_list": os.path.realpath(args.kept),
         "decls_source": os.path.realpath(args.decls),
         "before": dict(before), "after": dict(after),
         "deleted_modules": len(deleted_modules),
+        "kept_modules_without_decls": dict(keep_reason),
         "deleted_decls": len(deleted_decls),
-        "protected_decls": collections.Counter(r for _, _, r in protected),
-        "open_fixes": collections.Counter(r for *_, r in open_fixes),
-        "open_fixes_top": collections.Counter(x for _, _, x, _ in open_fixes).most_common(25),
+        "protected_beyond_kept_list": collections.Counter(r for _, _, r in protected),
+        "edits": collections.Counter(k for _, _, k, _ in edits),
+        "changed_modules": sum(1 for v in changes.values() if v[3]),
     }
     print(json.dumps(report, ensure_ascii=False, indent=1, default=dict), flush=True)
     if args.dry_run:
         return
 
-    # 6. 書き出し
+    # ---- 8. 書き出し
     out = args.out
     if os.path.exists(os.path.join(out, "src")):
         shutil.rmtree(os.path.join(out, "src"))
-    os.makedirs(os.path.join(out, "stage1a"), exist_ok=True)
+    rec = os.path.join(out, "stage1a")
+    os.makedirs(rec, exist_ok=True)
     for f in ("lakefile.toml", "lake-manifest.json", "lean-toolchain"):
         shutil.copy2(os.path.join(ROOT, "lean", f), os.path.join(out, f))
-    for m, lines in new_text.items():
+    for m, ls in new_text.items():
         path = os.path.join(out, "src", *m.split(".")) + ".lean"
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as fh:
-            fh.write("\n".join(lines))
-    rec = os.path.join(out, "stage1a")
+            fh.write("\n".join(ls))
     with open(os.path.join(rec, "report.json"), "w", encoding="utf-8") as fh:
         json.dump(report, fh, ensure_ascii=False, indent=1, default=dict)
         fh.write("\n")
@@ -456,14 +603,13 @@ def main():
     with open(os.path.join(rec, "protected-decls.tsv"), "w", encoding="utf-8") as fh:
         fh.write("module\tdecl\treason\n")
         fh.write("".join(f"{a}\t{b}\t{c}\n" for a, b, c in sorted(protected)))
+    with open(os.path.join(rec, "edits.tsv"), "w", encoding="utf-8") as fh:
+        fh.write("module\tline\tkind\tnames\n")
+        fh.write("".join(f"{a}\t{b}\t{c}\t{d}\n" for a, b, c, d in edits))
     with open(os.path.join(rec, "changes.tsv"), "w", encoding="utf-8") as fh:
         fh.write("module\tdeleted_lines\topen_fixes\timports_changed\tchanged\n")
         fh.write("".join(f"{m}\t{a}\t{b}\t{int(c)}\t{int(d)}\n" for m, (a, b, c, d) in sorted(changes.items())))
-    with open(os.path.join(rec, "open-fixes.tsv"), "w", encoding="utf-8") as fh:
-        fh.write("module\tline\tname\treason\n")
-        fh.write("".join(f"{a}\t{b}\t{c}\t{d}\n" for a, b, c, d in open_fixes))
     print(f"wrote {out}", flush=True)
-
 
 
 if __name__ == "__main__":

@@ -12,7 +12,8 @@ rhshrink をもう一度走らせ(--roots)、両方の辺で閉じるまで繰�
 
 入力: rhshrink の decls.tsv.zst(既定は runs/shorten/latest-analysis)、配布物のビルド結果の .ilean
 出力: <出力先>/source-closure.json(集計)、added-decls.tsv(足した宣言と、最初に参照した宣言)、
-      added-roots.txt(rhshrink に渡す起点)
+      added-roots.txt(rhshrink に渡す起点)、kept-decls.tsv(残す宣言)、
+      module-refs.tsv(宣言の外からの参照の位置。shorten_stage1a.py が attribute・open の名前を外すのに使う)
 
 使い方: python3 -I scripts/shorten_source_closure.py [--analysis DIR] [--extra-live FILE] [--out DIR]
   --extra-live: 前回までに残すと決めた宣言の一覧(kept-decls.tsv。モジュール\t名前)
@@ -40,16 +41,18 @@ def parse_ilean(module):
     with open(path, encoding="utf-8") as fh:
         d = json.load(fh)
     edges = set()
+    modrefs = []  # 宣言の外からの参照: (行, 列, 終わりの行, 終わりの列, 参照先モジュール, 参照先の名前)。行・列は 0 始まり
     for key, v in d.get("references", {}).items():
         if not key.startswith('{"c":'):
             continue
         c = json.loads(key)["c"]
         m, n = c["m"], c["n"]
-        if not is_project(m):
-            continue
         for u in v.get("usages", []):
-            edges.add((u[4] if len(u) >= 5 else None, m, n))
-    return module, sorted(edges, key=lambda e: (e[0] or "", e[1], e[2]))
+            if len(u) < 5:
+                modrefs.append((u[0], u[1], u[2], u[3], m, n))
+            if is_project(m):
+                edges.add((u[4] if len(u) >= 5 else None, m, n))
+    return module, sorted(edges, key=lambda e: (e[0] or "", e[1], e[2])), sorted(modrefs)
 
 
 def main():
@@ -100,8 +103,12 @@ def main():
     module_refs = collections.defaultdict(set)  # モジュール -> 宣言の外から参照される宣言
     unresolved = 0
     unresolved_list = collections.Counter()
+    modrefs_fh = open(os.path.join(out, "module-refs.tsv"), "w", encoding="utf-8")
+    modrefs_fh.write("module\tline\tcol\tend_line\tend_col\tref_module\tref_name\n")
     with mp.Pool(args.jobs) as pool:
-        for i, (mod, es) in enumerate(pool.imap_unordered(parse_ilean, modules, chunksize=64)):
+        for i, (mod, es, mrs) in enumerate(pool.imap_unordered(parse_ilean, modules, chunksize=64)):
+            for a, b, c, e, m, n in mrs:
+                modrefs_fh.write(f"{mod}\t{a}\t{b}\t{c}\t{e}\t{m}\t{n}\n")
             for src, m, n in es:
                 d = owner(m, n)
                 if d is None:
@@ -118,6 +125,7 @@ def main():
                         edges[s].add(d)
             if (i + 1) % 20000 == 0:
                 print(f"  ilean {i + 1}/{len(modules)}", flush=True)
+    modrefs_fh.close()
     print(f"edges from {len(edges)} decls, module-level refs in {len(module_refs)} modules, unresolved refs {unresolved}", flush=True)
 
     # 閉包: カーネルで使われる宣言から出発し、ソースの参照を辿る。宣言が 1 つでも残るモジュールでは、宣言の外の参照も辿る
