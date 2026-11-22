@@ -93,6 +93,31 @@ partial def owner (rng : Std.HashMap Name (Nat × Nat)) (n : Name) : Option Name
 
 def countTrue (a : Array Bool) : Nat := a.foldl (fun k b => if b then k + 1 else k) 0
 
+/-- `Name.toString` で書き出した名前を読み戻す(`«…»` の中の `.` と、数字だけの成分 = `Name.num` を扱う) -/
+def parseName (s : String) : Name := Id.run do
+  let mut comps : Array (String × Bool) := #[]  -- (成分, «» で囲まれていたか)
+  let mut cur := ""
+  let mut quoted := false
+  let mut wasQuoted := false
+  for c in s.toList do
+    if quoted then
+      if c == '»' then quoted := false else cur := cur.push c
+    else if c == '«' then
+      quoted := true
+      wasQuoted := true
+    else if c == '.' then
+      comps := comps.push (cur, wasQuoted)
+      cur := ""
+      wasQuoted := false
+    else
+      cur := cur.push c
+  comps := comps.push (cur, wasQuoted)
+  let mut n := Name.anonymous
+  for (c, q) in comps do
+    if !q && !c.isEmpty && c.all Char.isDigit then n := Name.mkNum n c.toNat!
+    else n := Name.mkStr n c
+  return n
+
 end RHShrink
 
 open RHShrink
@@ -107,8 +132,16 @@ def main (args : List String) : IO UInt32 := do
   let out : System.FilePath := ⟨outStr⟩
   IO.FS.createDirAll out
   let rootMod := (args[1]?.getD "Main").toName
-  let roots : Array Name :=
-    if args.length > 2 then (args.drop 2).toArray.map String.toName else mainTheorems
+  -- 起点: 引数の名前。`@ファイル` はファイルの各行を起点にする
+  let mut roots : Array Name := #[]
+  for a in args.drop 2 do
+    if a.startsWith "@" then
+      for l in (← IO.FS.lines ⟨a.drop 1 |>.toString⟩) do
+        unless l.isEmpty do roots := roots.push (parseName l)
+    else
+      roots := roots.push (parseName a)
+  if roots.isEmpty then roots := mainTheorems
+  let skipDups := (← IO.getEnv "RHSHRINK_SKIP_DUPS").isSome
   initSearchPath (← findSysroot)
   log s!"import {rootMod}"
   let env ← importModules #[{ module := rootMod }] {} (trustLevel := 1024)
@@ -123,9 +156,14 @@ def main (args : List String) : IO UInt32 := do
     | some i => isProj[i]!
     | none => false
 
-  -- 1. 到達可能性
-  for r in roots do
-    unless (env.find? r).isSome do throw <| IO.userError s!"not found: {r}"
+  -- 1. 到達可能性(主定理が見つからなければ止める。追加の起点で定数でないものは数えて飛ばす)
+  for r in mainTheorems do
+    if roots.contains r then
+      unless (env.find? r).isSome do throw <| IO.userError s!"not found: {r}"
+  let missingRoots := roots.filter fun r => !(env.find? r).isSome
+  unless missingRoots.isEmpty do
+    log s!"{missingRoots.size} roots are not constants (skipped), e.g. {missingRoots.extract 0 3}"
+  roots := roots.filter fun r => (env.find? r).isSome
   let mut seen : Std.HashSet Name := {}
   let mut ext : Std.HashSet Name := {}
   let mut stack : Array Name := roots
@@ -230,10 +268,10 @@ def main (args : List String) : IO UInt32 := do
   modsH.flush
   log s!"declarations: {tot.getD "decls" 0} ({tot.getD "live_decls" 0} live, {tot.getD "aux_decls" 0} aux, {tot.getD "dead_decls" 0} dead)"
 
-  -- 3, 4. 型の一致(配布物の中の重複と、外部の定理との一致)
+  -- 3, 4. 型の一致(配布物の中の重複と、外部の定理との一致)。RHSHRINK_SKIP_DUPS があれば省く
   let mut extIdx : Std.HashMap Expr (Array Name) := {}
   for i in [0:nMods] do
-    if isProj[i]! then continue
+    if skipDups || isProj[i]! then continue
     for ci in mods[i]!.constants do
       if let .thmInfo v := ci then
         if !v.name.isInternal then
@@ -250,6 +288,7 @@ def main (args : List String) : IO UInt32 := do
   let mut nDeclThm := 0
   let mut nDeclDef := 0
   for n in seen do
+    if skipDups then break
     unless declLoc.contains n do continue
     match env.find? n with
     | some (.thmInfo v) =>
@@ -308,7 +347,10 @@ def main (args : List String) : IO UInt32 := do
   let t1 ← IO.monoMsNow
   let summary := Json.mkObj <|
     [("root_module", toJson rootMod.toString),
-     ("roots", toJson (roots.map (·.toString))),
+     ("roots", toJson (if roots.size > 20 then #[s!"{roots.size} roots"] else roots.map (·.toString))),
+     ("roots_count", toJson roots.size),
+     ("roots_not_constants", toJson missingRoots.size),
+     ("duplicates_skipped", toJson skipDups),
      ("imported_modules", toJson nMods),
      ("reachable_project_consts", toJson seen.size),
      ("external_consts_used_directly", toJson ext.size),
