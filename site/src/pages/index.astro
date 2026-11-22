@@ -20,10 +20,10 @@ import { fmtInt, jstMdHm } from '../lib/fmt';
 
 const title = 'リーマン予想 Lean 証明の独立検証';
 const description =
-  'alpo.ge で公開されたリーマン予想の Lean 形式証明(175,187 ファイル・17,374,215 行・約 1.03 GB)を、原本を保全したうえで独立にコンパイル・検査している記録。';
+  'alpo.ge で公開されたリーマン予想の Lean 形式証明(175,187 ファイル・17,374,215 行・約 1.03 GB)を、原本を保全したうえで独立にコンパイル・検査した記録。予定したすべての検査を通過した。';
 
 const toc = [
-  { id: 'summary', no: '1', title: '現時点の結論' },
+  { id: 'summary', no: '1', title: '結論' },
   { id: 'observations', no: '2', title: '定点観測' },
   { id: 'target', no: '3', title: '検証対象' },
   { id: 'evidence', no: '4', title: '原本の保全' },
@@ -277,7 +277,7 @@ const colophon: [string, string][] = [
     </p>
     <p class="mt-9">
       2026 年 11 月 20 日付で <a href="https://alpo.ge/remark.pdf">alpo.ge/remark.pdf</a>{' '}
-      に公開された文書と、そこから配布されている Lean 4 の形式証明を、原本を保全したうえで手元の計算機で再コンパイルし、検査している記録です。
+      に公開された文書と、そこから配布されている Lean 4 の形式証明を、原本を保全したうえで手元の計算機で再コンパイルし、検査した記録です。
     </p>
 
     <dl class="ledger bleed mt-9">
@@ -285,16 +285,20 @@ const colophon: [string, string][] = [
         <dt>判定</dt>
         <dd>
           <Seal
-            text="検証中"
+            text="通過"
+            label="判定: 通過"
             size="clamp(4.2rem, 17vw, 5.25rem)"
             rotate={-9}
             class="float-right -mt-7 -mr-1 mb-1 ml-3 mix-blend-multiply dark:mix-blend-normal"
           />
-          <p class="font-display text-[clamp(1.15rem,4.9vw,1.35rem)] leading-[1.5] font-extrabold tracking-[0.03em] whitespace-nowrap">最終判定はまだです</p>
+          <p class="font-display text-[clamp(1.15rem,4.9vw,1.35rem)] leading-[1.5] font-extrabold tracking-[0.03em]">
+            <span class="inline-block">予定したすべての検査を</span><span class="inline-block">通過しました</span>
+          </p>
           <p class="mt-1 text-[0.9375rem] leading-[1.8]">
-            全 175,187
-            モジュールのコンパイルはエラーなしで完走しました。主定理が依存する公理は標準の 3
-            つだけで、主張は検証者が書いた命題と一致し、配布物本体の定義には依存していませんでした。配布物と依存ライブラリの全モジュールの宣言はカーネルによる再検査を通り、主定理の依存一式は別実装のカーネルでも通りました。ビルドのあともソースは原本と一致しています。予定していた検査はすべて終わりました。最終判定は、結果を精査したうえで掲げます。
+            配布物は指定どおりの Lean 4.33.1・Mathlib v4.33.1 でエラーなくコンパイルでき、主定理 5
+            件(リーマン予想と一般化リーマン予想)は標準の 3 公理だけに依存していました。主張は検証者が Mathlib
+            だけで書いた命題と一致し、カーネルによる再検査と別実装カーネル <code>nanoda</code> の検査も通りました。Lean
+            のカーネルが正しく、Mathlib の定義が意図どおりである限り、Mathlib の <code>RiemannHypothesis</code> が形式的に証明されていることになります。
           </p>
         </dd>
       </div>
@@ -358,10 +362,10 @@ const colophon: [string, string][] = [
     </ol>
   </nav>
 
-  <Sec id="summary" no="1" title="現時点の結論">
+  <Sec id="summary" no="1" title="結論">
     <p>
       配布物の取得と保全、コンパイルの前にできる検査に続いて、全 175,187 ファイルのコンパイルが終わりました。22 時間 40
-      分かかり、エラーは 1 件もありませんでした。ここまでに問題は見つかっていません。
+      分かかり、エラーは 1 件もありませんでした。
     </p>
     <p>
       続く検査で、5 つの主定理が依存する公理は標準の 3 つ(<code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code
@@ -375,7 +379,7 @@ const colophon: [string, string][] = [
     </p>
     <p>
       追加の照合として、Mathlib などの依存をソースから作り直し、公式キャッシュと突き合わせました。8,690 モジュールのうち 8,689
-      はバイト単位で一致し、残る 1 つの違いは主定理に関係しない自動生成の補題の書き方でした(7.9 節)。予定していた検査はすべて終わり、問題は見つかっていません。最終判定は、結果を精査したうえで巻頭に掲げます。
+      はバイト単位で一致し、残る 1 つの違いは主定理に関係しない自動生成の補題の書き方でした(7.9 節)。予定していた検査はすべて終わり、問題は見つかりませんでした。判定は、巻頭のとおり「予定したすべての検査を通過しました」です。
     </p>
     <Tbl no="1" title="検査の一覧(実施順)。印は、朱の「済」が完了、藍の「中」が実行中、灰の「未」が未着手。右端は詳しい説明のある節。" wide stack>
       <thead>
@@ -880,7 +884,7 @@ const colophon: [string, string][] = [
   </Sec>
 
   <Sec id="limits" no="9" title="この検証で言えること、言えないこと">
-    <h3>すべての検査が通った場合に言えること</h3>
+    <h3>言えること</h3>
     <p>
       配布された Lean ソースが、指定どおりの Lean 4.33.1 と Mathlib v4.33.1 のもとでエラーなくコンパイルでき、主定理が標準の 3
       公理だけに依存している、ということです。Lean のカーネルが正しく、Mathlib の <code>riemannZeta</code>{' '}
