@@ -1,11 +1,11 @@
 {
-  "updated_at_utc": "2026-11-22T13:33:57Z",
-  "phase": "independent-kernel",
+  "updated_at_utc": "2026-11-22T13:54:02Z",
+  "phase": "finished",
   "modules_done": 175187,
   "modules_total": 175187,
   "replay_ok": 175187,
   "replay_total": 175187,
   "replay_deps_ok": 8700,
   "replay_deps_total": 8700,
-  "note_ja": "ビルドは終了し、別実装のカーネルによる照合を実行中です。結果は精査後に掲載します。"
+  "note_ja": "自動実行の検査が終了しました。結果を精査してからレポートを更新します。"
 }
