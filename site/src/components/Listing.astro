@@ -7,7 +7,7 @@ interface Props {
   path: string;
   note?: string;
   code: string;
-  lang?: 'lean4' | 'bash';
+  lang?: 'lean4' | 'bash' | 'text';
 }
 const { no, path, note, code, lang = 'lean4' } = Astro.props;
 ---

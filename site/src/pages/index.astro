@@ -71,8 +71,8 @@ const checks: { state: St; label: string; title: string; detail: string; ref: st
   { state: 'ok', label: '済', title: '依存ライブラリの真正性', detail: '固定された Mathlib のコミットは、公式リポジトリのタグ <code>v4.33.1</code> そのもの。他の依存も Mathlib 自身の固定版と一致。', ref: '7.2' },
   { state: 'ok', label: '済', title: 'import グラフ', detail: '存在しないモジュールへの import は 0、循環は 0。全 175,187 モジュールが <code>Main</code> から到達可能。', ref: '5' },
   { state: 'ok', label: '済', title: '全モジュールのコンパイル', detail: '2026-11-21 10:42 JST に開始し、11-22 9:22 に完走(22 時間 40 分)。全 175,187 モジュールでエラー 0。', ref: '7.3' },
-  { state: 'run', label: '実行中', title: '主定理が依存する公理', detail: '5 つの主定理について <code>#print axioms</code> を実行中。', ref: '7.4' },
-  { state: 'wait', label: '未着手', title: '主張の一致確認', detail: '検証者が Mathlib だけで書いた命題と、主定理の型が一致するかをカーネルに判定させる。', ref: '7.5' },
+  { state: 'ok', label: '済', title: '主定理が依存する公理', detail: '5 つの主定理すべてが、標準の 3 公理(<code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code>)だけに依存。', ref: '7.4' },
+  { state: 'run', label: '実行中', title: '主張の一致確認', detail: '検証者が Mathlib だけで書いた命題と、主定理の型は一致。主張がプロジェクト側の定義に依存しないことの確認を実行中。', ref: '7.5' },
   { state: 'run', label: '実行中', title: 'カーネルによる再検査', detail: 'ツールチェーン同梱の <code>leanchecker</code> で、全モジュールの宣言をカーネルに再生させている。', ref: '7.6' },
   { state: 'wait', label: '未着手', title: '別実装のカーネルによる照合', detail: '主定理の依存一式を書き出し、Rust 製の別実装カーネル <code>nanoda</code> で検査する。道具は準備済み。', ref: '7.7' },
   { state: 'wait', label: '未着手', title: 'ビルド後のソース不変確認', detail: 'ビルドに使った全ファイルが、原本と 1 バイトも違わないことを再照合する。', ref: '7.8' },
@@ -170,6 +170,13 @@ const buildRows: [string, string][] = [
   ['最も時間のかかったモジュール', '<code>Development.AbelianVarietyTheory.Proofs.InertiaEigenvalues.LanglandsQuotientOfSpehTypeProductIsL</code>(1,763 秒)'],
 ];
 
+// ---- 7.4: #print axioms の出力(verification/results/01-axioms.out.txt の本体) ----
+const axiomsOut = `'riemannHypothesis' depends on axioms: [propext, Classical.choice, Quot.sound]
+'riemannZeta_eq_zero_re' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LFunction_ne_zero_of_half_lt_re' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LFunction_eq_zero_re' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LFunction_eq_zero_re_of_isPrimitive' depends on axioms: [propext, Classical.choice, Quot.sound]`;
+
 // ---- 8 節 ----
 const hardware: [string, string][] = [
   ['CPU', 'AMD EPYC 7742(64 コア / 128 スレッド、1 ソケット、x86_64、最大 3.41 GHz)'],
@@ -237,10 +244,11 @@ const colophon: [string, string][] = [
             rotate={-9}
             class="float-right -mt-7 -mr-1 mb-1 ml-3 mix-blend-multiply dark:mix-blend-normal"
           />
-          <p class="font-display text-[clamp(1.15rem,4.9vw,1.35rem)] leading-[1.5] font-extrabold tracking-[0.03em] whitespace-nowrap">まだ出ていません</p>
+          <p class="font-display text-[clamp(1.15rem,4.9vw,1.35rem)] leading-[1.5] font-extrabold tracking-[0.03em] whitespace-nowrap">最終判定はまだです</p>
           <p class="mt-1 text-[0.9375rem] leading-[1.8]">
             全 175,187
-            モジュールのコンパイルは、エラーなしで完走しました。そのあとの検査(公理の確認、カーネルによる再検査、別実装のカーネルによる照合)が終わるまでは、この証明が正しいとも誤りとも言えません。
+            モジュールのコンパイルはエラーなしで完走し、主定理が依存する公理は標準の 3
+            つだけで、主張も検証者が書いた命題と一致しました。残っているのは、同じ結論を別の経路で確かめ直す検査(カーネルによる再検査、別実装のカーネルによる照合、ソースの不変確認)です。
           </p>
         </dd>
       </div>
@@ -301,7 +309,12 @@ const colophon: [string, string][] = [
       分かかり、エラーは 1 件もありませんでした。ここまでに問題は見つかっていません。
     </p>
     <p>
-      決定的な検査は、まだ残っています。主定理が依存する公理の確認、主張の一致確認、カーネルによる再検査、別実装のカーネルによる照合です。結果が出るまで判定は保留します。
+      続く検査で、5 つの主定理が依存する公理は標準の 3 つ(<code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code
+      >)だけであること、主定理の型が、検証者が Mathlib だけで書いたリーマン予想・一般化リーマン予想の命題と一致することを確かめました。
+    </p>
+    <p>
+      残っているのは、この結論を別の経路で確かめ直す検査です。カーネルによる再検査、別実装のカーネルによる照合、ビルド後のソース不変確認の 3
+      つで、すべて終わるまで最終判定は保留します。
     </p>
     <Tbl no="1" title="検査の一覧(実施順)。印は、朱の「済」が完了、藍の「中」が実行中、灰の「未」が未着手。右端は詳しい説明のある節。" wide stack>
       <thead>
@@ -643,7 +656,7 @@ const colophon: [string, string][] = [
       起動時の入力にすぎず、削除しても再ビルドが起きないこと(成果物として追跡されていないこと)を、事前に小さな例で確認しました。ソース・設定・コンパイラには触れていません。
     </p>
 
-    <Sub no="7.4" title="主定理が依存する公理" state="run" label="実行中" />
+    <Sub no="7.4" title="主定理が依存する公理" state="ok" label="標準の 3 公理のみ" />
     <Side>
       <b class="text-ink">標準の 3 公理</b>
       <span class="mt-1 block"><span class="font-mono text-[0.92em] text-ink">propext</span> 同値な命題は等しい。</span>
@@ -651,16 +664,25 @@ const colophon: [string, string][] = [
       <span class="block"><span class="font-mono text-[0.92em] text-ink">Quot.sound</span> 関係のある 2 つの元は、商では等しい。</span>
     </Side>
     <p>
-      5 つの主定理それぞれについて <code>#print axioms</code> を実行します。Lean 4 と Mathlib の標準は{' '}
+      5 つの主定理それぞれについて <code>#print axioms</code> を実行しました。Lean 4 と Mathlib の標準は{' '}
       <code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code> の 3 つです。これ以外(<code>sorryAx</code>{' '}
-      や独自公理)が現れた場合、その定理は無条件に証明されたとは言えません。
+      や独自公理)が現れた場合、その定理は無条件に証明されたとは言えません。結果は、5 つとも標準の 3 つだけでした。
+    </p>
+    <Listing no="3" path="verification/results/01-axioms.out.txt" note="Lean の出力" code={axiomsOut} lang="text" />
+    <p>
+      この表示は、コンパイルで作られた環境に記録されている証明をたどった結果です。その環境がカーネルの検査を正しく通って作られたことは、7.6
+      節の再検査と 7.7 節の照合で、別に確かめます。
     </p>
 
-    <Sub no="7.5" title="主張の一致確認" state="wait" label="未着手" />
+    <Sub no="7.5" title="主張の一致確認" state="run" label="型の一致は確認済み。依存解析を実行中" />
     <p>
       検証者が Mathlib だけを import して書いた命題(<a href={`${repo}/blob/main/verification/lean-checks/RHReference.lean`}
         ><code>RHReference.lean</code></a
-      >)を、配布物の主定理でそのまま証明できるかをカーネルに判定させます。あわせて、主定理の型に現れる定数を定義の中身まで推移的に辿り、主張がプロジェクト側の定義に依存していないことを機械的に確認します。
+      >)を、配布物の主定理でそのまま証明できるかをカーネルに判定させました。リーマン予想と一般化リーマン予想の 3 つの形について、6
+      通りの組み合わせがすべて通りました。配布物の主定理の型は、定義を展開すれば、検証者が書いた命題と同じです。
+    </p>
+    <p>
+      あわせて、主定理の型に現れる定数を定義の中身まで推移的に辿り、主張がプロジェクト側の定義に依存していないことを機械的に確認します。こちらは実行中です。
     </p>
 
     <Sub no="7.6" title="カーネルによる再検査" state="run" label="実行中" />
@@ -719,7 +741,7 @@ const colophon: [string, string][] = [
       リポジトリには原本と、ここまでの全手順を再実行するスクリプトが入っています。<code>elan</code>、<code>zstd</code>、<code>ripgrep</code
       >、Python 3 が必要です。ビルド生成物の置き場所として数百 GB の空きを用意してください。
     </p>
-    <Listing no="3" path="再現手順" note="bash" code={reproduce} lang="bash" />
+    <Listing no="4" path="再現手順" note="bash" code={reproduce} lang="bash" />
   </Sec>
 
   <Fragment slot="footer">
