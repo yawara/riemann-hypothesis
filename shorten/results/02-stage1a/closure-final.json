@@ -1,0 +1,12 @@
+{
+ "analysis": "/var/tmp/riemann-hypothesis-ywr/runs/shorten/analysis-closure4-20261122T105644Z",
+ "decls": 1147761,
+ "kernel_live_decls": 899785,
+ "added_by_source_refs": 0,
+ "added_by_state": {},
+ "added_decl_lines": 0,
+ "kept_decls": 899785,
+ "modules_with_kept_decls": 148820,
+ "modules_revived_by_source_refs": 0,
+ "unresolved_refs": 2021
+}

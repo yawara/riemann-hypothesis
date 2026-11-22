@@ -1,0 +1,20 @@
+== build-20261122T103527Z
+started_at_utc: 2026-11-22T10:38:53Z
+finished_at_utc: 2026-11-22T10:42:25Z
+exit_code: 1
+error_lines: 110
+time: Elapsed (wall clock) time (h:mm:ss or m:ss): 3:31.82
+== build-20261122T111224Z
+started_at_utc: 2026-11-22T11:12:24Z
+finished_at_utc: 2026-11-22T11:15:27Z
+exit_code: 1
+error_lines: 13
+time: Elapsed (wall clock) time (h:mm:ss or m:ss): 3:02.82
+== build-20261122T112436Z
+started_at_utc: 2026-11-22T11:24:36Z
+finished_at_utc: 2026-11-22T11:25:42Z
+exit_code: 0
+error_lines: 0
+time: Elapsed (wall clock) time (h:mm:ss or m:ss): 1:06.66
+== build-20261122T112617Z
+started_at_utc: 2026-11-22T11:26:17Z

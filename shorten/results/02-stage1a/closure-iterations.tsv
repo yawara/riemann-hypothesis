@@ -1,0 +1,5 @@
+analysis-20261122T092306Z	roots=5	kernel_live_decls=854438	added_by_source_refs=19362
+analysis-closure1-20261122T095138Z	roots=19367	kernel_live_decls=875353	added_by_source_refs=5
+analysis-closure2-20261122T101311Z	roots=19372	kernel_live_decls=875360	added_by_source_refs=0
+analysis-closure3-20261122T104359Z	roots=40930	kernel_live_decls=896356	added_by_source_refs=3227
+analysis-closure4-20261122T105644Z	roots=44157	kernel_live_decls=899785	added_by_source_refs=0

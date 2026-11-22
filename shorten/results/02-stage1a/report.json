@@ -1,0 +1,30 @@
+{
+ "kept_list": "/var/tmp/riemann-hypothesis-ywr/runs/shorten/analysis-closure4-20261122T105644Z/source-closure/kept-decls.tsv",
+ "decls_source": "/var/tmp/riemann-hypothesis-ywr/runs/shorten/analysis-closure4-20261122T105644Z/decls.tsv.zst",
+ "before": {
+  "modules": 175187,
+  "lines": 17374215,
+  "nonblank_lines": 15531759,
+  "bytes": 1030531854,
+  "decls": 1147761
+ },
+ "after": {
+  "modules": 148924,
+  "lines": 14159677,
+  "nonblank_lines": 12649501,
+  "bytes": 833008789,
+  "decls": 899785
+ },
+ "deleted_modules": 26263,
+ "kept_modules_without_decls": {
+  "宣言の外のメタ命令": 14,
+  "消さない定数を指す大域的な attribute": 89
+ },
+ "deleted_decls": 247976,
+ "protected_beyond_kept_list": {},
+ "edits": {
+  "open から名前空間を外す": 1372,
+  "open を削除(名前空間が見えない)": 12
+ },
+ "changed_modules": 40179
+}
