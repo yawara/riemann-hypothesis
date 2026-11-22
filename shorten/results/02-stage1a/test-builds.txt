@@ -16,5 +16,9 @@ finished_at_utc: 2026-11-22T11:25:42Z
 exit_code: 0
 error_lines: 0
 time: Elapsed (wall clock) time (h:mm:ss or m:ss): 1:06.66
-== build-20261122T112617Z
+== build-20261122T112617Z(短縮版全体のビルド 1 回目)
 started_at_utc: 2026-11-22T11:26:17Z
+stopped_at_utc: 2026-11-22T14:16:42Z(失敗 30 件の原因を規則に取り込むため、手で止めた)
+progress: 42,937 / 43,316 ジョブ(ジョブの数は進むにつれて増える)、成功 26,775 モジュール、失敗 30 モジュール(full-build1-failures.tsv)
+== build-20261122T142106Z(書き出し直した短縮版で、続きから)
+started_at_utc: 2026-11-22T14:21:06Z

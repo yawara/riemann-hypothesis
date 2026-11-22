@@ -1,6 +1,6 @@
 {
- "kept_list": "/var/tmp/riemann-hypothesis-ywr/runs/shorten/analysis-closure4-20261122T105644Z/source-closure/kept-decls.tsv",
- "decls_source": "/var/tmp/riemann-hypothesis-ywr/runs/shorten/analysis-closure4-20261122T105644Z/decls.tsv.zst",
+ "kept_list": "/var/tmp/riemann-hypothesis-ywr/runs/shorten/analysis-closure5-20261122T135849Z/source-closure/kept-decls.tsv",
+ "decls_source": "/var/tmp/riemann-hypothesis-ywr/runs/shorten/analysis-closure5-20261122T135849Z/decls.tsv.zst",
  "before": {
   "modules": 175187,
   "lines": 17374215,
@@ -10,20 +10,23 @@
  },
  "after": {
   "modules": 148924,
-  "lines": 14159677,
-  "nonblank_lines": 12649501,
-  "bytes": 833008789,
-  "decls": 899785
+  "lines": 14159480,
+  "nonblank_lines": 12649387,
+  "bytes": 832996984,
+  "decls": 899791
  },
  "deleted_modules": 26263,
  "kept_modules_without_decls": {
   "宣言の外のメタ命令": 14,
   "消さない定数を指す大域的な attribute": 89
  },
- "deleted_decls": 247976,
+ "deleted_decls": 247970,
  "protected_beyond_kept_list": {},
  "edits": {
-  "open から名前空間を外す": 1372,
+  "open から名前空間を外す": 1428,
+  "open から名前空間を外す(このモジュールの後ろで初めて現れる)": 98,
+  "open の前に名前空間を作る(このモジュールの後ろで初めて現れ、名前空間の外から短い名前で参照される)": 3,
+  "export から名前を外す": 6,
   "open を削除(名前空間が見えない)": 12
  },
  "changed_modules": 40179

@@ -3,3 +3,5 @@ analysis-closure1-20261122T095138Z	roots=19367	kernel_live_decls=875353	added_by
 analysis-closure2-20261122T101311Z	roots=19372	kernel_live_decls=875360	added_by_source_refs=0
 analysis-closure3-20261122T104359Z	roots=40930	kernel_live_decls=896356	added_by_source_refs=3227
 analysis-closure4-20261122T105644Z	roots=44157	kernel_live_decls=899785	added_by_source_refs=0
+analysis-closure4-20261122T105644Z(マクロの参照を加えて再計算)	roots=44157	kernel_live_decls=899785	added_by_source_refs=6
+analysis-closure5-20261122T135849Z	roots=44163	kernel_live_decls=899791	added_by_source_refs=0

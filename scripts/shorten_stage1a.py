@@ -19,17 +19,20 @@
 
 規則
   * 宣言: --kept に無いものは消す(--protected にあるもの、mutual ブロックを含むモジュールのものは残す)。
-  * 消す命令に掛かる前置き(`set_option … in` / `open … in` / `omit … in` / `include … in` / `variable … in`。
-    2 行以上にわたるもの、空行を挟むもの、連なったものを含む)も消す。
+  * 消す命令に掛かる前置き(`set_option … in` / `open … in` / `omit … in` / `include … in` / `variable … in` /
+    `attribute […] … in` / `unseal … in` / `universe … in`。2 行以上にわたるもの、空行を挟むもの、連なったものを含む)も消す。
   * `example` と `#check` などの命令は消す(環境に何も残さない)。範囲は、次に行頭から始まる行の手前まで。
-  * attribute 命令と `open X (名前 …)` からは、消す宣言を指す名前を外す(位置は .ilean の参照で特定する)。
-    名前が残らなければ命令ごと消す。
+  * attribute 命令と `open X (名前 …)`・`export X (名前 …)` からは、消す宣言を指す名前を外す(位置は .ilean の参照で
+    特定する。字下げで続く行も含む)。名前が残らなければ命令ごと消す(`attribute […] … in` の前置きも)。
   * モジュール: 残る宣言が無く、次のどれも無ければ丸ごと消す。Main・Statements と、Main が直接 import するモジュールは残す。
       - 宣言の外の大域的なメタ命令(run_cmd・macro_rules・initialize・export など)
       - local でない attribute 命令で、消さない定数(配布物の外の定数を含む)を指すもの
   * 消したモジュールを import していたモジュールは、その import を(推移的に)引き継ぎ、推移簡約する(閉包は変わらない)。
-  * open: そのモジュールから見えなくなる配布物の名前空間を外す(import の閉包の中に、その名前空間の宣言や
-    namespace 命令が残っているかで判定する)。外すと空になる行は消す。
+  * open・export: その位置から見えなくなる配布物の名前空間を外す(import の閉包の中に、その名前空間の宣言や
+    namespace 命令が残っているか、同じモジュールのそれより前に namespace 命令か残す宣言があるかで判定する。
+    字下げで続く行も含む)。外すと空になる行は消し、名前空間が 1 つも残らなければ命令ごと消す。
+    ただし、同じモジュールの後ろで初めて現れる名前空間で、その名前空間の外から短い名前で参照される
+    (.ilean の参照で判定)ものは open に残し、その前に `namespace X end X` の 1 行を入れて名前空間を作る。
   * 消した宣言や行の前後で続いた空行は 1 行にまとめる(もともと続いていた空行はそのまま)。
 """
 import argparse
@@ -46,6 +49,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "lean", "src")
 LAKE = "/var/tmp/riemann-hypothesis-ywr/lake"
 TOOLCHAIN_LIB = os.path.expanduser("~/.elan/toolchains/leanprover--lean4---v4.33.1/lib/lean")
+ILEAN_ROOT = os.path.join(LAKE, "build", "lib", "lean")   # 配布物のビルド結果の .ilean
 PROJECT_ROOTS = {"BuildAid", "CompanionTheory", "Development", "Formalism", "GroundTheory", "Lemmata",
                  "PositivityTheory", "ReciprocityTheory", "Supplements", "Main", "Statements"}
 FIXED = {"Main", "Statements"}
@@ -54,13 +58,14 @@ META_CMD_RE = re.compile(r"^(run_cmd|run_elab|run_meta|initialize|builtin_initia
                          r"infixl|infixr|prefix|postfix|macro|macro_rules|syntax|elab|elab_rules|declare_syntax_cat|"
                          r"export|binder_predicate)\b")
 ATTR_RE = re.compile(r"^(\s*)attribute\s+\[([^\]]*)\]")
-WRAP_START_RE = re.compile(r"^\s*(set_option|open|omit|include|variable)\b")
+WRAP_START_RE = re.compile(r"^\s*(set_option|open|omit|include|variable|attribute|unseal|universe)\b")
 WRAP_END_RE = re.compile(r"\sin\s*$")
 DROP_CMD_RE = re.compile(r"^(example\b|#(check|eval|print|reduce|guard|exit)\b)")
 IMPORT_RE = re.compile(r"^import\s+(\S+)\s*$")
 MUTUAL_RE = re.compile(r"^\s*mutual\s*$")
 NS_RE = re.compile(r"^\s*(?:noncomputable\s+)?(namespace|section|end)\b\s*(\S*)")
 OPEN_RE = re.compile(r"^(\s*)open\s+(.*?)(\s+in)?\s*$")
+EXPORT_RE = re.compile(r"^(\s*)export\s+([^\s(]+)\s*\(")
 IDENT = r"[^\s()\[\]{},:;←→]+"
 OPEN_SIMPLE_RE = re.compile(rf"^(scoped\s+)?{IDENT}(\s+{IDENT})*$")
 OPEN_LIST_RE = re.compile(rf"^(scoped\s+)?{IDENT}\s*(\(.*\)|\s+(renaming|hiding)\s+.*)$")
@@ -105,6 +110,34 @@ def external_namespaces(jobs):
     return ns, len(paths)
 
 
+def unpriv(n):
+    """`_private.<モジュール>.0.<名前>` を <名前> に直す"""
+    if n and n.startswith("_private."):
+        k = n.find(".0.")
+        return n[k + 3:] if k >= 0 else n
+    return n
+
+
+def module_ilean_refs(m):
+    """配布物のモジュール m の .ilean から、配布物の定数への参照を (行, 列, 終わりの行, 終わりの列, 名前, 持ち主) で返す
+    (行・列は 0 始まり、列は UTF-16。名前と持ち主は private の接頭辞を外したもの。持ち主は宣言の外なら None)"""
+    try:
+        with open(os.path.join(ILEAN_ROOT, *m.split(".")) + ".ilean", encoding="utf-8") as fh:
+            d = json.load(fh)
+    except (OSError, ValueError):
+        return []
+    out = []
+    for key, v in d.get("references", {}).items():
+        if not key.startswith('{"c":'):
+            continue
+        c = json.loads(key)["c"]
+        if not is_project_module(c["m"]):
+            continue
+        for u in v.get("usages", []):
+            out.append((u[0], u[1], u[2], u[3], unpriv(c["n"]), unpriv(u[4]) if len(u) >= 5 else None))
+    return out
+
+
 def drop_span(lines, i):
     """行 i(0 始まり)から始まる命令の範囲 [i, j): 次に行頭から始まる空でない行の手前まで(末尾の空行は含めない)"""
     j = i + 1
@@ -142,6 +175,8 @@ def cut_spans(line, spans):
             right = right.lstrip(" ")
         elif left.endswith(" ") and (right.startswith(")") or right == ""):
             left = left.rstrip(" ")
+        elif left.endswith("(") and right.startswith(" "):
+            right = right.lstrip(" ")
         out = left + right
     return out.rstrip()
 
@@ -402,9 +437,6 @@ def main():
             bits_cache[q] = b
         return bits_cache[q]
 
-    def ns_visible(q, vm):
-        return q in ext_ns or (ns_bits(q) & vm) != 0
-
     # ---- 6. 書き出す本文
     edits = []      # (モジュール, 行, 種類, 内容)
     new_text = {}
@@ -417,7 +449,6 @@ def main():
             continue
         dl = set(deleted_lines[m])
         rbl = module_refs_by_line(m)
-        vm = clos(m) | (1 << idx[m])
         # attribute 命令: 消す宣言を指す名前を外す。名前が残らなければ命令ごと消す
         replace = {}
         for s, e, _ in attr_spans(m):
@@ -437,20 +468,76 @@ def main():
                 continue
             rest = " ".join(new_lines)
             mm = ATTR_RE.match(rest)
-            if mm is None or rest[mm.end():].strip() == "":
+            if mm is None or rest[mm.end():].strip() in ("", "in"):
                 dl.update(range(s, e))
                 edits.append((m, s + 1, "attribute を削除", " ".join(removed)))
             else:
                 for i in range(s, e):
                     replace[i] = new_lines[i - s]
                 edits.append((m, s + 1, "attribute から名前を外す", " ".join(removed)))
+        # 名前空間が見えるか。Lean は open・export の時点で名前空間があるかを確かめるので、このモジュールの
+        # namespace 命令と残す宣言は、その位置より前にあるものだけを数える(self_ns に順に足す)
+        vm = clos(m)
+        me = idx[m]
+        starts = collections.defaultdict(list)
+        for name, s, _ in decls.get(m, []):
+            if keep_decl[(m, name)]:
+                starts[s - 1].append(name)
+        self_ns = set()
+        opened = set()
+
+        def ns_ok(q):
+            return q in ext_ns or (ns_bits(q) & vm) != 0 or q in self_ns
+
+        def cands(tok, bases):
+            return [tok] + [f"{b}.{tok}" for b in bases + sorted(opened)]
+
+        def vanished(tok, bases):
+            if tok.startswith("_root_."):
+                return False
+            cs = cands(tok, bases)
+            if any(ns_ok(c) for c in cs):
+                return False
+            return any(c in ns_before for c in cs)
+
+        def note_opened(tok, bases):
+            for c in cands(tok, bases):
+                if ns_ok(c):
+                    opened.add(c)
+
+        def later_here(tok, bases):
+            return [c for c in cands(tok, bases) if (ns_bits(c) >> me) & 1]
+
+        ilean_refs = None
+
+        def relied_on(ns, after):
+            """行 after(0 始まり)より後ろで、名前空間 ns の定数を、ns の外から ns を書かずに参照しているか
+            (open に頼っている参照。ドット記法の参照も数えるので多めに出る)"""
+            nonlocal ilean_refs
+            if ilean_refs is None:
+                ilean_refs = module_ilean_refs(m)
+            for (a, b, c, e, n, own) in ilean_refs:
+                if a <= after or not n.startswith(ns + "."):
+                    continue
+                if own is not None and (own == ns or own.startswith(ns + ".")):
+                    continue
+                txt = lines[a][u16_to_idx(lines[a], b):u16_to_idx(lines[a], e)] if a == c else ""
+                rest = n[len(ns) + 1:]
+                if txt == rest or rest.endswith("." + txt):
+                    return True
+            return False
+
         out = []
         stack = []
-        opened = set()
         imports_done = False
         del_since_text = False
         n_open_fix = 0
+        skip_to = -1
         for i, l in enumerate(lines):
+            for name in starts.get(i, ()):
+                self_ns.update(prefixes(name))
+            if i < skip_to:
+                continue
             if IMPORT_RE.match(l):
                 if not imports_done:
                     out.extend(f"import {x}" for x in new_imports[m])
@@ -469,6 +556,7 @@ def main():
             mm = NS_RE.match(l)
             if mm and mm.group(1) == "namespace" and mm.group(2):
                 stack.extend(mm.group(2).split("."))
+                self_ns.update(prefixes(".".join(x for x in stack if x) + ".x"))
             elif mm and mm.group(1) == "section":
                 stack.append(None)
             elif mm and mm.group(1) == "end":
@@ -479,71 +567,132 @@ def main():
                         if stack and stack[-1] is not None:
                             stack.pop()
             om = OPEN_RE.match(l)
-            if om and ((not OPEN_SIMPLE_RE.match(om.group(2)) and not OPEN_LIST_RE.match(om.group(2)))
-                       or KEYWORDS & set(om.group(2).split("(")[0].split())):
-                om = None  # 名前空間と名前の並び以外(`open X in theorem …` を 1 行に書いたものなど)は触らない
+            em = EXPORT_RE.match(l) if om is None else None
+            if not (om or em):
+                out.append(l)
+                continue
+            # 字下げで続く行も同じ命令とみなす(1 行目が ` in` で終わる前置きなら、続く行は次の命令)
+            j = i + 1 if WRAP_END_RE.search(l) else cont_span(lines, i)
+            if any(k in dl for k in range(i + 1, j)):
+                j = i + 1
+            seg = lines[i:j]
+            joined = " ".join(x.strip() for x in seg)
+            cur = [x for x in stack if x]
+            bases = [".".join(cur[:k]) for k in range(1, len(cur) + 1)]
             if om:
-                indent, body, in_kw = om.group(1), om.group(2), om.group(3) or ""
-                cur = [x for x in stack if x]
-                bases = [".".join(cur[:k]) for k in range(1, len(cur) + 1)]
-
-                def cands(tok):
-                    return [tok] + [f"{b}.{tok}" for b in bases + sorted(opened)]
-
-                def vanished(tok):
-                    if tok.startswith("_root_."):
-                        return False
-                    cs = cands(tok)
-                    if any(ns_visible(c, vm) for c in cs):
-                        return False
-                    return any(c in ns_before for c in cs)
-
-                def note_opened(tok):
-                    for c in cands(tok):
-                        if ns_visible(c, vm):
-                            opened.add(c)
-
-                if "(" in body or " renaming " in body or " hiding " in body:
-                    ns = body.split()[1] if body.startswith("scoped ") else body.split()[0]
-                    if vanished(ns):
-                        edits.append((m, i + 1, "open を削除(名前空間が見えない)", ns))
-                        n_open_fix += 1
-                        del_since_text = True
-                        continue
-                    note_opened(ns)
-                    # 明示した名前のうち、消す宣言を指すもの(.ilean の参照の位置で特定)を外す
-                    spans, removed = [], []
-                    for (a, b, c, d, rm, rn) in rbl.get(i, ()):
-                        if c == i and ref_deleted(rm, rn):
-                            spans.append((u16_to_idx(lines[i], b), u16_to_idx(lines[i], d)))
-                            removed.append(rn)
-                    if spans:
-                        l2 = cut_spans(lines[i], spans)
-                        n_open_fix += 1
-                        if re.search(r"\(\s*\)", l2):
-                            edits.append((m, i + 1, "open を削除(名前が残らない)", " ".join(removed)))
-                            del_since_text = True
-                            continue
-                        edits.append((m, i + 1, "open から名前を外す", " ".join(removed)))
-                        l = l2
+                jm = OPEN_RE.match(joined)
+                body = jm.group(2)
+                if ((not OPEN_SIMPLE_RE.match(body) and not OPEN_LIST_RE.match(body))
+                        or KEYWORDS & set(body.split("(")[0].split())):
+                    out.append(l)  # 名前空間と名前の並び以外(`open X in theorem …` を 1 行に書いたものなど)は触らない
+                    continue
+            what = "export" if em else "open"
+            if em or "(" in body or " renaming " in body or " hiding " in body:
+                if em:
+                    ns = em.group(2)
                 else:
-                    toks = body.split()
-                    scoped = toks[:1] == ["scoped"]
-                    names = toks[1:] if scoped else toks
-                    keep_names = []
-                    for x in names:
-                        if vanished(x):
-                            edits.append((m, i + 1, "open から名前空間を外す", x))
-                            n_open_fix += 1
-                        else:
-                            keep_names.append(x)
-                            note_opened(x)
-                    if not keep_names:
-                        del_since_text = True
+                    ns = body.split()[1] if body.startswith("scoped ") else body.split()[0]
+                skip_to = j
+                if vanished(ns, bases):
+                    edits.append((m, i + 1, f"{what} を削除(名前空間が見えない)", ns))
+                    n_open_fix += 1
+                    del_since_text = True
+                    continue
+                if om:
+                    note_opened(ns, bases)
+                # 明示した名前のうち、消す宣言を指すもの(.ilean の参照の位置で特定)を外す
+                new_seg, removed = [], []
+                for k in range(i, j):
+                    spans = []
+                    for (a, b, c, d, rm, rn) in rbl.get(k, ()):
+                        if c == k and ref_deleted(rm, rn):
+                            spans.append((u16_to_idx(lines[k], b), u16_to_idx(lines[k], d)))
+                            removed.append(rn)
+                    new_seg.append(cut_spans(lines[k], spans) if spans else lines[k])
+                if not removed:
+                    out.extend(seg)
+                    continue
+                n_open_fix += 1
+                if re.search(r"\(\s*\)", " ".join(x.strip() for x in new_seg)):
+                    edits.append((m, i + 1, f"{what} を削除(名前が残らない)", " ".join(removed)))
+                    del_since_text = True
+                    continue
+                edits.append((m, i + 1, f"{what} から名前を外す", " ".join(removed)))
+                # 名前が無くなった続きの行は消し、`)` だけが残った行は前の行に付ける
+                tidy = []
+                for x in new_seg:
+                    if x.strip() == "":
                         continue
-                    if len(keep_names) != len(names):
-                        l = f"{indent}open {'scoped ' if scoped else ''}{' '.join(keep_names)}{in_kw}"
-            out.append(l)
+                    if x.strip() == ")" and tidy:
+                        tidy[-1] = tidy[-1].rstrip() + ")"
+                        continue
+                    tidy.append(x)
+                out.extend(tidy)
+                continue
+            # 名前空間の並び: 行ごとに見えない名前空間を外す(行の構成は保つ)
+            skip_to = j
+            scoped = False
+            has_in = False
+            per_line = []
+            for k, x in enumerate(seg):
+                toks = x.split()
+                if k == 0:
+                    toks = toks[1:]
+                    if toks[:1] == ["scoped"]:
+                        scoped = True
+                        toks = toks[1:]
+                if k == len(seg) - 1 and toks[-1:] == ["in"]:
+                    has_in = True
+                    toks = toks[:-1]
+                per_line.append(toks)
+            new_toks, removed, made_ns = [], [], []
+            cur_s = ".".join(cur)
+            for toks in per_line:
+                keep = []
+                for x in toks:
+                    if vanished(x, bases):
+                        later = later_here(x, bases)
+                        # このモジュールの後ろで初めて現れる名前空間で、名前空間の外から短い名前で参照されるなら、
+                        # open は残し、その前に `namespace X end X` で名前空間を作る(外すと参照が解決できなくなる)
+                        if later and relied_on(later[0], j - 1):
+                            c = later[0]
+                            rel = c[len(cur_s) + 1:] if cur_s and c.startswith(cur_s + ".") else (None if cur_s else c)
+                            if rel:
+                                made_ns.append(rel)
+                                self_ns.update(prefixes(c + ".x"))
+                                keep.append(x)
+                                note_opened(x, bases)
+                                edits.append((m, i + 1, "open の前に名前空間を作る(このモジュールの後ろで初めて現れ、"
+                                              "名前空間の外から短い名前で参照される)", c))
+                                n_open_fix += 1
+                                continue
+                        removed.append(x)
+                        kind = ("open から名前空間を外す(このモジュールの後ろで初めて現れる)" if later
+                                else "open から名前空間を外す")
+                        edits.append((m, i + 1, kind, x))
+                        n_open_fix += 1
+                    else:
+                        keep.append(x)
+                        note_opened(x, bases)
+                new_toks.append(keep)
+            for rel in made_ns:
+                out.append(f"{om.group(1)}namespace {rel} end {rel}")
+            if not removed:
+                out.extend(seg)
+                continue
+            nonempty = [k for k, t in enumerate(new_toks) if t]
+            if not nonempty:
+                del_since_text = True
+                continue
+            for k in nonempty:
+                s_ = " ".join(new_toks[k])
+                if k == nonempty[0]:
+                    s_ = f"{om.group(1)}open {'scoped ' if scoped else ''}{s_}"
+                else:
+                    s_ = re.match(r"^\s*", seg[k]).group(0) + s_
+                if k == nonempty[-1] and has_in:
+                    s_ += " in"
+                out.append(s_)
         if not imports_done and new_imports[m]:
             out = [f"import {x}" for x in new_imports[m]] + out
         new_text[m] = out
