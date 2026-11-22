@@ -44,6 +44,9 @@ const obs = data.obs;
     data-at={obs.latest.t_utc}
     data-errors={obs.latest.error_lines ?? ''}
     data-phase={obs.latest.phase}
+    data-replay-ok={obs.latest.replay?.project?.ok ?? 0}
+    data-replay-total={obs.latest.replay?.project?.total ?? 0}
+    data-replay-failed={obs.latest.replay?.project?.failed ?? 0}
   >
     <!-- 印の輪郭をわずかに揺らし、ところどころをかすれさせるフィルタ(components/Seal.astro が使う) -->
     <svg width="0" height="0" class="absolute" aria-hidden="true" focusable="false">
@@ -80,6 +83,9 @@ const obs = data.obs;
         at: '',
         errors: null as number | null,
         phase: 'build',
+        replayOk: 0,
+        replayTotal: 0,
+        replayFailed: 0,
         init() {
           const d = (this.$el as HTMLElement).dataset;
           this.done = Number(d.done);
@@ -87,11 +93,17 @@ const obs = data.obs;
           this.at = d.at || '';
           this.errors = d.errors === '' ? null : Number(d.errors);
           this.phase = d.phase || 'build';
+          this.replayOk = Number(d.replayOk || 0);
+          this.replayTotal = Number(d.replayTotal || 0);
+          this.replayFailed = Number(d.replayFailed || 0);
           this.load();
         },
         fmt: fmtInt,
         pct() {
           return Math.min(100, (this.done / this.total) * 100).toFixed(1);
+        },
+        replayPct() {
+          return this.replayTotal ? Math.min(100, (this.replayOk / this.replayTotal) * 100).toFixed(1) : '0.0';
         },
         stamp() {
           return this.at ? jstMdHm(this.at) : '';
@@ -116,11 +128,21 @@ const obs = data.obs;
             this.at = obs.latest.t_utc;
             this.errors = obs.latest.error_lines;
             this.phase = obs.latest.phase;
+            const rp = obs.latest.replay?.project;
+            if (rp) {
+              this.replayOk = rp.ok;
+              this.replayTotal = rp.total;
+              this.replayFailed = rp.failed;
+            }
           }
           if (st?.modules_total && Date.parse(st.updated_at_utc) > Date.parse(this.at)) {
             this.done = st.modules_done;
             this.at = st.updated_at_utc;
             this.phase = st.phase;
+            if (st.replay_total) {
+              this.replayOk = st.replay_ok;
+              this.replayTotal = st.replay_total;
+            }
           }
           if (obs?.points) {
             (window as any).__rhObs = obs;

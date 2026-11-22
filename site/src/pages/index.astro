@@ -39,6 +39,11 @@ const repo = 'https://github.com/yawara/riemann-hypothesis';
 const obs = data.obs;
 const latest = obs.latest;
 const pct = ((latest.done / obs.total) * 100).toFixed(1);
+const replay = (latest as any).replay?.project ?? null; // カーネルによる再検査の進み具合(7.6 節)
+const replayOk: number = replay?.ok ?? 0;
+const replayTotal: number = replay?.total ?? 0;
+const replayFailed: number = replay?.failed ?? 0;
+const replayPct = replayTotal ? ((replayOk / replayTotal) * 100).toFixed(1) : '0.0';
 
 // ---- 2 節: 速度が落ちていった理由(scripts/build_speed_analysis.py の集計) ----
 const sp = data.speed; // ビルド完了後の集計
@@ -73,7 +78,7 @@ const checks: { state: St; label: string; title: string; detail: string; ref: st
   { state: 'ok', label: '済', title: '全モジュールのコンパイル', detail: '2026-11-21 10:42 JST に開始し、11-22 9:22 に完走(22 時間 40 分)。全 175,187 モジュールでエラー 0。', ref: '7.3' },
   { state: 'ok', label: '済', title: '主定理が依存する公理', detail: '5 つの主定理すべてが、標準の 3 公理(<code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code>)だけに依存。', ref: '7.4' },
   { state: 'ok', label: '済', title: '主張の一致確認', detail: '検証者が Mathlib だけで書いた命題と、主定理の型が一致。主張に現れる定数は Lean・Mathlib と <code>Statements.lean</code> の定義だけ。', ref: '7.5' },
-  { state: 'run', label: '実行中', title: 'カーネルによる再検査', detail: 'ツールチェーン同梱の <code>leanchecker</code> で、全モジュールの宣言をカーネルに再生させている。', ref: '7.6' },
+  { state: 'run', label: '実行中', title: 'カーネルによる再検査', detail: '<code>leanchecker</code> と同じ再生処理で、全モジュールの宣言をカーネルに再生させている。1 回目は名前の解決が遅すぎたため中止し、方法を改めて 11-22 11:26 JST に再開。', ref: '7.6' },
   { state: 'wait', label: '未着手', title: '別実装のカーネルによる照合', detail: '主定理の依存一式を書き出し、Rust 製の別実装カーネル <code>nanoda</code> で検査する。道具は準備済み。', ref: '7.7' },
   { state: 'wait', label: '未着手', title: 'ビルド後のソース不変確認', detail: 'ビルドに使った全ファイルが、原本と 1 バイトも違わないことを再照合する。', ref: '7.8' },
 ];
@@ -272,10 +277,19 @@ const colophon: [string, string][] = [
           <div class="ruler mt-1.5 max-w-[var(--measure)]" role="img" aria-label="全体ビルドの進み具合">
             <span style={`width:${pct}%`} x-bind:style="'width:' + pct() + '%'"></span>
           </div>
+          <div class="mt-3" style={replayTotal ? undefined : 'display:none'} x-show="replayTotal > 0">
+            <p>
+              カーネルで再検査済み <span class="text-[1.3rem] leading-none" x-text="fmt(replayOk)">{fmtInt(replayOk)}</span> / {fmtInt(175187)}{' '}
+              モジュール(<span x-text="replayPct()">{replayPct}</span>%)
+            </p>
+            <div class="ruler mt-1.5 max-w-[var(--measure)]" role="img" aria-label="カーネルによる再検査の進み具合">
+              <span style={`width:${replayPct}%`} x-bind:style="'width:' + replayPct() + '%'"></span>
+            </div>
+          </div>
           <p class="cap mt-1.5">
             <span x-text="stamp()">{jstMdHm(latest.t_utc)}</span> JST 時点の自動集計。<span x-show="errors !== null"
               >ビルドログのエラー行は <span x-text="errors">{latest.error_lines}</span>。</span
-            >
+            ><span x-show="replayTotal > 0">再検査で問題が見つかったモジュールは <span x-text="replayFailed">{replayFailed}</span>。</span>
           </p>
         </dd>
       </div>
@@ -358,7 +372,7 @@ const colophon: [string, string][] = [
     <p>
       全体ビルドには 22 時間 40 分かかりました。その間と、そのあとの検査の様子を残すため、ビルドの開始時刻(2026-11-21 10:42:23
       JST)を起点に、50
-      分ごとの時点を観測点として、検証機の状態を記録しています。記録するのは、コンパイル済みモジュール数、ビルドログのエラー行数、負荷、メモリ、ディスクの空きです。
+      分ごとの時点を観測点として、検証機の状態を記録しています。記録するのは、コンパイル済みモジュール数、ビルドログのエラー行数、負荷、メモリ、ディスクの空き、カーネルによる再検査を終えたモジュール数です。
     </p>
     <p>
       値は検証機が自動で測って書き出したもので、合否の判定は含みません。エラー行が現れた場合は、原因(証明の誤りか、計算機側の都合か)を調べてから本文に書きます。
@@ -730,8 +744,20 @@ const colophon: [string, string][] = [
       Mathlib 側のモジュールも同じ方法で再検査します。
     </p>
     <p>
-      2026-11-22 9:22 JST に配布物側の再検査を始めました。175,187 モジュールを 100 組に分け、100 並列で実行しています。各組の結果は、組の検査が終わった時点でまとめて書き出されます。
+      1 回目は 2026-11-22 9:22 JST に、ツールチェーン同梱の <code>leanchecker</code>{' '}
+      をそのまま使って始めました。ところが <code>leanchecker</code> は、引数に渡したモジュール名 1 つごとに、検索パス上の約 18.6 万個の{' '}
+      <code>.olean</code> をすべて走査し直して、名前に当てはまるモジュールを探します。1 回の走査に 100 並列で約 6.5
+      分かかり、名前を探すだけで約 8 日かかる見込みになったため、1 時間 43 分で止めました。止めた時点では、まだどのモジュールの再生も始まっていませんでした。
     </p>
+    <p>
+      そこで、<code>leanchecker</code> の再生の処理(<code>replayFromImports</code>)を一字一句そのまま写し、名前を探す部分だけを省いた小さなプログラム
+      <a href={`${repo}/tree/main/verification/leanchecker-driver`}><code>rhcheck</code></a>
+      を作りました。モジュール名を直接渡すので、探す手間がかかりません。再生の中身は <code>leanchecker</code>{' '}
+      と同じで、各モジュールの宣言を、そのモジュールの import だけを読み込んだ環境へ、カーネルを通して 1
+      つずつ追加し直します。本番の前に、主定理の直前のモジュール <code>Supplements.Kernels.MainTheoremsAll</code> を含む 3
+      つのモジュールを、公式の <code>leanchecker</code> と <code>rhcheck</code> の両方で再生し、どちらも通ることを確かめました。
+    </p>
+    <p>2 回目は 11:26 JST に始め、175,187 モジュールを 100 並列で再生しています。進み具合は巻頭と 2 節の表 2 に出しています。</p>
 
     <Sub no="7.7" title="別実装のカーネルによる照合" state="wait" label="未着手" />
     <p>

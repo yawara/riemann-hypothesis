@@ -7,6 +7,7 @@
   * ビルドログのエラー行数・警告付きでビルドされたモジュール数(自動集計。精査前の生の値)
   * 実行中の lean プロセス数、ロードアベレージ、メモリ使用量、ディスクの空き
   * いま実行中の段階(ビルド / ビルド後の検査 / 別実装カーネル / …)
+  * カーネルによる再検査(scripts/run_leanchecker.sh)で再生を終えたモジュール数(配布物・依存ライブラリ)
 
 常駐を始める前の観測点は、.olean の更新時刻から「その時点で何個できていたか」だけを復元する
 (source = "mtime"。負荷やメモリは記録が無いので空欄)。
@@ -182,6 +183,32 @@ def any_alive():
     return False
 
 
+def replay_counts():
+    """カーネルによる再検査の進み具合。各バッチのログの `ok` / `FAILED` 行を数える。"""
+    out = {}
+    for scope in ("project", "deps"):
+        d = os.path.join(RUN_ROOT, f"latest-leanchecker-{scope}")
+        modules = os.path.join(d, "modules.txt")
+        if not os.path.isfile(modules):
+            continue
+        ok = failed = 0
+        for name in os.listdir(d):
+            if name.startswith("batch.") and name.endswith(".log"):
+                try:
+                    with open(os.path.join(d, name), encoding="utf-8", errors="replace") as fh:
+                        for line in fh:
+                            if line.startswith("ok "):
+                                ok += 1
+                            elif line.startswith("FAILED "):
+                                failed += 1
+                except OSError:
+                    pass
+        with open(modules, encoding="utf-8") as fh:
+            total = sum(1 for line in fh if line.strip())
+        out[scope] = {"ok": ok, "failed": failed, "total": total}
+    return out or None
+
+
 def measure(mt):
     ok, warn, err = log_counts()
     load = read_text("/proc/loadavg").split()
@@ -194,6 +221,7 @@ def measure(mt):
         "mem_used_gib": meminfo_gib(),
         "disk_free_gib": disk_free_gib(os.path.dirname(RUN_ROOT)),
         "phase": phase(),
+        "replay": replay_counts(),
     }
 
 
@@ -231,11 +259,11 @@ def build(now=None, new_fixed=None):
         if rec:
             p = {key: rec.get(key) for key in (
                 "seq", "t_utc", "elapsed_min", "done", "error_lines", "built_with_warnings",
-                "lean_procs", "load1", "mem_used_gib", "disk_free_gib", "phase", "source")}
+                "lean_procs", "load1", "mem_used_gib", "disk_free_gib", "phase", "replay", "source")}
         else:
             p = {"seq": k, "t_utc": iso(tk), "elapsed_min": k * INTERVAL_MIN, "done": bisect.bisect_right(mt, tk),
                  "error_lines": None, "built_with_warnings": None, "lean_procs": None, "load1": None,
-                 "mem_used_gib": None, "disk_free_gib": None, "phase": "build", "source": "mtime"}
+                 "mem_used_gib": None, "disk_free_gib": None, "phase": "build", "replay": None, "source": "mtime"}
         p["rate_per_min"] = round((p["done"] - prev_done) / INTERVAL_MIN, 1)
         prev_done = p["done"]
         points.append(p)

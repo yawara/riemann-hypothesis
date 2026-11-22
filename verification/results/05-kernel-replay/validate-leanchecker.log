@@ -1,0 +1,4 @@
+replaying Supplements.Kernels.MainTheoremsAll
+replaying Development.AbelianVarietyTheory.Proofs.TwistedOperators.GoodRowsPrincipalLevelAreRows
+replaying Development.AbelianVarietyTheory.BlockTheory.AdelicCMFields.UnitaryHeckeCharacterIdele
+# wall=106.54s user=37.56s sys=68.66s maxrss=67559176KB

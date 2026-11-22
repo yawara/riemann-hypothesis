@@ -29,7 +29,7 @@ while :; do
     note="ビルドは終了し、別実装のカーネルによる照合を実行中です。結果は精査後に掲載します。"
   elif grep -q -E '(checks|leanchecker): start' "$P/status.txt" 2>/dev/null; then
     phase="post-build-checks"
-    note="ビルドは終了し、ビルド後の検査(公理・主張の確認、カーネル再検査)を実行中です。結果は精査後に掲載します。"
+    note="ビルドは終了し、ビルド後の検査(カーネルによる再検査)を実行中です。結果は精査後に掲載します。"
   elif grep -q 'retrying' "$P/status.txt" 2>/dev/null; then
     phase="build-retry"
     note="ビルドの 1 回目が終了し、再実行中です。結果は精査後に掲載します。"
@@ -41,6 +41,18 @@ while :; do
     note="全体ビルドを実行中です。"
   fi
 
+  # カーネルによる再検査(scripts/run_leanchecker.sh)で再生を終えたモジュール数
+  replay_ok=0; replay_total=0; replay_deps_ok=0; replay_deps_total=0
+  LP="$RUN_ROOT/latest-leanchecker-project"; LD="$RUN_ROOT/latest-leanchecker-deps"
+  if [ -f "$LP/modules.txt" ]; then
+    replay_total="$(grep -c . "$LP/modules.txt")"
+    replay_ok="$(cat "$LP"/batch.*.log 2>/dev/null | grep -c '^ok ')"
+  fi
+  if [ -f "$LD/modules.txt" ]; then
+    replay_deps_total="$(grep -c . "$LD/modules.txt")"
+    replay_deps_ok="$(cat "$LD"/batch.*.log 2>/dev/null | grep -c '^ok ')"
+  fi
+
   if [ -e "$WT/.git" ]; then
     (
       flock 9
@@ -50,6 +62,10 @@ while :; do
   "phase": "$phase",
   "modules_done": $done_n,
   "modules_total": $TOTAL,
+  "replay_ok": $replay_ok,
+  "replay_total": $replay_total,
+  "replay_deps_ok": $replay_deps_ok,
+  "replay_deps_total": $replay_deps_total,
   "note_ja": "$note"
 }
 EOF

@@ -1,18 +1,28 @@
 #!/usr/bin/env bash
-# ビルド済みの全プロジェクトモジュールを、Lean ツールチェーン同梱の `leanchecker`
-# (旧 lean4checker)でカーネルに再生(replay)させる。
+# ビルド済みの全モジュールを、カーネルに再生(replay)させて再検査する。
 #
-# leanchecker は各モジュールの .olean に入っている宣言を、そのモジュールの import だけを
-# 読み込んだ環境へ 1 つずつカーネル経由で追加し直す。エラボレータやメタプログラムを
-# 経由せずにカーネルだけで再検査するので、「カーネル検査を迂回して環境に宣言を押し込む」
-# 類の細工(environment hacking)があれば検出できる。
+# 再生とは、各モジュールの .olean に入っている宣言を、そのモジュールの import だけを読み込んだ環境へ
+# 1 つずつカーネル経由で追加し直すこと。エラボレータやメタプログラムを経由せずにカーネルだけで
+# 再検査するので、「カーネル検査を迂回して環境に宣言を押し込む」類の細工(environment hacking)があれば
+# 検出できる。Lean ツールチェーン同梱の `leanchecker`(旧 lean4checker)と同じ処理。
 #
-# 1 プロセス内で複数モジュールを同時に再生すると .olean の mmap が共有されずメモリを
-# 大量に消費するため、LEAN_NUM_THREADS=1 のプロセスを多数並べ、各プロセスには
-# モジュールのバッチを順番に処理させる。
+# ■ leanchecker をそのまま使わない理由
+#   leanchecker(src/lean/LeanChecker.lean)は、引数の名前 1 つごとに検索パス全体(約 18.6 万個の .olean)を
+#   走査し直して前方一致するモジュールを探す。17.5 万個の名前を渡すと、この名前の解決だけで何日もかかる
+#   (2026-11-22 の 1 回目の実行で判明。100 並列で 1 回の走査に約 6.5 分、1 プロセスに 1,752 個の名前)。
+#   前方一致でまとめて渡す方法も、平らなディレクトリが多いため有効にまとめられなかった。
+#   そこで、leanchecker の再生関数 `replayFromImports` を一字一句そのまま写し、名前の解決だけを省いた
+#   小さな実行ファイル rhcheck(verification/leanchecker-driver/)にモジュール名を直接渡す。
+#   最初に、いくつかのモジュールで公式の leanchecker と rhcheck の両方を走らせ、どちらも通ることを確かめる。
+#
+# ■ 並べ方
+#   1 プロセス内で複数モジュールを同時に再生すると .olean の mmap が共有されずメモリを大量に消費するため、
+#   LEAN_NUM_THREADS=1 のプロセスを多数並べ、各プロセスにはモジュールのバッチを順番に処理させる。
+#   検索パス(LEAN_PATH)は、シンボリックリンクを解決した実パスにして、プロジェクトを先頭に置く
+#   (モジュール名は検索パスの中で重複しないので、順序を変えても読み込まれる .olean は同じ)。
 #
 # SCOPE=project(既定)は配布プロジェクトの全モジュール、SCOPE=deps は Mathlib など依存
-# ライブラリ(公式キャッシュから取得した .olean)の全モジュールを対象にする。
+# ライブラリ(公式キャッシュから取得した .olean)の全モジュール(ルートの集約ファイルも含む)。
 #
 # 使い方: JOBS=100 scripts/run_leanchecker.sh
 #         SCOPE=deps JOBS=100 scripts/run_leanchecker.sh
@@ -25,10 +35,21 @@ TS="$(date -u +%Y%m%dT%H%M%SZ)"
 SCOPE="${SCOPE:-project}"
 OUT="$RUN_ROOT/leanchecker-$SCOPE-$TS"
 JOBS="${JOBS:-100}"
+TC="${RH_TOOLCHAIN:-$HOME/.elan/toolchains/leanprover--lean4---v4.33.1}"
+DRIVER_DIR="$ROOT/verification/leanchecker-driver"
+DRIVER="$DRIVER_DIR/.lake/build/bin/rhcheck"
 mkdir -p "$OUT"
 ln -sfn "$OUT" "$RUN_ROOT/latest-leanchecker-$SCOPE"
 
+# rhcheck をビルドする(数秒)
+( cd "$DRIVER_DIR" && lake build ) > "$OUT/driver-build.log" 2>&1 || { echo "rhcheck のビルドに失敗"; cat "$OUT/driver-build.log"; exit 1; }
+
 cd "$ROOT/lean"
+# 検索パス: lake env の LEAN_PATH を実パスにし、プロジェクトを先頭に置く(存在しない場所は除く)
+LP="$(lake env printenv LEAN_PATH)"
+LPR="$( { echo "$LP" | tr ':' '\n' | grep -v '/packages/'; echo "$LP" | tr ':' '\n' | grep '/packages/'; } \
+  | while read -r d; do [ -n "$d" ] && [ -d "$d" ] && realpath "$d"; done | paste -sd: )"
+export LEAN_PATH="$LPR" LEAN_SYSROOT="$TC" LEAN_NUM_THREADS=1
 
 if [ -n "${MODULES_FILE:-}" ]; then
   # 動作試験用: 検査するモジュール名の一覧を直接与える
@@ -36,13 +57,7 @@ if [ -n "${MODULES_FILE:-}" ]; then
 elif [ "$SCOPE" = "deps" ]; then
   for lib in .lake/packages/*/.lake/build/lib/lean; do
     ( cd "$lib" && find . -name '*.olean' | sed -e 's|^\./||' -e 's|\.olean$||' -e 's|/|.|g' )
-  done | sort -u > "$OUT/modules.all.txt"
-  # leanchecker は引数を「前方一致」で解釈するため、`Mathlib` のようなルートモジュール名を
-  # 渡すとライブラリ全体が 1 プロセスで再検査されてしまう。ルート(名前に `.` を含まない
-  # もの)は配下の全モジュールを import するだけの集約ファイルなので対象から外し、
-  # 配下のモジュールを個別に検査する。
-  grep -v '\.' "$OUT/modules.all.txt" > "$OUT/modules.excluded-roots.txt" || true
-  grep '\.' "$OUT/modules.all.txt" > "$OUT/modules.txt"
+  done | sort -u > "$OUT/modules.txt"
 else
   find src -name '*.lean' | sed -e 's|^src/||' -e 's|\.lean$||' -e 's|/|.|g' | sort > "$OUT/modules.txt"
 fi
@@ -58,27 +73,50 @@ awk -v jobs="$(( (N + BATCH - 1) / BATCH ))" '{print > sprintf("%s/batch.%04d", 
   echo "jobs: $JOBS"
   echo "batch_size: $BATCH"
   echo "batches: $(ls "$OUT"/batch.???? | wc -l)"
-  echo "leanchecker: $(command -v leanchecker)"
-  echo "lean: $(lean --version 2>&1)"
+  echo "driver: $DRIVER ($(sha256sum "$DRIVER" | cut -c1-16)…)"
+  echo "leanchecker: $TC/bin/leanchecker"
+  echo "lean: $("$TC/bin/lean" --version 2>&1)"
+  echo "LEAN_PATH: $LEAN_PATH"
 } > "$OUT/meta.txt"
+
+# 照合: 見本のモジュールを、公式の leanchecker と rhcheck の両方で再生する(project のときだけ)
+if [ "$SCOPE" = "project" ] && [ -z "${MODULES_FILE:-}" ] && [ "${VALIDATE:-1}" = "1" ]; then
+  mkdir -p "$OUT/validate"
+  printf '%s\n' \
+    Development.AbelianVarietyTheory.BlockTheory.AdelicCMFields.UnitaryHeckeCharacterIdele \
+    Development.AbelianVarietyTheory.Proofs.TwistedOperators.GoodRowsPrincipalLevelAreRows \
+    Supplements.Kernels.MainTheoremsAll > "$OUT/validate/modules.txt"
+  /usr/bin/time -f '# wall=%es user=%Us sys=%Ss maxrss=%MKB' "$TC/bin/leanchecker" -v $(cat "$OUT/validate/modules.txt") \
+    > "$OUT/validate/leanchecker.log" 2>&1
+  v1=$?
+  /usr/bin/time -f '# wall=%es user=%Us sys=%Ss maxrss=%MKB' "$DRIVER" "$OUT/validate/modules.txt" \
+    > "$OUT/validate/rhcheck.log" 2>&1
+  v2=$?
+  echo "validate: leanchecker rc=$v1, rhcheck rc=$v2 (3 modules)" >> "$OUT/meta.txt"
+  if [ "$v1" != "0" ] || [ "$v2" != "0" ]; then
+    echo "照合に失敗。中止する"; cat "$OUT/meta.txt"; exit 1
+  fi
+fi
 
 ls "$OUT"/batch.???? | xargs -P "$JOBS" -I{} sh -c '
   start=$(date +%s)
-  LEAN_NUM_THREADS=1 lake env leanchecker -v $(cat "{}") > "{}.log" 2>&1
+  "$0" "{}" > "{}.log" 2>&1
   rc=$?
   echo "$rc $(( $(date +%s) - start ))" > "{}.rc"
-'
+' "$DRIVER"
 
 fail=0
 for f in "$OUT"/batch.????; do
   rc="$(cut -d" " -f1 "$f.rc" 2>/dev/null || echo missing)"
-  [ "$rc" = "0" ] || { fail=$((fail + 1)); echo "FAILED batch: $f (rc=$rc)"; tail -3 "$f.log"; }
+  [ "$rc" = "0" ] || { fail=$((fail + 1)); echo "FAILED batch: $f (rc=$rc)"; grep '^FAILED' "$f.log" | head -3; tail -2 "$f.log"; }
 done
-replayed="$(cat "$OUT"/batch.????.log | grep -c '^replaying ')"
+ok="$(cat "$OUT"/batch.????.log | grep -c '^ok ')"
+failed_modules="$(cat "$OUT"/batch.????.log | grep -c '^FAILED ')"
 {
   echo "finished_at_utc: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "failed_batches: $fail"
-  echo "replaying_lines: $replayed"
+  echo "ok_modules: $ok / $N"
+  echo "failed_modules: $failed_modules"
 } >> "$OUT/meta.txt"
 cat "$OUT/meta.txt"
-[ "$fail" = "0" ]
+[ "$fail" = "0" ] && [ "$ok" = "$N" ]

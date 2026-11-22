@@ -13,6 +13,10 @@
 # 各段の終了コードと時刻を $RUN_ROOT/pipeline/status.txt に追記する。
 #
 # 使い方: scripts/post_build_pipeline.sh <build.sh の PID>
+#         scripts/post_build_pipeline.sh --from-leanchecker   # 2. から再開(1. は済んでいるとき)
+#
+# 2026-11-22: 1 回目の実行では 2. の leanchecker が名前の解決だけで何日もかかる見込みになったため止め、
+# run_leanchecker.sh を作り直して --from-leanchecker で再開した(経緯は run_leanchecker.sh の冒頭)。
 set -uo pipefail
 export LC_ALL=C.UTF-8
 
@@ -25,6 +29,15 @@ BUILD_PID="${1:-}"
 
 log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $*" | tee -a "$STATUS"; }
 
+FROM_LEANCHECKER=0
+if [ "$BUILD_PID" = "--from-leanchecker" ]; then
+  FROM_LEANCHECKER=1
+  BUILD_PID=""
+fi
+
+if [ "$FROM_LEANCHECKER" = "1" ]; then
+  log "pipeline resume from leanchecker"
+else
 log "pipeline start (waiting for build pid=${BUILD_PID:-none})"
 if [ -n "$BUILD_PID" ]; then
   tail --pid="$BUILD_PID" -f /dev/null
@@ -51,13 +64,16 @@ fi
 log "checks: start"
 bash "$ROOT/scripts/run_checks.sh" > "$P/run_checks.out" 2>&1 &
 CHECKS_PID=$!
+fi
 
 log "leanchecker: start"
 JOBS="${LEANCHECKER_JOBS:-100}" bash "$ROOT/scripts/run_leanchecker.sh" > "$P/run_leanchecker.out" 2>&1
 log "leanchecker: exit_code=$?"
 
-wait "$CHECKS_PID"
-log "checks: exit_code=$?"
+if [ "$FROM_LEANCHECKER" = "0" ]; then
+  wait "$CHECKS_PID"
+  log "checks: exit_code=$?"
+fi
 
 log "leanchecker(deps): start"
 SCOPE=deps JOBS="${LEANCHECKER_JOBS:-100}" bash "$ROOT/scripts/run_leanchecker.sh" > "$P/run_leanchecker_deps.out" 2>&1

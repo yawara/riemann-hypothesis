@@ -1,0 +1,12 @@
+started_at_utc: 2026-11-22T00:22:20Z
+scope: project
+modules: 175187
+jobs: 100
+batch_size: 1752
+batches: 100
+leanchecker: /home/ywr/.elan/bin/leanchecker
+lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+aborted_at_utc: 2026-11-22T02:05:45Z
+abort_reason: 対象モジュールの解決段階が遅すぎるため中止。leanchecker は引数の名前 1 つごとに検索パス全体(約 18.6 万個の .olean)を走査し直す。
+  1 回の走査に 100 並列で約 6.5 分かかり、1 プロセスあたり 1,752 個の名前を渡していたため、解決だけで約 8 日かかる見込みだった。
+  中止時点で、どのプロセスも .olean を 1 つも読み込んでいなかった(カーネルによる再生は未開始)。

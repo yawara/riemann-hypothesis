@@ -1,0 +1,7 @@
+name = "rhcheck"
+version = "0.1.0"
+defaultTargets = ["rhcheck"]
+
+[[lean_exe]]
+name = "rhcheck"
+root = "Main"

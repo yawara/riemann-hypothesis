@@ -1,0 +1,8 @@
+replaying Development.AbelianVarietyTheory.BlockTheory.AdelicCMFields.UnitaryHeckeCharacterIdele
+ok Development.AbelianVarietyTheory.BlockTheory.AdelicCMFields.UnitaryHeckeCharacterIdele
+replaying Development.AbelianVarietyTheory.Proofs.TwistedOperators.GoodRowsPrincipalLevelAreRows
+ok Development.AbelianVarietyTheory.Proofs.TwistedOperators.GoodRowsPrincipalLevelAreRows
+replaying Supplements.Kernels.MainTheoremsAll
+ok Supplements.Kernels.MainTheoremsAll
+done: 3 modules, 0 failed
+# wall=46.24s user=22.41s sys=23.59s maxrss=67390236KB

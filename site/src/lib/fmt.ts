@@ -39,6 +39,7 @@ export interface ObsPoint {
   disk_free_gib: number | null;
   phase: string;
   source: 'live' | 'mtime';
+  replay?: { project?: { ok: number; failed: number; total: number }; deps?: { ok: number; failed: number; total: number } } | null;
 }
 export interface Obs {
   t0_utc: string;
@@ -71,6 +72,7 @@ export function obsRow(p: ObsPoint, total: number): string {
     `<td class="num">${cell(p.mem_used_gib, 1)}</td>` +
     `<td class="num">${cell(p.disk_free_gib, 1)}</td>` +
     `<td class="num">${cell(p.error_lines)}</td>` +
+    `<td class="num">${cell(p.replay?.project?.ok ?? null)}</td>` +
     `<td class="font-sans text-[0.8125rem] whitespace-nowrap">${phaseLabel[p.phase] ?? p.phase}</td>` +
     `</tr>`
   );
