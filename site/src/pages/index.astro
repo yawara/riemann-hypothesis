@@ -79,7 +79,7 @@ const checks: { state: St; label: string; title: string; detail: string; ref: st
   { state: 'ok', label: '済', title: '主定理が依存する公理', detail: '5 つの主定理すべてが、標準の 3 公理(<code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code>)だけに依存。', ref: '7.4' },
   { state: 'ok', label: '済', title: '主張の一致確認', detail: '検証者が Mathlib だけで書いた命題と、主定理の型が一致。主張に現れる定数は Lean・Mathlib と <code>Statements.lean</code> の定義だけ。', ref: '7.5' },
   { state: 'ok', label: '済', title: 'カーネルによる再検査', detail: '<code>leanchecker</code> と同じ再生処理で、配布物の 175,187 モジュールと、Mathlib など依存ライブラリの 8,700 モジュールのすべてがカーネルの検査を通った(失敗 0)。', ref: '7.6' },
-  { state: 'run', label: '実行中', title: '別実装のカーネルによる照合', detail: '主定理の依存一式を書き出し、Rust 製の別実装カーネル <code>nanoda</code> で検査している(11-22 17:55 JST 開始)。', ref: '7.7' },
+  { state: 'run', label: '実行中', title: '別実装のカーネルによる照合', detail: '主定理の依存一式(10.8 億行・61.6 GB)を書き出し終え、Rust 製の別実装カーネル <code>nanoda</code> で検査している(書き出しは 11-22 21:30 JST に完了)。', ref: '7.7' },
   { state: 'wait', label: '未着手', title: 'ビルド後のソース不変確認', detail: 'ビルドに使った全ファイルが、原本と 1 バイトも違わないことを再照合する。', ref: '7.8' },
 ];
 
@@ -779,6 +779,11 @@ const colophon: [string, string][] = [
       ここまでの検査はすべて Lean 本体のカーネル(C++ 実装)に依存します。カーネル自体の不具合を突かれている可能性を減らすため、主定理 5
       件が推移的に依存する定義・定理・公理をすべて <code>lean4export</code> で書き出し、Rust で書かれた別実装の型検査器{' '}
       <code>nanoda</code> に検査させます。許可する公理は標準の 3 つだけです。2026-11-22 17:55 JST に始めました。
+    </p>
+    <p>
+      書き出しは 21:30 JST に終わりました。主定理 5 件が推移的に依存する宣言の一式は、NDJSON で 1,080,769,494 行・61,571,290,481
+      バイト(zstd で圧縮して 9,614,952,283 バイト)ありました。書き出しには 3 時間 34 分かかり、最大 144 GiB
+      のメモリを使いました。いまは nanoda がこれを 96 スレッドで検査しています。
     </p>
     <p class="note">
       <b class="mr-[0.5em] text-[0.8125rem] text-shu">注</b>準備として、主張の定義 <code>RiemannZetaZerosOnLine</code>(Mathlib

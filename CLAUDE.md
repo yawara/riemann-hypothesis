@@ -24,7 +24,7 @@
 | 主張の一致確認・依存解析 | 完了。検証者の命題と一致し、本体の定義は主張に現れない |
 | カーネル再検査(配布物) | 完了。175,187 / 175,187 が通過、失敗 0(17:48)。経緯はレポート 7.6 節 |
 | カーネル再検査(依存ライブラリ) | 完了。8,700 / 8,700 が通過、失敗 0(17:55) |
-| 別実装カーネル nanoda | 17:55 開始。前段の lean4export(主定理の依存一式の書き出し)が 20:42 時点で圧縮後 8.6 GB、メモリ 133 GB で継続中(メモリは増え続けている)。終わると nanoda の検査(96 スレッド)に進む |
+| 別実装カーネル nanoda | 17:55 開始。前段の lean4export は 21:30 に完了(1,080,769,494 行・61.6 GB、圧縮後 9.6 GB、3 時間 34 分、最大 144 GiB)。21:30 から nanoda が 96 スレッドで検査中(結果は `$RUN_ROOT/latest-nanoda/nanoda.out.txt` と `meta.txt`) |
 | 以降(パイプラインが自動で実行) | ソース不変確認 → `result=done` → Mathlib のソースからの再ビルド照合(任意) |
 | 短縮の下調べ(`rhshrink`) | 完了(18:37)。使われていない宣言は約 330 万行(19.0%)、重複した定理の写し 99,393 個。結果は `shorten/results/01-analysis/` と `shorten/README.md` |
 | 短縮の段階 1a | 短縮版(148,924 モジュール、14,159,677 行、−18.5%)を `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a` に作成。試しのビルドは通過(40 モジュール)。全体のビルドを 20:26 に開始(並列 32、nice 10、PID は `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a-build.pid`、ログは `stage-1a/builds/latest/`)。空きメモリが 80 GiB を切ると `scripts/shorten_memguard.sh` が止める(記録は `shorten/memguard.log`) |
