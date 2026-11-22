@@ -15,7 +15,7 @@
 - コミットの末尾の共著者表記は、そのセッションの指示に従う。`scripts/publish_pages.sh`・`scripts/observe.py`・`scripts/status_updater.sh` にも同じ表記が書き込んであるので合わせて直す(動いている `status_updater.sh` は、別ファイルに書いてから `mv` で差し替える)。
 - 好みの詳細は Claude のメモリ(`~/.claude/projects/-home-ywr-riemann-hypothesis/memory/`)にもある。
 
-## いまの状況(2026-11-22 20:45 JST)
+## いまの状況(2026-11-22 21:50 JST)
 
 | 検査 | 状態 |
 |---|---|
@@ -28,7 +28,7 @@
 | 以降(パイプラインが自動で実行) | ソース不変確認 → `result=done` → Mathlib のソースからの再ビルド照合(任意) |
 | 短縮の下調べ(`rhshrink`) | 完了(18:37)。使われていない宣言は約 330 万行(19.0%)、重複した定理の写し 99,393 個。結果は `shorten/results/01-analysis/` と `shorten/README.md` |
 | 短縮の段階 1a | 短縮版(148,924 モジュール、14,159,677 行、−18.5%)を `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a` に作成。試しのビルドは通過(40 モジュール)。全体のビルドを 20:26 に開始(並列 32、nice 10、PID は `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a-build.pid`、ログは `stage-1a/builds/latest/`)。空きメモリが 80 GiB を切ると `scripts/shorten_memguard.sh` が止める(記録は `shorten/memguard.log`) |
-| 短縮の段階 1a の全体ビルド | 20:42 時点で 12,935 / 13,218 ジョブ(数は増えていく)、失敗 6。失敗の内訳: `open` の消えた名前空間 1(ExistsConeMeasurePosRank)、消えた定数 `Formalism.MainNotions.S.UnitaryLevelOperators.*` の参照 4(CuspSpanNormBounds の 4 モジュール)、`nabA_eq✝`(LevelNablaStarRelations)1 |
+| 短縮の段階 1a の全体ビルド | 21:45 時点で 25,862 / 26,062 ジョブ(数は増えていく)、失敗 19(20:42 時点の 6 件の内訳: `open` の消えた名前空間 1、消えた定数 `Formalism.MainNotions.S.UnitaryLevelOperators.*` の参照 4、`nabA_eq✝` 1。残りは未調査)。定点観測は #42(21:42)まで記録・公開済みで、次は #43(22:32:23) |
 
 最新の値は、下の「見回り」の確認先を見ること。
 
