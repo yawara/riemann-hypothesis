@@ -15,7 +15,7 @@
 - コミットの末尾の共著者表記は、そのセッションの指示に従う。`scripts/publish_pages.sh`・`scripts/observe.py`・`scripts/status_updater.sh` にも同じ表記が書き込んであるので合わせて直す(動いている `status_updater.sh` は、別ファイルに書いてから `mv` で差し替える)。
 - 好みの詳細は Claude のメモリ(`~/.claude/projects/-home-ywr-riemann-hypothesis/memory/`)にもある。
 
-## いまの状況(2026-11-22 18:00 JST)
+## いまの状況(2026-11-22 20:45 JST)
 
 | 検査 | 状態 |
 |---|---|
@@ -24,10 +24,11 @@
 | 主張の一致確認・依存解析 | 完了。検証者の命題と一致し、本体の定義は主張に現れない |
 | カーネル再検査(配布物) | 完了。175,187 / 175,187 が通過、失敗 0(17:48)。経緯はレポート 7.6 節 |
 | カーネル再検査(依存ライブラリ) | 完了。8,700 / 8,700 が通過、失敗 0(17:55) |
-| 別実装カーネル nanoda | 17:55 開始。まず lean4export で主定理の依存一式を書き出し、次に nanoda で検査 |
+| 別実装カーネル nanoda | 17:55 開始。前段の lean4export(主定理の依存一式の書き出し)が 20:42 時点で圧縮後 8.6 GB、メモリ 133 GB で継続中(メモリは増え続けている)。終わると nanoda の検査(96 スレッド)に進む |
 | 以降(パイプラインが自動で実行) | ソース不変確認 → `result=done` → Mathlib のソースからの再ビルド照合(任意) |
 | 短縮の下調べ(`rhshrink`) | 完了(18:37)。使われていない宣言は約 330 万行(19.0%)、重複した定理の写し 99,393 個。結果は `shorten/results/01-analysis/` と `shorten/README.md` |
 | 短縮の段階 1a | 短縮版(148,924 モジュール、14,159,677 行、−18.5%)を `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a` に作成。試しのビルドは通過(40 モジュール)。全体のビルドを 20:26 に開始(並列 32、nice 10、PID は `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a-build.pid`、ログは `stage-1a/builds/latest/`)。空きメモリが 80 GiB を切ると `scripts/shorten_memguard.sh` が止める(記録は `shorten/memguard.log`) |
+| 短縮の段階 1a の全体ビルド | 20:42 時点で 12,935 / 13,218 ジョブ(数は増えていく)、失敗 6。失敗の内訳: `open` の消えた名前空間 1(ExistsConeMeasurePosRank)、消えた定数 `Formalism.MainNotions.S.UnitaryLevelOperators.*` の参照 4(CuspSpanNormBounds の 4 モジュール)、`nabA_eq✝`(LevelNablaStarRelations)1 |
 
 最新の値は、下の「見回り」の確認先を見ること。
 
@@ -64,6 +65,17 @@ mathlib で置き換えられるものにトライ。それが終わったら数
 - これまでにはまった点(段階 1a): カーネルの項に現れない使われ方がある(`simp [X]` の使われなかった X、強制変換の instance、rfl の simp 補題、notation の構文定数)。
   `… in` の前置きは空行を挟んで宣言に掛かることがある。消したモジュールの import をそのまま引き継ぐと import が膨らむ(推移簡約する)。
   Lean 4.33 は同じ名前・同じ型の定理の重複 import を許す(133 組ある)ので、宣言は (モジュール, 名前) で区別する。
+
+### 短縮で次にやること(引き継ぎ)
+
+1. 段階 1a の全体ビルドの失敗を調べる。ログは `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a/builds/<最新>/build.log`
+   (`grep '^✖'` と、その直後の `error:` 行)。原因を `scripts/shorten_stage1a.py`(または `shorten_protect.py`・閉包)に取り込み、
+   README の段階 1a の手順 3 で短縮版を書き出し直してから、`JOBS=32 setsid scripts/shorten_build_stage.sh <stage-1a>` で続きからビルドする
+   (Lake は済んだモジュールを再利用する。書き出し直すと src/ は作り直されるが、中身が同じファイルは再ビルドされない)。
+   ビルドを再開したら `scripts/shorten_memguard.sh <新しい PID> 80 30` も起動し直す。
+2. ビルドが通ったら、検証と同じ検査(`#print axioms`、主張の一致、カーネル再検査)を短縮版にかけ、`shorten/README.md` に結果を書く。
+3. 段階 1b(重複の統合)。下調べの `duplicates.tsv`・`aliases.tsv`(`shorten/results/01-analysis/`)が材料。
+4. 検証のパイプラインが `result=done` になり、Mathlib の再ビルド照合も終わって CPU が空いたら、短縮版のビルドの並列数を上げてよい。
 
 ## 見回り(ユーザーの依頼「50 おきには定点観測して」)
 
