@@ -300,7 +300,7 @@ def publish(message):
         if subprocess.run(["git", "-C", WT, "diff", "--cached", "--quiet"]).returncode != 0:
             subprocess.run(
                 ["git", "-C", WT, "commit", "-q", "-m",
-                 message + "\n\nCo-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>"],
+                 message + "\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"],
                 check=True,
             )
             r = subprocess.run(["git", "-C", WT, "push", "-q", "origin", "gh-pages"])

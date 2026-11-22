@@ -72,7 +72,7 @@ const checks: { state: St; label: string; title: string; detail: string; ref: st
   { state: 'ok', label: '済', title: 'import グラフ', detail: '存在しないモジュールへの import は 0、循環は 0。全 175,187 モジュールが <code>Main</code> から到達可能。', ref: '5' },
   { state: 'ok', label: '済', title: '全モジュールのコンパイル', detail: '2026-11-21 10:42 JST に開始し、11-22 9:22 に完走(22 時間 40 分)。全 175,187 モジュールでエラー 0。', ref: '7.3' },
   { state: 'ok', label: '済', title: '主定理が依存する公理', detail: '5 つの主定理すべてが、標準の 3 公理(<code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code>)だけに依存。', ref: '7.4' },
-  { state: 'run', label: '実行中', title: '主張の一致確認', detail: '検証者が Mathlib だけで書いた命題と、主定理の型は一致。主張がプロジェクト側の定義に依存しないことの確認を実行中。', ref: '7.5' },
+  { state: 'ok', label: '済', title: '主張の一致確認', detail: '検証者が Mathlib だけで書いた命題と、主定理の型が一致。主張に現れる定数は Lean・Mathlib と <code>Statements.lean</code> の定義だけ。', ref: '7.5' },
   { state: 'run', label: '実行中', title: 'カーネルによる再検査', detail: 'ツールチェーン同梱の <code>leanchecker</code> で、全モジュールの宣言をカーネルに再生させている。', ref: '7.6' },
   { state: 'wait', label: '未着手', title: '別実装のカーネルによる照合', detail: '主定理の依存一式を書き出し、Rust 製の別実装カーネル <code>nanoda</code> で検査する。道具は準備済み。', ref: '7.7' },
   { state: 'wait', label: '未着手', title: 'ビルド後のソース不変確認', detail: 'ビルドに使った全ファイルが、原本と 1 バイトも違わないことを再照合する。', ref: '7.8' },
@@ -177,6 +177,15 @@ const axiomsOut = `'riemannHypothesis' depends on axioms: [propext, Classical.ch
 'LFunction_eq_zero_re' depends on axioms: [propext, Classical.choice, Quot.sound]
 'LFunction_eq_zero_re_of_isPrimitive' depends on axioms: [propext, Classical.choice, Quot.sound]`;
 
+// ---- 7.5: 主張の依存解析(verification/results/03-statement-cone.out.txt から転記) ----
+const cone: [string, string, string, string][] = [
+  ['riemannHypothesis', '4,981', '4,981', '0'],
+  ['riemannZeta_eq_zero_re', '4,981', '4,979', '2'],
+  ['LFunction_ne_zero_of_half_lt_re', '5,223', '5,221', '2'],
+  ['LFunction_eq_zero_re', '5,217', '5,215', '2'],
+  ['LFunction_eq_zero_re_of_isPrimitive', '5,333', '5,331', '2'],
+];
+
 // ---- 8 節 ----
 const hardware: [string, string][] = [
   ['CPU', 'AMD EPYC 7742(64 コア / 128 スレッド、1 ソケット、x86_64、最大 3.41 GHz)'],
@@ -247,8 +256,8 @@ const colophon: [string, string][] = [
           <p class="font-display text-[clamp(1.15rem,4.9vw,1.35rem)] leading-[1.5] font-extrabold tracking-[0.03em] whitespace-nowrap">最終判定はまだです</p>
           <p class="mt-1 text-[0.9375rem] leading-[1.8]">
             全 175,187
-            モジュールのコンパイルはエラーなしで完走し、主定理が依存する公理は標準の 3
-            つだけで、主張も検証者が書いた命題と一致しました。残っているのは、同じ結論を別の経路で確かめ直す検査(カーネルによる再検査、別実装のカーネルによる照合、ソースの不変確認)です。
+            モジュールのコンパイルはエラーなしで完走しました。主定理が依存する公理は標準の 3
+            つだけで、主張は検証者が書いた命題と一致し、配布物本体の定義には依存していませんでした。残っているのは、同じ結論を別の経路で確かめ直す検査(カーネルによる再検査、別実装のカーネルによる照合、ソースの不変確認)です。
           </p>
         </dd>
       </div>
@@ -310,7 +319,8 @@ const colophon: [string, string][] = [
     </p>
     <p>
       続く検査で、5 つの主定理が依存する公理は標準の 3 つ(<code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code
-      >)だけであること、主定理の型が、検証者が Mathlib だけで書いたリーマン予想・一般化リーマン予想の命題と一致することを確かめました。
+      >)だけであること、主定理の型が、検証者が Mathlib だけで書いたリーマン予想・一般化リーマン予想の命題と一致することを確かめました。主張の中身は
+      Lean と Mathlib の定義だけでできていて、配布物本体(約 17.5 万ファイル)の定義は 1 つも使われていません。
     </p>
     <p>
       残っているのは、この結論を別の経路で確かめ直す検査です。カーネルによる再検査、別実装のカーネルによる照合、ビルド後のソース不変確認の 3
@@ -674,7 +684,7 @@ const colophon: [string, string][] = [
       節の再検査と 7.7 節の照合で、別に確かめます。
     </p>
 
-    <Sub no="7.5" title="主張の一致確認" state="run" label="型の一致は確認済み。依存解析を実行中" />
+    <Sub no="7.5" title="主張の一致確認" state="ok" label="一致" />
     <p>
       検証者が Mathlib だけを import して書いた命題(<a href={`${repo}/blob/main/verification/lean-checks/RHReference.lean`}
         ><code>RHReference.lean</code></a
@@ -682,14 +692,45 @@ const colophon: [string, string][] = [
       通りの組み合わせがすべて通りました。配布物の主定理の型は、定義を展開すれば、検証者が書いた命題と同じです。
     </p>
     <p>
-      あわせて、主定理の型に現れる定数を定義の中身まで推移的に辿り、主張がプロジェクト側の定義に依存していないことを機械的に確認します。こちらは実行中です。
+      あわせて、主定理の型に現れる定数を、定義の中身まで推移的にすべて辿りました(表 11)。<code>riemannHypothesis</code> の型は Mathlib の{' '}
+      <code>RiemannHypothesis</code> そのもので、辿った 4,981 個の定数はすべて Lean 本体・Batteries・Mathlib のものでした。残りの 4
+      つの定理では、それに加えて配布物の定数が 2 個だけ現れます。1 つは主張そのものを定義した <code>Statements.lean</code>{' '}
+      の命題(<code>RiemannZetaZerosOnLine</code> など)、もう 1 つは <code>RiemannZetaZerosOnLine._proof_1</code> です。後者は、数字の 2
+      を書いたときに Lean が自動で作った補助の証明で、中身は「1 + 1 は 2 以上」(<code>(1 + 1).AtLeastTwo</code>)でした。<code
+        >Statements.lean</code
+      > は Mathlib だけを import するファイルで、配布物本体の定義は主張に 1 つも現れません。
     </p>
+    <Tbl no="11" title="主定理の型に現れる定数(定義の中身まで推移的に辿ったもの)の出どころ。" stack>
+      <thead>
+        <tr>
+          <th>定理名</th>
+          <th class="num">定数の数</th>
+          <th class="num">Lean・Batteries・Mathlib</th>
+          <th class="num">配布物</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          cone.map(([name, total, lib, own]) => (
+            <tr>
+              <th class="st-full font-mono text-[0.8rem] font-normal [overflow-wrap:anywhere]">{name}</th>
+              <td class="num" data-label="定数">{total}</td>
+              <td class="num" data-label="Lean・Mathlib">{lib}</td>
+              <td class="num" data-label="配布物">{own}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </Tbl>
 
     <Sub no="7.6" title="カーネルによる再検査" state="run" label="実行中" />
     <p>
       ツールチェーン同梱の <code>leanchecker</code>{' '}
       で、全モジュールの宣言をカーネルに再生させます。エラボレータやメタプログラムを経由しない検査なので、カーネルを迂回して環境に宣言を押し込む細工があれば検出できます。公式キャッシュから取得した
       Mathlib 側のモジュールも同じ方法で再検査します。
+    </p>
+    <p>
+      2026-11-22 9:22 JST に配布物側の再検査を始めました。175,187 モジュールを 100 組に分け、100 並列で実行しています。各組の結果は、組の検査が終わった時点でまとめて書き出されます。
     </p>
 
     <Sub no="7.7" title="別実装のカーネルによる照合" state="wait" label="未着手" />
@@ -713,7 +754,7 @@ const colophon: [string, string][] = [
 
   <Sec id="hardware" no="8" title="検証に使った計算機">
     <p>検証は 1 台の計算機で行っています。Lean のコンパイルとカーネル検査は CPU とメモリだけを使う処理で、GPU は関与しません。</p>
-    <Kv no="11" title="検証機の構成。" rows={hardware} />
+    <Kv no="12" title="検証機の構成。" rows={hardware} />
     <p>
       採取した生の情報は <a href={`${repo}/blob/main/verification/hardware.txt`}><code>verification/hardware.txt</code></a> にあります。
     </p>

@@ -58,7 +58,7 @@ EOF
       if ! git diff --cached --quiet; then
         git commit -q -m "進捗を自動更新: $done_n / $TOTAL ($phase)
 
-Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
         git push -q origin gh-pages || echo "push failed at $(date -u +%FT%TZ)" >&2
       fi
     ) 9>"$LOCK"

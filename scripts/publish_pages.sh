@@ -61,7 +61,7 @@ if git diff --cached --quiet; then
 else
   git commit -q -m "$MSG
 
-Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   echo "gh-pages: $(git log -1 --format='%h %s')"
 fi
 if [ "$PUSH" = "1" ]; then
