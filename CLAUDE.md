@@ -27,6 +27,7 @@
 | 別実装カーネル nanoda | 17:55 開始。まず lean4export で主定理の依存一式を書き出し、次に nanoda で検査 |
 | 以降(パイプラインが自動で実行) | ソース不変確認 → `result=done` → Mathlib のソースからの再ビルド照合(任意) |
 | 短縮の下調べ(`rhshrink`) | 完了(18:37)。使われていない宣言は約 330 万行(19.0%)、重複した定理の写し 99,393 個。結果は `shorten/results/01-analysis/` と `shorten/README.md` |
+| 短縮の段階 1a | 1 版目を `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a` に作り、42 モジュールを試しにビルド → 17 失敗。原因(守るべき宣言・`… in` の前置き)を直し、守る宣言を起点に閉包をとり直し中(19:43〜) |
 
 最新の値は、下の「見回り」の確認先を見ること。
 
@@ -54,6 +55,15 @@ mathlib で置き換えられるものにトライ。それが終わったら数
 - 配布物にライセンスの表示がないので、短縮版のソースは公開しない(手順・一覧・数字だけ公開する)。
 - 解析ツールは `shorten/tools/rhshrink`(Lean。配布物の `.olean` を読むだけ)、実行は `scripts/shorten_analyze.sh`(`nice` つき、`setsid` で切り離す)。
   出力は `$RUN_ROOT/shorten/latest-analysis/`(`summary.json`、`modules.tsv` など)、PID は `$RUN_ROOT/shorten/analysis.pid`。
+- 段階 1a の手順(`$RUN_ROOT/shorten/` の下で):
+  1. `scripts/shorten_protect.py --decls <decls.tsv.zst> --out $RUN_ROOT/shorten/protect`(使われていなくても残す宣言: notation・マクロ、instance、`@[simp]`、定数を生成する属性など)
+  2. 閉包: `RH_ANALYSIS_TAG=closureN RHSHRINK_SKIP_DUPS=1 scripts/shorten_analyze.sh Main <主定理 5 件> @<起点の一覧>` と
+     `scripts/shorten_source_closure.py --analysis <その出力>` を、足す宣言が 0 になるまで交互に回す(起点 = 守る宣言 + これまでに足した宣言)
+  3. `scripts/shorten_stage1a.py --kept <最後の kept-decls.tsv> --decls <decls.tsv.zst> --protected <protected.tsv>` で短縮版を書き出す
+  4. `JOBS=16 scripts/shorten_build_stage.sh /var/tmp/riemann-hypothesis-ywr/shorten/stage-1a [対象 …]`(依存とビルド結果は reflink で写し、変わらないモジュールは再利用される)
+- これまでにはまった点(段階 1a): カーネルの項に現れない使われ方がある(`simp [X]` の使われなかった X、強制変換の instance、rfl の simp 補題、notation の構文定数)。
+  `… in` の前置きは空行を挟んで宣言に掛かることがある。消したモジュールの import をそのまま引き継ぐと import が膨らむ(推移簡約する)。
+  Lean 4.33 は同じ名前・同じ型の定理の重複 import を許す(133 組ある)ので、宣言は (モジュール, 名前) で区別する。
 
 ## 見回り(ユーザーの依頼「50 おきには定点観測して」)
 

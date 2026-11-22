@@ -99,12 +99,14 @@ def main():
     edges = collections.defaultdict(set)   # 宣言 -> 参照先の宣言
     module_refs = collections.defaultdict(set)  # モジュール -> 宣言の外から参照される宣言
     unresolved = 0
+    unresolved_list = collections.Counter()
     with mp.Pool(args.jobs) as pool:
         for i, (mod, es) in enumerate(pool.imap_unordered(parse_ilean, modules, chunksize=64)):
             for src, m, n in es:
                 d = owner(m, n)
                 if d is None:
                     unresolved += 1
+                    unresolved_list[(m, n)] += 1
                     continue
                 if src is None:
                     module_refs[mod].add(d)
@@ -163,6 +165,9 @@ def main():
     with open(os.path.join(out, "source-closure.json"), "w", encoding="utf-8") as fh:
         json.dump(summary, fh, ensure_ascii=False, indent=1)
         fh.write("\n")
+    with open(os.path.join(out, "unresolved-refs.tsv"), "w", encoding="utf-8") as fh:
+        fh.write("module\tconstant\tcount\n")
+        fh.write("".join(f"{m}\t{n}\t{c}\n" for (m, n), c in unresolved_list.most_common()))
     with open(os.path.join(out, "added-decls.tsv"), "w", encoding="utf-8") as fh:
         fh.write("decl\tmodule\tkind\tstart_line\tend_line\tkernel_state\treferenced_by\n")
         for d in sorted(added):

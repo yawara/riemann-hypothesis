@@ -111,6 +111,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--decls", default=os.path.join(RUN_ROOT, "shorten", "latest-analysis", "decls.tsv.zst"))
     ap.add_argument("--kept", required=True)
+    ap.add_argument("--protected", default=None, help="shorten_protect.py の protected.tsv(念のため、ここにある宣言は残す)")
     ap.add_argument("--out", default="/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a")
     ap.add_argument("--jobs", type=int, default=24)
     ap.add_argument("--dry-run", action="store_true")
@@ -132,6 +133,13 @@ def main():
     p.wait()
     with open(args.kept, encoding="utf-8") as fh:
         kept = {tuple(l.rstrip("\n").split("\t", 1)) for l in fh if l.strip()}
+    protected_set = {}
+    if args.protected:
+        with open(args.protected, encoding="utf-8") as fh:
+            next(fh)
+            for l in fh:
+                a, b, r = l.rstrip("\n").split("\t")
+                protected_set[(a, b)] = r
     print(f"modules={len(modules)} decls={sum(len(v) for v in decls.values())} kept={len(kept)}", flush=True)
 
     text = {}
@@ -163,9 +171,8 @@ def main():
         for name, kind, s, e in decls.get(m, []):
             keep = (m, name) in kept or m in fixed
             if not keep:
-                head = "\n".join(lines[s - 1:min(e, s + 2)])
-                if SIMP_RE.search(head):
-                    protected.append((m, name, "simp 属性"))
+                if (m, name) in protected_set:
+                    protected.append((m, name, protected_set[(m, name)]))
                     keep = True
                 elif has_mutual:
                     protected.append((m, name, "mutual を含むモジュール"))
@@ -182,21 +189,20 @@ def main():
             for i in range(s - 1, e):
                 if not cover[i]:
                     dl.add(i)
-            if (s - 1) in dl:
-                i = s - 2
-                while i >= 0 and not cover[i] and WRAPPER_RE.match(lines[i]):
-                    dl.add(i)
-                    i -= 1
             deleted_decls.append((m, name, s, e))
             deleted_decl_names.add(name)
         for i, l in enumerate(lines):
             if not cover[i] and DROP_CMD_RE.match(l):
                 j = drop_span(lines, i)
                 dl.update(range(i, j))
-                k = i - 1
-                while k >= 0 and not cover[k] and WRAPPER_RE.match(lines[k]):
-                    dl.add(k)
-                    k -= 1
+        # `… in` の前置きは次の命令に掛かる。次の空でない行が消える命令なら、前置きも消す(下から順に、連なりも)
+        nxt = None  # 下から見て、直前に見た空でない行の番号
+        for i in range(n - 1, -1, -1):
+            if lines[i].strip() == "":
+                continue
+            if not cover[i] and i not in dl and WRAPPER_RE.match(lines[i]) and (nxt is None or nxt in dl):
+                dl.add(i)
+            nxt = i
         deleted_lines[m] = dl
         module_has_kept[m] = any_kept
 
@@ -226,6 +232,39 @@ def main():
         res = list(dict.fromkeys(out))
         memo[m] = res
         return res
+
+    # 3b. import の推移簡約: 消したモジュールの import を引き継いだモジュールでは、ほかの import から
+    #     推移的に入るものを外す(import の閉包は変わらない)
+    import sys
+    sys.setrecursionlimit(1_000_000)
+    kept_modules = [m for m in modules if m not in deleted_modules]
+    idx = {m: k for k, m in enumerate(kept_modules)}
+    closure = {}
+
+    def clos(m):
+        if m in closure:
+            return closure[m]
+        c = 0
+        for y in expand(m):
+            if y in idx:
+                c |= (1 << idx[y]) | clos(y)
+        closure[m] = c
+        return c
+
+    reduced = {}
+    for m in kept_modules:
+        ex = expand(m)
+        if ex == orig_imports[m]:
+            continue
+        proj = [y for y in ex if y in idx]
+        u = 0
+        for y in proj:
+            u |= clos(y)
+        reduced[m] = [y for y in ex if y not in idx or not (u >> idx[y]) & 1]
+    print(f"import 推移簡約: {len(reduced)} モジュール", flush=True)
+
+    def new_imports(m):
+        return reduced.get(m, orig_imports[m] if expand(m) == orig_imports[m] else expand(m))
 
     # 4. open の修正: 短縮版で存在しなくなる配布物の名前空間・名前を外す
     ext_ns, n_ext = external_namespaces(args.jobs)
@@ -278,21 +317,35 @@ def main():
         stack = []
         opened = set()
         imports_done = False
+        del_since_text = False  # 最後に出した空でない行のあとで、行を消したか
         for i, l in enumerate(lines):
             if IMPORT_RE.match(l):
                 if not imports_done:
-                    out.extend(f"import {x}" for x in expand(m))
+                    out.extend(f"import {x}" for x in new_imports(m))
                     imports_done = True
                 continue
             if i in dl:
+                del_since_text = True
                 continue
+            if l.strip() == "":
+                # 消した宣言の前後の空行が続くときは 1 行にまとめる(もともと続いていた空行はそのまま)
+                if del_since_text and out and out[-1].strip() == "":
+                    continue
+                out.append(l)
+                continue
+            del_since_text = False
             mm = NS_RE.match(l)
             if mm and mm.group(1) == "namespace" and mm.group(2):
                 stack.extend(mm.group(2).split("."))
-            elif mm and mm.group(1) == "end" and mm.group(2):
-                for _ in mm.group(2).split("."):
-                    if stack:
-                        stack.pop()
+            elif mm and mm.group(1) == "section":
+                stack.append(None)
+            elif mm and mm.group(1) == "end":
+                if stack and stack[-1] is None:
+                    stack.pop()
+                else:
+                    for _ in (mm.group(2).split(".") if mm.group(2) else [""]):
+                        if stack and stack[-1] is not None:
+                            stack.pop()
             om = OPEN_RE.match(l)
             if om and m not in fixed and ((not OPEN_SIMPLE_RE.match(om.group(2)) and not OPEN_LIST_RE.match(om.group(2)))
                                           or KEYWORDS & set(om.group(2).split("(")[0].split())):
@@ -304,6 +357,7 @@ def main():
                     ns = body.split()[1] if body.startswith("scoped ") else body.split()[0]
                     if vanished(ns, cur, opened):
                         open_fixes.append((m, i + 1, ns, "名前空間が無くなる(行ごと削除)"))
+                        del_since_text = True
                         continue
                     for c in [ns] + [f"{b}.{ns}" for b in [".".join(cur[:k]) for k in range(1, len(cur) + 1)] + list(opened)]:
                         if c in exists or c in ns_before:
@@ -320,6 +374,7 @@ def main():
                             else:
                                 keep_names.append(x)
                         if not keep_names:
+                            del_since_text = True
                             continue
                         if len(keep_names) != len(names):
                             l = f"{indent}open {body[:a]}({' '.join(keep_names)}){body[b + 1:]}{in_kw}"
@@ -338,14 +393,15 @@ def main():
                                 if c in exists or c in ns_before:
                                     opened.add(c)
                     if not keep_names:
+                        del_since_text = True
                         continue
                     if len(keep_names) != len(names):
                         l = f"{indent}open {'scoped ' if scoped else ''}{' '.join(keep_names)}{in_kw}"
             out.append(l)
-        if not imports_done and expand(m):
-            out = [f"import {x}" for x in expand(m)] + out
+        if not imports_done and new_imports(m):
+            out = [f"import {x}" for x in new_imports(m)] + out
         new_text[m] = out
-        changes[m] = (len(dl), len(open_fixes) - n_fix_before, expand(m) != orig_imports[m], out != lines)
+        changes[m] = (len(dl), len(open_fixes) - n_fix_before, new_imports(m) != orig_imports[m], out != lines)
 
     # 5. 集計
     def stats(texts):
