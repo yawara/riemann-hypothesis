@@ -1,0 +1,21 @@
+[0s] import Main
+[27s] imported 186200 modules (175187 project)
+[134s] reached 250000 project constants (stack 202)
+[284s] reached 500000 project constants (stack 231)
+[403s] reached 750000 project constants (stack 223)
+[499s] reached 1000000 project constants (stack 429)
+[676s] reached 1250000 project constants (stack 175)
+[681s] reachable: 1265279 project constants; 67981 external constants used directly; 0 without info
+[687s] module index 20000 / 186200
+[688s] module index 40000 / 186200
+[688s] module index 60000 / 186200
+[689s] module index 80000 / 186200
+[690s] module index 100000 / 186200
+[691s] module index 120000 / 186200
+[691s] module index 140000 / 186200
+[691s] module index 160000 / 186200
+[692s] module index 180000 / 186200
+[692s] declarations: 1147761 (854438 live, 844 aux, 292479 dead)
+[704s] indexed 332393 external theorem types
+[881s] live theorems 681379, defs 161667; theorem duplicate groups: 70445 (+99393 copies); def duplicate groups: 2689 (+4306); external matches: 215; pure aliases: 50616 theorems, 911 defs
+[881s] done

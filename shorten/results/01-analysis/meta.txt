@@ -1,0 +1,9 @@
+started_at_utc: 2026-11-22T09:23:07Z
+tool: /home/ywr/riemann-hypothesis/shorten/tools/rhshrink/.lake/build/bin/rhshrink (5d1b4b5dd99901d0…)
+source: ef854c02d4b74d51… (shorten/tools/rhshrink/Main.lean)
+args: (Main と主定理 5 件)
+lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+exit_code: 0
+finished_at_utc: 2026-11-22T09:37:51Z
+time: Elapsed (wall clock) time (h:mm:ss or m:ss): 14:44.08
+time: Maximum resident set size (kbytes): 105996904
