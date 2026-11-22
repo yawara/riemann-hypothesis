@@ -17,15 +17,22 @@
 #
 # ■ 並べ方
 #   1 プロセス内で複数モジュールを同時に再生すると .olean の mmap が共有されずメモリを大量に消費するため、
-#   LEAN_NUM_THREADS=1 のプロセスを多数並べ、各プロセスにはモジュールのバッチを順番に処理させる。
+#   LEAN_NUM_THREADS=1 のプロセスを JOBS 個並べる。モジュールは CHUNK 個ずつの小さな組に分け、
+#   空いたプロセスから順に次の組を取る(xargs -P)。組は全体からとびとびに選び、重いモジュールが偏らないようにする。
+#   (2 回目の実行では 100 個の大きな組を最初に固定で割り当てたため、組ごとの進み方に 2 倍以上の差が出た。)
 #   検索パス(LEAN_PATH)は、シンボリックリンクを解決した実パスにして、プロジェクトを先頭に置く
 #   (モジュール名は検索パスの中で重複しないので、順序を変えても読み込まれる .olean は同じ)。
+#
+# ■ 途中からの再開
+#   PREV_RUNS に以前の実行のディレクトリ(空白区切り)を渡すと、そこで `ok` になったモジュールは再生し直さず、
+#   その記録を batch.prev.log として引き継ぐ。最後の照合は、引き継いだ分と今回の分を合わせて全モジュールを数える。
 #
 # SCOPE=project(既定)は配布プロジェクトの全モジュール、SCOPE=deps は Mathlib など依存
 # ライブラリ(公式キャッシュから取得した .olean)の全モジュール(ルートの集約ファイルも含む)。
 #
 # 使い方: JOBS=100 scripts/run_leanchecker.sh
 #         SCOPE=deps JOBS=100 scripts/run_leanchecker.sh
+#         PREV_RUNS=/var/tmp/.../leanchecker-project-XXXX VALIDATE=0 scripts/run_leanchecker.sh
 set -uo pipefail
 export LC_ALL=C
 
@@ -35,6 +42,8 @@ TS="$(date -u +%Y%m%dT%H%M%SZ)"
 SCOPE="${SCOPE:-project}"
 OUT="$RUN_ROOT/leanchecker-$SCOPE-$TS"
 JOBS="${JOBS:-100}"
+CHUNK="${CHUNK:-25}"
+PREV_RUNS="${PREV_RUNS:-}"
 TC="${RH_TOOLCHAIN:-$HOME/.elan/toolchains/leanprover--lean4---v4.33.1}"
 DRIVER_DIR="$ROOT/verification/leanchecker-driver"
 DRIVER="$DRIVER_DIR/.lake/build/bin/rhcheck"
@@ -53,7 +62,7 @@ export LEAN_PATH="$LPR" LEAN_SYSROOT="$TC" LEAN_NUM_THREADS=1
 
 if [ -n "${MODULES_FILE:-}" ]; then
   # 動作試験用: 検査するモジュール名の一覧を直接与える
-  cp "$MODULES_FILE" "$OUT/modules.txt"
+  sort -u "$MODULES_FILE" > "$OUT/modules.txt"
 elif [ "$SCOPE" = "deps" ]; then
   for lib in .lake/packages/*/.lake/build/lib/lean; do
     ( cd "$lib" && find . -name '*.olean' | sed -e 's|^\./||' -e 's|\.olean$||' -e 's|/|.|g' )
@@ -62,17 +71,31 @@ else
   find src -name '*.lean' | sed -e 's|^src/||' -e 's|\.lean$||' -e 's|/|.|g' | sort > "$OUT/modules.txt"
 fi
 N="$(wc -l < "$OUT/modules.txt")"
-BATCH="${BATCH:-$(( (N + JOBS - 1) / JOBS ))}"
-# 重いモジュールが 1 バッチに偏らないよう、決定的な順序でばらしてから分割する
-awk -v jobs="$(( (N + BATCH - 1) / BATCH ))" '{print > sprintf("%s/batch.%04d", dir, (NR-1) % jobs)}' dir="$OUT" "$OUT/modules.txt"
+
+# 以前の実行で済んだモジュールを引き継ぐ
+: > "$OUT/batch.prev.log"
+if [ -n "$PREV_RUNS" ]; then
+  for d in $PREV_RUNS; do
+    cat "$d"/batch.*.log 2>/dev/null | grep '^ok ' | cut -d' ' -f2
+  done | sort -u | comm -12 - "$OUT/modules.txt" | sed 's/^/ok /' > "$OUT/batch.prev.log"
+fi
+cut -d' ' -f2 "$OUT/batch.prev.log" | sort -u | comm -23 "$OUT/modules.txt" - > "$OUT/todo.txt"
+T="$(wc -l < "$OUT/todo.txt")"
+CHUNKS="$(( (T + CHUNK - 1) / CHUNK ))"
+# 組 k には、残りのモジュールのうち k, k+CHUNKS, k+2*CHUNKS, … 番目を入れる(全体からとびとびに選ぶ)
+if [ "$T" -gt 0 ]; then
+  awk -v n="$CHUNKS" '{print > sprintf("%s/batch.%05d", dir, (NR-1) % n)}' dir="$OUT" "$OUT/todo.txt"
+fi
 
 {
   echo "started_at_utc: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "scope: $SCOPE"
   echo "modules: $N"
+  echo "carried_over_from_previous_runs: $(wc -l < "$OUT/batch.prev.log")${PREV_RUNS:+ ($PREV_RUNS)}"
+  echo "to_replay_now: $T"
   echo "jobs: $JOBS"
-  echo "batch_size: $BATCH"
-  echo "batches: $(ls "$OUT"/batch.???? | wc -l)"
+  echo "chunk_size: $CHUNK"
+  echo "chunks: $CHUNKS"
   echo "driver: $DRIVER ($(sha256sum "$DRIVER" | cut -c1-16)…)"
   echo "leanchecker: $TC/bin/leanchecker"
   echo "lean: $("$TC/bin/lean" --version 2>&1)"
@@ -98,25 +121,31 @@ if [ "$SCOPE" = "project" ] && [ -z "${MODULES_FILE:-}" ] && [ "${VALIDATE:-1}" 
   fi
 fi
 
-ls "$OUT"/batch.???? | xargs -P "$JOBS" -I{} sh -c '
-  start=$(date +%s)
-  "$0" "{}" > "{}.log" 2>&1
-  rc=$?
-  echo "$rc $(( $(date +%s) - start ))" > "{}.rc"
-' "$DRIVER"
+if [ "$T" -gt 0 ]; then
+  ls "$OUT" | grep -E '^batch\.[0-9]{5}$' | sed "s|^|$OUT/|" | xargs -P "$JOBS" -I{} sh -c '
+    start=$(date +%s)
+    "$0" "{}" > "{}.log" 2>&1
+    rc=$?
+    echo "$rc $(( $(date +%s) - start ))" > "{}.rc"
+  ' "$DRIVER"
+fi
 
 fail=0
-for f in "$OUT"/batch.????; do
+for f in $(ls "$OUT" | grep -E '^batch\.[0-9]{5}$' | sed "s|^|$OUT/|"); do
   rc="$(cut -d" " -f1 "$f.rc" 2>/dev/null || echo missing)"
-  [ "$rc" = "0" ] || { fail=$((fail + 1)); echo "FAILED batch: $f (rc=$rc)"; grep '^FAILED' "$f.log" | head -3; tail -2 "$f.log"; }
+  [ "$rc" = "0" ] || { fail=$((fail + 1)); echo "FAILED chunk: $f (rc=$rc)"; grep '^FAILED' "$f.log" | head -3; tail -2 "$f.log"; }
 done
-ok="$(cat "$OUT"/batch.????.log | grep -c '^ok ')"
-failed_modules="$(cat "$OUT"/batch.????.log | grep -c '^FAILED ')"
+# 照合: 全モジュールに `ok` の記録があるか(引き継いだ分と今回の分を合わせて数える)
+cat "$OUT"/batch.*.log | grep '^ok ' | cut -d' ' -f2 | sort -u > "$OUT/ok-modules.txt"
+comm -23 "$OUT/modules.txt" "$OUT/ok-modules.txt" > "$OUT/missing.txt"
+ok="$(comm -12 "$OUT/modules.txt" "$OUT/ok-modules.txt" | wc -l)"
+failed_modules="$(cat "$OUT"/batch.*.log | grep -c '^FAILED ')"
 {
   echo "finished_at_utc: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  echo "failed_batches: $fail"
+  echo "failed_chunks: $fail"
   echo "ok_modules: $ok / $N"
+  echo "missing_modules: $(wc -l < "$OUT/missing.txt")"
   echo "failed_modules: $failed_modules"
 } >> "$OUT/meta.txt"
 cat "$OUT/meta.txt"
-[ "$fail" = "0" ] && [ "$ok" = "$N" ]
+[ "$fail" = "0" ] && [ "$ok" = "$N" ] && [ "$failed_modules" = "0" ]

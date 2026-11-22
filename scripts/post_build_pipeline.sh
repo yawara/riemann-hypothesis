@@ -17,6 +17,8 @@
 #
 # 2026-11-22: 1 回目の実行では 2. の leanchecker が名前の解決だけで何日もかかる見込みになったため止め、
 # run_leanchecker.sh を作り直して --from-leanchecker で再開した(経緯は run_leanchecker.sh の冒頭)。
+# 同日 15:07 には、組ごとの進み方に大きな差が出たため再度止め、済んだモジュールを引き継いで
+# (PREV_RUNS=<2 回目の実行のディレクトリ> VALIDATE=0)、小分けの組を空いたプロセスから順に取る方式で再開した。
 set -uo pipefail
 export LC_ALL=C.UTF-8
 

@@ -78,7 +78,7 @@ const checks: { state: St; label: string; title: string; detail: string; ref: st
   { state: 'ok', label: '済', title: '全モジュールのコンパイル', detail: '2026-11-21 10:42 JST に開始し、11-22 9:22 に完走(22 時間 40 分)。全 175,187 モジュールでエラー 0。', ref: '7.3' },
   { state: 'ok', label: '済', title: '主定理が依存する公理', detail: '5 つの主定理すべてが、標準の 3 公理(<code>propext</code>・<code>Classical.choice</code>・<code>Quot.sound</code>)だけに依存。', ref: '7.4' },
   { state: 'ok', label: '済', title: '主張の一致確認', detail: '検証者が Mathlib だけで書いた命題と、主定理の型が一致。主張に現れる定数は Lean・Mathlib と <code>Statements.lean</code> の定義だけ。', ref: '7.5' },
-  { state: 'run', label: '実行中', title: 'カーネルによる再検査', detail: '<code>leanchecker</code> と同じ再生処理で、全モジュールの宣言をカーネルに再生させている。1 回目は名前の解決が遅すぎたため中止し、方法を改めて 11-22 11:26 JST に再開。', ref: '7.6' },
+  { state: 'run', label: '実行中', title: 'カーネルによる再検査', detail: '<code>leanchecker</code> と同じ再生処理で、全モジュールの宣言をカーネルに再生させている。1 回目は名前の解決が遅すぎたため中止し、方法を改めて 11-22 11:26 JST に再開(15:08 に割り当て方を改善)。', ref: '7.6' },
   { state: 'wait', label: '未着手', title: '別実装のカーネルによる照合', detail: '主定理の依存一式を書き出し、Rust 製の別実装カーネル <code>nanoda</code> で検査する。道具は準備済み。', ref: '7.7' },
   { state: 'wait', label: '未着手', title: 'ビルド後のソース不変確認', detail: 'ビルドに使った全ファイルが、原本と 1 バイトも違わないことを再照合する。', ref: '7.8' },
 ];
@@ -757,7 +757,12 @@ const colophon: [string, string][] = [
       つずつ追加し直します。本番の前に、主定理の直前のモジュール <code>Supplements.Kernels.MainTheoremsAll</code> を含む 3
       つのモジュールを、公式の <code>leanchecker</code> と <code>rhcheck</code> の両方で再生し、どちらも通ることを確かめました。
     </p>
-    <p>2 回目は 11:26 JST に始め、175,187 モジュールを 100 並列で再生しています。進み具合は巻頭と 2 節の表 2 に出しています。</p>
+    <p>
+      2 回目は 11:26 JST に始めました。はじめは 175,187 モジュールを 100 の組に分けて、各プロセスに固定で割り当てていました。ところが組ごとの進み方に 2
+      倍以上の差が出て、遅い組はこのままだと 23 時ごろまでかかる見込みになりました。そこで 15:08 に、再生を終えた 99,389
+      モジュール(失敗 0)の記録はそのまま生かし、残りを 25 個ずつの小さな組に分けて、空いたプロセスから順に取る方式に切り替えました。進み具合は巻頭と 2
+      節の表 2 に出しています。
+    </p>
 
     <Sub no="7.7" title="別実装のカーネルによる照合" state="wait" label="未着手" />
     <p>

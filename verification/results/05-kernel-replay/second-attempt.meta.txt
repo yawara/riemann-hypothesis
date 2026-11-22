@@ -9,3 +9,7 @@ leanchecker: /home/ywr/.elan/toolchains/leanprover--lean4---v4.33.1/bin/leanchec
 lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
 LEAN_PATH: /var/tmp/riemann-hypothesis-ywr/lake/build/lib/lean:/home/ywr/.elan/toolchains/leanprover--lean4---v4.33.1/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/batteries/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/Qq/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/aesop/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/proofwidgets/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/importGraph/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/LeanSearchClient/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/plausible/.lake/build/lib/lean:/var/tmp/riemann-hypothesis-ywr/lake/packages/mathlib/.lake/build/lib/lean
 validate: leanchecker rc=0, rhcheck rc=0 (3 modules)
+stopped_at_utc: 2026-11-22T06:06:57Z
+stop_reason: 組ごとの進み方に大きな差が出たため(済んだ割合が 30.7%〜68.0%。遅い組はこのままだと 23 時ごろまでかかる)、
+  済んだモジュールはそのまま生かし、残りを小分けにして空いたプロセスから順に取る方式に切り替える。
+  この時点で再生を終えていたモジュール: 99378(失敗 0)
