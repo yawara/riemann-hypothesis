@@ -1,5 +1,0 @@
-uncaught exception: no such file or directory (error code: 2)
-  file: modules.txt
-Command exited with non-zero status 1
-# wall=0.05s user=0.03s sys=0.02s maxrss=68016KB
-rc=1
