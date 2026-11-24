@@ -6,3 +6,7 @@
 # (行列・GL の MeasurableSpace の instance が配布物に複数ある)。消したモジュールの import を順に展開した
 # import なら通ることを、短縮版の環境での単体コンパイルで確かめた。
 Development.AutomorphicArithmetic.ThetaCorrespondence.ThetaPairLifts.ThirdPlaceSeries.LocLevel
+
+# 2026-11-25(段階 1b): 54 行目で `μ.IsHaarMeasure` の instance が見つからなくなった(まとめた写しの `…Statement` モジュールが消え、
+# その import を引き継いで推移簡約したため、読み込み順が変わった)。
+Development.AbelianVarietyTheory.Proofs.DivisorProofs.PrimitiveFrameDatumZetaIntegralEqSmaller
