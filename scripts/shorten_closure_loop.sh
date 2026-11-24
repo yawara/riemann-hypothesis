@@ -5,6 +5,7 @@
 # 使い方: scripts/shorten_closure_loop.sh <名前> <起点の一覧> [merge.tsv(rhshrink 用)] [redirect.tsv(ソースの辺用)]
 #   出力: $RUN_ROOT/shorten/analysis-<名前>-<k>-<時刻>/(最後のものの source-closure/kept-decls.tsv が残す宣言)
 #         $RUN_ROOT/shorten/<名前>-roots-<k>.txt(各回の起点)、<名前>-loop.log
+#   RH_CLOSURE_ARGS に shorten_source_closure.py への追加の引数(--drop-open-list-refs など)を渡せる
 set -uo pipefail
 export LC_ALL=C
 
@@ -20,7 +21,7 @@ MAIN_THMS="riemannHypothesis riemannZeta_eq_zero_re LFunction_ne_zero_of_half_lt
 
 cur="$S/$NAME-roots-0.txt"
 sort -u "$ROOTS" > "$cur"
-echo "$(date -u +%FT%TZ) start: roots=$(wc -l < "$cur") merge=${MERGE:-none} redirect=${REDIR:-none}" >> "$LOG"
+echo "$(date -u +%FT%TZ) start: roots=$(wc -l < "$cur") merge=${MERGE:-none} redirect=${REDIR:-none} closure_args=${RH_CLOSURE_ARGS:-none}" >> "$LOG"
 cd "$ROOT"
 for k in 1 2 3 4 5 6 7 8 9 10; do
   if [ -n "$MERGE" ]; then
@@ -32,7 +33,8 @@ for k in 1 2 3 4 5 6 7 8 9 10; do
   fi
   D="$(ls -d "$S"/analysis-"$NAME-$k"-2* | tail -1)"
   grep -q '^exit_code: 0' "$D/meta.txt" || { echo "$(date -u +%FT%TZ) rhshrink failed: $D" >> "$LOG"; exit 1; }
-  nice -n 10 python3 -I scripts/shorten_source_closure.py --analysis "$D" ${REDIR:+--redirect "$REDIR"} \
+  # shellcheck disable=SC2086
+  nice -n 10 python3 -I scripts/shorten_source_closure.py --analysis "$D" ${REDIR:+--redirect "$REDIR"} ${RH_CLOSURE_ARGS:-} \
     > "$S/$NAME-$k-source.out" 2>&1 || { echo "$(date -u +%FT%TZ) source closure failed: $D" >> "$LOG"; exit 1; }
   added="$(grep -c . "$D/source-closure/added-roots.txt" || true)"
   live="$(python3 -c "import json; print(json.load(open('$D/source-closure/source-closure.json'))['kernel_live_decls'])")"

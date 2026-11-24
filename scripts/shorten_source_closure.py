@@ -54,11 +54,41 @@ def is_project(module):
     return module.split(".", 1)[0] in PROJECT_ROOTS
 
 
+OPEN_CMD_RE = re.compile(r"^(open|export)\s")
+DROP_OPEN_LIST_REFS = False  # --drop-open-list-refs(main で設定し、fork した子プロセスに引き継ぐ)
+
+
+def open_list_lines(module):
+    """`open X (名前 …)`・`export X (名前 …)` の命令(字下げで続く行を含む。`… in` の前置きは除く)が占める行(0 始まり)"""
+    try:
+        with open(os.path.join(SRC, *module.split(".")) + ".lean", encoding="utf-8") as fh:
+            lines = fh.read().split("\n")
+    except OSError:
+        return set()
+    res = set()
+    i = 0
+    while i < len(lines):
+        if OPEN_CMD_RE.match(lines[i]):
+            j = i + 1
+            while j < len(lines) and lines[j][:1] in (" ", "\t") and lines[j].strip():
+                j += 1
+            seg = " ".join(x.strip() for x in lines[i:j])
+            if "(" in seg and not re.search(r"\bin\s*$", seg) and not re.search(r"\bin\s", seg):
+                res.update(range(i, j))
+            i = j
+        else:
+            i += 1
+    return res
+
+
 def parse_ilean(module):
-    """1 モジュールの .ilean から、配布物の定数への参照を (含む宣言 or None, 参照先モジュール, 参照先の名前) で返す"""
+    """1 モジュールの .ilean から、配布物の定数への参照を (含む宣言 or None, 参照先モジュール, 参照先の名前) で返す。
+    --drop-open-list-refs のときは、`open X (名前 …)`・`export X (名前 …)` の並びの中の参照を辺にしない
+    (書き出しが、消す宣言の名前を並びから外すので、残す理由にならない。位置は module-refs.tsv に残す)"""
     path = os.path.join(ILEAN_ROOT, *module.split(".")) + ".ilean"
     with open(path, encoding="utf-8") as fh:
         d = json.load(fh)
+    olines = open_list_lines(module) if DROP_OPEN_LIST_REFS else set()
     edges = set()
     modrefs = []  # 宣言の外からの参照: (行, 列, 終わりの行, 終わりの列, 参照先モジュール, 参照先の名前)。行・列は 0 始まり
     for key, v in d.get("references", {}).items():
@@ -69,6 +99,8 @@ def parse_ilean(module):
         for u in v.get("usages", []):
             if len(u) < 5:
                 modrefs.append((u[0], u[1], u[2], u[3], m, n))
+                if u[0] in olines:
+                    continue
             if is_project(m):
                 edges.add((u[4] if len(u) >= 5 else None, m, n))
     return module, sorted(edges, key=lambda e: (e[0] or "", e[1], e[2])), sorted(modrefs)
@@ -253,7 +285,11 @@ def main():
                     help="段階 1b: 参照を付け替える表(shorten_plan1b.py の redirect.tsv)。X への参照を C への参照とみなす")
     ap.add_argument("--out", default=None)
     ap.add_argument("--jobs", type=int, default=24)
+    ap.add_argument("--drop-open-list-refs", action="store_true",
+                    help="open X (名前 …)・export X (名前 …) の並びの中の参照を、残す理由に数えない")
     args = ap.parse_args()
+    global DROP_OPEN_LIST_REFS
+    DROP_OPEN_LIST_REFS = args.drop_open_list_refs
     redirect = {}
     if args.redirect:
         with open(args.redirect, encoding="utf-8") as fh:

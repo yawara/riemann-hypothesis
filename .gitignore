@@ -14,3 +14,6 @@ __pycache__/
 # カーネル再検査用の小さな実行ファイル(verification/leanchecker-driver)のビルド生成物
 verification/leanchecker-driver/.lake/
 shorten/tools/rhshrink/.lake/
+
+# 短縮の道具のビルド結果
+/shorten/tools/domtree/domtree

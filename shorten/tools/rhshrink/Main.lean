@@ -118,6 +118,144 @@ partial def owner (rng : Std.HashMap Name (Nat × Nat)) (n : Name) : Option Name
   | .num p _ => owner rng p
   | .anonymous => none
 
+/-- `owner` の、すべてのモジュールの宣言(名前 → モジュール番号・行範囲)を相手にする版 -/
+partial def ownerL (locs : Std.HashMap Name (Nat × Nat × Nat)) (n : Name) : Option Name :=
+  if locs.contains n then some n else
+  match n with
+  | .str p _ => ownerL locs p
+  | .num p _ => ownerL locs p
+  | .anonymous => none
+
+/-! ### 使われない引数の削除(dead argument elimination)の見積もり(RHSHRINK_DAE)
+
+定理の引数のうち、型の残り(後の引数の型と結論)に現れず、証明でも(使われない引数の位置に渡す以外に)使われないものは、
+定理の主張から外せる。外せば、呼び出し側がその位置に渡している証明も要らなくなる。
+
+* 引数の位置は、値の先頭のラムダと型の先頭の ∀ が対応する範囲だけを見る
+* どこかで引数が足りない形(部分適用、関数として渡すなど)で現れる定理は、足りない位置から先を外せないとする
+* 「使われない」は最大不動点で求める(はじめはすべて使われないとし、使われる位置を足していく) -/
+
+partial def lamCount : Expr → Nat
+  | .lam _ _ b _ => lamCount b + 1
+  | .mdata _ b => lamCount b
+  | _ => 0
+
+partial def forallCount : Expr → Nat
+  | .forallE _ _ b _ => forallCount b + 1
+  | .mdata _ b => forallCount b
+  | _ => 0
+
+/-- 型の先頭から i 番目の ∀ の束縛変数が、それより後ろ(後の束縛の型と結論)に現れるか -/
+partial def paramDependent (ty : Expr) (i : Nat) : Bool :=
+  match ty with
+  | .forallE _ _ b _ => if i == 0 then b.hasLooseBVar 0 else paramDependent b (i - 1)
+  | .mdata _ b => paramDependent b i
+  | _ => true
+
+/-- 値の先頭の n 個のラムダを外した本体 -/
+partial def lamBody (e : Expr) (n : Nat) : Expr :=
+  if n == 0 then e else
+  match e with
+  | .lam _ _ b _ => lamBody b (n - 1)
+  | .mdata _ b => lamBody b n
+  | _ => e
+
+/-- 先頭の n 個の束縛(∀ かラムダ)の名前 -/
+partial def binderNames (e : Expr) (n : Nat) : Array Name :=
+  if n == 0 then #[] else
+  match e with
+  | .forallE nm _ b _ => #[nm] ++ binderNames b (n - 1)
+  | .lam nm _ b _ => #[nm] ++ binderNames b (n - 1)
+  | .mdata _ b => binderNames b n
+  | _ => #[]
+
+abbrev DeadMap := Std.HashMap Name (Array Bool)
+
+/-- 束縛変数 k(ゆるい de Bruijn 番号)が、使われない引数の位置の外に現れるか -/
+partial def occursLive (dead : DeadMap) (redir : Std.HashMap Name Name) (k : Nat) (e : Expr) :
+    StateM (Std.HashMap (Expr × Nat) Bool) Bool := do
+  if e.looseBVarRange ≤ k then return false
+  if let some r := (← get)[(e, k)]? then return r
+  let r ← match e with
+    | .bvar i => pure (i == k)
+    | .app .. => do
+      let f := e.getAppFn
+      let args := e.getAppArgs
+      let d : Array Bool := match f.consumeMData with
+        | .const n _ => dead.getD (redir.getD n n) #[]
+        | _ => #[]
+      if ← occursLive dead redir k f then pure true else
+      let mut found := false
+      for j in [0:args.size] do
+        if !(d.getD j false) then
+          if ← occursLive dead redir k args[j]! then
+            found := true
+            break
+      pure found
+    | .lam _ t b _ => do pure ((← occursLive dead redir k t) || (← occursLive dead redir (k + 1) b))
+    | .forallE _ t b _ => do pure ((← occursLive dead redir k t) || (← occursLive dead redir (k + 1) b))
+    | .letE _ t v b _ => do
+      pure ((← occursLive dead redir k t) || (← occursLive dead redir k v) || (← occursLive dead redir (k + 1) b))
+    | .mdata _ b => occursLive dead redir k b
+    | .proj _ _ b => occursLive dead redir k b
+    | _ => pure false
+  modify (·.insert (e, k) r)
+  return r
+
+/-- 定数が現れる位置の引数の数の最小値(部分適用・関数として渡すなどは、足りない位置から先を外せない) -/
+partial def minArgs (redir : Std.HashMap Name Name) (e : Expr) :
+    StateM (Std.HashSet Expr × Std.HashMap Name Nat) Unit := do
+  if (← get).1.contains e then return
+  modify fun (v, m) => (v.insert e, m)
+  let note (n : Name) (k : Nat) : StateM (Std.HashSet Expr × Std.HashMap Name Nat) Unit :=
+    modify fun (v, m) => let n := redir.getD n n; (v, m.insert n (min k (m.getD n k)))
+  match e with
+  | .app .. =>
+    let f := e.getAppFn
+    let args := e.getAppArgs
+    match f.consumeMData with
+    | .const n _ => note n args.size
+    | _ => minArgs redir f
+    for a in args do minArgs redir a
+  | .const n _ => note n 0
+  | .lam _ t b _ | .forallE _ t b _ => do minArgs redir t; minArgs redir b
+  | .letE _ t v b _ => do minArgs redir t; minArgs redir v; minArgs redir b
+  | .mdata _ b | .proj _ _ b => minArgs redir b
+  | _ => pure ()
+
+/-- 使われない引数の位置を飛ばして、現れる定数を集める -/
+partial def constsErased (dead : DeadMap) (redir : Std.HashMap Name Name) (e : Expr) :
+    StateM (Std.HashSet Expr × Std.HashSet Name) Unit := do
+  if (← get).1.contains e then return
+  modify fun (v, s) => (v.insert e, s)
+  let note (n : Name) : StateM (Std.HashSet Expr × Std.HashSet Name) Unit :=
+    modify fun (v, s) => (v, s.insert (redir.getD n n))
+  match e with
+  | .app .. =>
+    let f := e.getAppFn
+    let args := e.getAppArgs
+    let d : Array Bool ← match f.consumeMData with
+      | .const n _ => do note n; pure (dead.getD (redir.getD n n) #[])
+      | _ => do constsErased dead redir f; pure #[]
+    for j in [0:args.size] do
+      unless d.getD j false do constsErased dead redir args[j]!
+  | .const n _ => note n
+  | .lam _ t b _ | .forallE _ t b _ => do constsErased dead redir t; constsErased dead redir b
+  | .letE _ t v b _ => do constsErased dead redir t; constsErased dead redir v; constsErased dead redir b
+  | .mdata _ b | .proj _ _ b => constsErased dead redir b
+  | _ => pure ()
+
+/-- 先頭の束縛のうち、使われない引数の位置の型を飛ばして、現れる定数を集める -/
+partial def constsErasedTele (dead : DeadMap) (redir : Std.HashMap Name Name) (d : Array Bool) (i : Nat) (e : Expr) :
+    StateM (Std.HashSet Expr × Std.HashSet Name) Unit := do
+  if i ≥ d.size then constsErased dead redir e else
+  match e with
+  | .forallE _ t b _ | .lam _ t b _ => do
+    unless d[i]! do constsErased dead redir t
+    constsErasedTele dead redir d (i + 1) b
+  | .mdata _ b => constsErasedTele dead redir d i b
+  | _ => constsErased dead redir e
+
 def countTrue (a : Array Bool) : Nat := a.foldl (fun k b => if b then k + 1 else k) 0
 
 /-- `Name.toString` で書き出した名前を読み戻す(`«…»` の中の `.` と、数字だけの成分 = `Name.num` を扱う) -/
@@ -304,6 +442,169 @@ def main (args : List String) : IO UInt32 := do
   declsH.flush
   modsH.flush
   log s!"declarations: {tot.getD "decls" 0} ({tot.getD "live_decls" 0} live, {tot.getD "aux_decls" 0} aux, {tot.getD "dead_decls" 0} dead)"
+
+  -- 段階 2 の下調べ: RHSHRINK_EDGES があれば、到達した宣言どうしの依存の辺を書き出す(支配木の計算用)。
+  -- 補助定数は持ち主の宣言にまとめる。定理は主張(型)と証明(値と補助定数)を分け、辺の種類を
+  -- T = 定理の主張から、V = 定理の証明から、D = 定理でない宣言から、とする(付け替え表があれば付け替えた先へ)。
+  if (← IO.getEnv "RHSHRINK_EDGES").isSome then
+    let mut ids : Std.HashMap Name Nat := {}
+    let idH ← IO.FS.Handle.mk (out / "decl-ids.tsv") .write
+    idH.putStrLn "id\tdecl\tmodule\tstart_line\tend_line\tkind\treachable"
+    let mut nIds := 0
+    for (n, (i, s, e)) in declLoc do
+      ids := ids.insert n nIds
+      let kd := match env.find? n with | some ci => kindOf ci | none => "-"
+      idH.putStrLn s!"{nIds}\t{n}\t{names[i]!}\t{s}\t{e}\t{kd}\t{if seen.contains n then 1 else 0}"
+      nIds := nIds + 1
+    idH.flush
+    let mut es : Std.HashSet UInt64 := {}
+    for n in seen do
+      let some d := ownerL declLoc n | continue
+      let some ci := env.find? n | continue
+      let some di := ids[d]? | continue
+      let isThm := match env.find? d with | some (.thmInfo _) => true | _ => false
+      let tyKind : UInt64 := if isThm then (if n == d then 0 else 1) else 2
+      let valKind : UInt64 := if isThm then 1 else 2
+      let nTy := ci.type.getUsedConstants.size
+      let allC := edges ci
+      for j in [0:allC.size] do
+        let u := redir.getD allC[j]! allC[j]!
+        unless isProjConst u do continue
+        let some d' := ownerL declLoc u | continue
+        if d' == d then continue
+        let some ti := ids[d']? | continue
+        let kd := if j < nTy then tyKind else valKind
+        es := es.insert ((di.toUInt64 <<< 34) ||| (kd <<< 32) ||| ti.toUInt64)
+    let eH ← IO.FS.Handle.mk (out / "decl-edges.tsv") .write
+    for x in es do
+      let kc := match (x >>> 32) &&& 3 with
+        | 0 => "T"
+        | 1 => "V"
+        | _ => "D"
+      eH.putStrLn s!"{x >>> 34}\t{kc}\t{x &&& 0xFFFFFFFF}"
+    eH.flush
+    log s!"decl edges: {es.size} (decls {nIds})"
+
+  -- 使われない引数の削除の見積もり(RHSHRINK_DAE。上の「使われない引数の削除」の説明を参照)
+  if (← IO.getEnv "RHSHRINK_DAE").isSome then
+    -- 1. 候補: 到達する配布物の定理の、型の残りに現れない引数(起点の主張は変えない)
+    let mut dead : DeadMap := {}
+    let mut nCand := 0
+    for n in seen do
+      if roots.contains n then continue
+      let some (.thmInfo v) := env.find? n | continue
+      let k := min (lamCount v.value) (forallCount v.type)
+      if k == 0 then continue
+      let d := (Array.range k).map fun i => !paramDependent v.type i
+      if d.any id then
+        dead := dead.insert n d
+        nCand := nCand + countTrue d
+    log s!"DAE: candidate positions {nCand} in {dead.size} theorems"
+    -- 2. 引数が足りない形で現れる定理は、足りない位置から先を外せない
+    let mut minA : Std.HashMap Name Nat := {}
+    for n in seen do
+      let some ci := env.find? n | continue
+      let act : StateM (Std.HashSet Expr × Std.HashMap Name Nat) Unit := do
+        minArgs redir ci.type
+        if let some v := ci.value? (allowOpaque := true) then minArgs redir v
+      minA := (act.run ({}, minA)).2.2
+    let mut pinUpd : Array (Name × Array Bool) := #[]
+    for (n, d) in dead do
+      let k := minA.getD n d.size
+      if k < d.size then
+        let mut d' := d
+        for i in [k:d.size] do d' := d'.set! i false
+        pinUpd := pinUpd.push (n, d')
+    for (n, d') in pinUpd do dead := dead.insert n d'
+    log s!"DAE: pinned (partially applied) theorems {pinUpd.size}; positions left {dead.fold (fun a _ d => a + countTrue d) 0}"
+    -- 3. 最大不動点: 使われない位置に渡す以外で現れる引数を、使われるとする
+    let mut round := 0
+    let mut changed := true
+    while changed do
+      round := round + 1
+      let mut updates : Array (Name × Array Bool) := #[]
+      for (n, d) in dead do
+        unless d.any id do continue
+        let some (.thmInfo v) := env.find? n | continue
+        let k := d.size
+        let body := lamBody v.value k
+        let mut d' := d
+        let mut cache : Std.HashMap (Expr × Nat) Bool := {}
+        for i in [0:k] do
+          if d[i]! then
+            let (r, c') := (occursLive dead redir (k - 1 - i) body).run cache
+            cache := c'
+            if r then d' := d'.set! i false
+        if d' != d then updates := updates.push (n, d')
+      for (n, d') in updates do dead := dead.insert n d'
+      changed := !updates.isEmpty
+      log s!"DAE round {round}: {updates.size} theorems changed; dead positions {dead.fold (fun a _ d => a + countTrue d) 0}"
+    -- 4. 使われない引数の位置を飛ばして、主定理から辿り直す
+    let mut seenD : Std.HashSet Name := {}
+    let mut stackD : Array Name := roots
+    while !stackD.isEmpty do
+      let n := stackD.back!
+      stackD := stackD.pop
+      if seenD.contains n || !isProjConst n then continue
+      seenD := seenD.insert n
+      let some ci := env.find? n | continue
+      let d := dead.getD n #[]
+      let act : StateM (Std.HashSet Expr × Std.HashSet Name) Unit := do
+        constsErasedTele dead redir d 0 ci.type
+        match ci with
+        | .thmInfo v => constsErasedTele dead redir d 0 v.value
+        | .defnInfo v => constsErased dead redir v.value
+        | .opaqueInfo v => constsErased dead redir v.value
+        | .recInfo v => for r in v.rules do constsErased dead redir r.rhs
+        | _ => pure ()
+      let s := (act.run ({}, {})).2.2
+      let extra : Array Name := match ci with
+        | .inductInfo v => v.ctors.toArray ++ v.all.toArray
+        | .ctorInfo v => #[v.induct]
+        | .recInfo v => v.all.toArray
+        | _ => #[]
+      for u in s do
+        unless seenD.contains u do stackD := stackD.push u
+      for u0 in extra do
+        let u := redir.getD u0 u0
+        unless seenD.contains u do stackD := stackD.push u
+    -- 5. 書き出し
+    let mut ownN : Std.HashSet Name := {}
+    for n in seen do
+      if let some d := ownerL declLoc n then ownN := ownN.insert d
+    let mut ownD : Std.HashSet Name := {}
+    for n in seenD do
+      if let some d := ownerL declLoc n then ownD := ownD.insert d
+    let linesOf (s : Std.HashSet Name) : Nat :=
+      s.fold (fun a d => match declLoc[d]? with | some (_, s0, e0) => a + (e0 - s0 + 1) | none => a) 0
+    let daH ← IO.FS.Handle.mk (out / "dae-dead-args.tsv") .write
+    daH.putStrLn "theorem\tposition\tbinder\towner_decl\tmodule"
+    let mut nDeadPos := 0
+    let mut nDeadThm := 0
+    for (n, d) in dead do
+      unless seenD.contains n && d.any id do continue
+      nDeadThm := nDeadThm + 1
+      let some ci := env.find? n | continue
+      let nms := binderNames ci.type d.size
+      let ow := (ownerL declLoc n).getD n
+      let m := match declLoc[ow]? with | some (i, _, _) => names[i]!.toString | none => "?"
+      for i in [0:d.size] do
+        if d[i]! then
+          nDeadPos := nDeadPos + 1
+          daH.putStrLn s!"{n}\t{i}\t{nms.getD i Name.anonymous}\t{ow}\t{m}"
+    daH.flush
+    let ddH ← IO.FS.Handle.mk (out / "dae-dropped-decls.tsv") .write
+    ddH.putStrLn "module\tdecl\tstart_line\tend_line"
+    for d in ownN do
+      unless ownD.contains d do
+        if let some (i, s0, e0) := declLoc[d]? then ddH.putStrLn s!"{names[i]!}\t{d}\t{s0}\t{e0}"
+    ddH.flush
+    let lN := linesOf ownN
+    let lD := linesOf ownD
+    log s!"DAE: rounds {round}; theorems with dead args (reachable after) {nDeadThm}, dead positions {nDeadPos}"
+    log s!"DAE: reachable project constants {seen.size} -> {seenD.size}; decls {ownN.size} -> {ownD.size}; decl lines {lN} -> {lD} (-{lN - lD})"
+    IO.FS.writeFile (out / "dae-summary.json")
+      s!"\{\"rounds\": {round}, \"theorems_with_dead_args\": {nDeadThm}, \"dead_positions\": {nDeadPos}, \"reachable_consts\": [{seen.size}, {seenD.size}], \"decls\": [{ownN.size}, {ownD.size}], \"decl_lines\": [{lN}, {lD}]}\n"
 
   -- 3, 4. 型の一致(配布物の中の重複と、外部の定理との一致)。RHSHRINK_SKIP_DUPS があれば省く
   let mut extIdx : Std.HashMap Expr (Array Name) := {}
