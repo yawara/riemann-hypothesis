@@ -1,0 +1,85 @@
+要らなくなる宣言: 447 個・5,178 行
+消える部分木の根: 261 個(その部分木の行の合計 5,178)
+使われない引数を持つ定理(辿り直したあとも到達するもの): 66,494 個
+
+# 親ごとの消える行(上位 40)
+       703     6  proof SelfIntersectionVolumeEstimates.topCovolG_alt_alt
+             GlobalTheory.UCls.torusBound(692), GlobalTheory.UCls.TorusBound(4), GlobalTheory.UCls.TEquiv(2), GlobalTheory.UCls.torusNo(2), GlobalTheory.UCls.Unr(2)
+       498     4  proof Formalism.MainNotions.Pk.sum_over_primes_service
+             Formalism.MainNotions.FormalGroupSystem.Pf.stmtNumE(488), Formalism.MainNotions.FormalGroupSystem.Pf.nc_Size(5), Formalism.MainNotions.FormalGroupSystem.NumericalComparisonAt(3), Formalism.MainNotions.FormalGroupSystem.NumericalComparisonUniform(2)
+       471     2  proof GlobalTheory.PsiSign.exists_act
+             ReciprocityTheory.ChartRestriction.G.DVR.UUA.uu(469), ReciprocityTheory.ChartRestriction.G.DVR.TWM.tw_of_laws(2)
+       403    14  proof GlobalTheory.UnfoldingObj.unfolding
+             GlobalTheory.Proof.quotientMeasure_integration_formulas_unimodular.quotientMeasures(177), GlobalTheory.adelicUnitaryHaar_holds(162), GlobalTheory.IndefiniteRowSideFullHecke.InvariantRadonFibre.DiscreteClause(17), GlobalTheory.IndefiniteRowSideFullHecke.AdelicUnitaryHaarMeasure.AdelicUnitaryHaar(9), 
+       339     1  proof GlobalTheory.WeilSchrodinger.DblRestrict.omp_diag_boxFun
+             GlobalTheory.DblThetaRestrict.scalar(339)
+       213     8  proof UpperTheory.FinalTheorems.everyCharacter
+             GlobalTheory.exists_basis_mem_of_span_eq_top_of_semilocal(120), GlobalTheory.EisBL.Borel.borelGL(37), GlobalTheory.FinLatUnitF.gamFF_rhoFF(14), GlobalTheory.BSP.norm_toDisc_natPow_mul_le(12), GlobalTheory.CompanionTheory.CongruenceBasis.val_le_val_unif(12)
+       122     1  proof GlobalTheory.GlueDat.glued_data
+             GlobalTheory.GenMass.changed_frames_linInd(122)
+       103     4  proof UpperTheory.ConvolutionTheory.G.g4
+             UpperTheory.ConvolutionTheory.G.orbitalIntegral_absolute_convergence(72), PositivityTheory.Rg.Tf.Geo.Q3(13), GlobalTheory.CNorm.hasseNorm(10), GlobalTheory.Published.HasseNorm(8)
+        88     1  decl  UpperTheory.Reformulated.B.SquareOfApproximation.main
+             UpperTheory.Reformulated.B.SquareOfApproximation.IsCMExt(88)
+        88     1  proof UpperTheory.TP.W.datumK_k
+             UpperTheory.TP.W.cardDet(88)
+        85     1  proof GlobalTheory.DblVac.gen_diag_anti_split_herm
+             GlobalTheory.BlockInvertibleLocal.exists_isUnit_det_add_mul(85)
+        82     4  proof Formalism.MainNotions.N.Ln03.ringSteps_of
+             LevelStatements.Lv.rhoUnique(40), LevelStatements.Lv.rhoUnit(33), LevelStatements.Lv.RhoUniqueStatement(5), LevelStatements.Lv.RhoUnitStatement(4)
+        82     1  proof GlobalTheory.BKGal.PhiFix.frob_fixed_coboundary
+             GlobalTheory.CoeffComplete.completeSpace_of_finite_unitBall(82)
+        76     1  proof GlobalTheory.BSP.HeightEx.nonempty_height
+             GlobalTheory.BSP.seed_module_lAdic_closed(76)
+        76     1  proof GlobalTheory.BKLim.WHeight.exists_height
+             GlobalTheory.BKLim.wseed_module_lAdic_closed(76)
+        67     1  proof ReciprocityTheory.ChartRestriction.DS.G2.ptr_scalar
+             ReciprocityTheory.ChartRestriction.DS.G2.ptr_kcomm(67)
+        67     1  proof ReciprocityTheory.ChartRestriction.DS.ptr_scalar
+             ReciprocityTheory.ChartRestriction.DS.ptr_kcomm(67)
+        57     2  proof _private.Development.AutomorphicArithmetic.Foundations.IwahoriReduction.SiegelFixedPoints.ConstInt.0.UpperTheory.Kd.L.KummerExtensionIntegrality.topexOf
+             UpperTheory.algEquiv_mem_ringOfIntegers_modularTowerTop(45), _private.Development.AutomorphicArithmetic.Foundations.IwahoriReduction.SiegelFixedPoints.ConstInt.0.UpperTheory.Kd.L.KummerExtensionIntegrality.constInt(12)
+        56     4  proof UpperTheory.Gal.Int.Geo.steps_holds
+             UpperTheory.Gal.G3.pOrdStep(44), CrystallineSemistableComparison.Pb.locVan_h(5), UpperTheory.Gal.G3.OrdStep(4), CrystallineSemistableComparison.Pb.KH.LocVan(3)
+        56     3  proof GlobalTheory.LatSplit.exists_proj
+             GlobalTheory.LatSplit.genSet_props(38), GlobalTheory.LatSplit.latLoc_span(16), GlobalTheory.LatSplit.latLoc_fg(2)
+        54     1  proof SelfIntersectionVolumeEstimates.topCovolSlim2_use_alt_alt
+             GlobalTheory.CompanionTheory.Ar.Flat.DegZ.charpoly_lmul_splits_of_conjugates(54)
+        53     2  proof GlobalTheory.CompanionTheory.Ar.Sl.slopeBound_and_lemmaS_of_siegel
+             GlobalTheory.CompanionTheory.Ar.Sl.KP.key_bad(43), GlobalTheory.CompanionTheory.Ar.Sl.KeyBadSt(10)
+        53     1  proof GlobalTheory.K4.TopEta.spec_of_units
+             GlobalTheory.K4.map_mem_ringOfIntegers_of_fix_mdl(53)
+        43     1  proof ReciprocityTheory.ChartRestriction.DS.form_cc
+             ReciprocityTheory.ChartRestriction.DS.fm_formBH_kDiag(43)
+        38     2  proof PositivityTheory.Rg.Rsw.resMu
+             GlobalTheory.CompanionTheory.FourierN.fourierZero(34), PositivityTheory.PfSWUS.FourierZero(4)
+        36     2  proof Formalism.L2.FormalSeriesBounds.FunEq.coeff_U_eq
+             Formalism.L2.FormalSeriesBounds.FunEq.QQ_frob(32), Formalism.L2.FormalSeriesBounds.FunEq.second_pairing_pow_frobenius(4)
+        36     2  proof ReciprocityTheory.ChartRestriction.DS.Mult1.thmM_of_xi
+             ReciprocityTheory.ChartRestriction.DS.Mult1.rankOneMinors(31), ReciprocityTheory.ChartRestriction.DS.Mult1.RankOneMinors(5)
+        36     2  proof GlobalTheory.StepTwo.Dyadic.bound_mod_two_of_hypothesis
+             GlobalTheory.ScalarFrob.firstPlace(26), GlobalTheory.ResSel.FirstPlace(10)
+        30     1  proof Formalism.HermitianLattices.Ext.L3.LIOrb.card_quot_inf_mul
+             _private.Formalism.GL3MeanSquares.GenusMeanAsymptotics.UnimodularClassRepresentatives.CardQuotInfNeZero.0.Formalism.HermitianLattices.Ext.L3.LIOrb.isLattice_inf_locF_of_isLattice(30)
+        29     1  proof _private.Development.AutomorphicArithmetic.IntegralCasts.CapelliIdentities.SeriesSubgroup.0.UpperTheory.Reformulated.B.SeriesSubgroup.xS_mem
+             Formalism.ELL.wSeriesLeadingTerm_holds(29)
+        28     2  proof PositivityTheory.Rg.Sw.LC.coreLC_of
+             PositivityTheory.Rg.Sw.LC.semiFam(21), PositivityTheory.Rg.Sw.LC.SemiFam(7)
+        28     1  proof UpperTheory.V.U3.exists_univ
+             _private.Development.AutomorphicArithmetic.AutomorphicVarieties.UnitaryThreeGroups.UnivEx.0.UpperTheory.V.U3.totDisc_quot(28)
+        24     1  proof UpperTheory.V.UnitaryThreeInertia.rig_fin
+             _private.Development.AutomorphicArithmetic.AutomorphicVarieties.UnitaryThreeDeformations.RigFin.0.contAd(24)
+        24     2  proof ReciprocityTheory.ChartRestriction.DS.PolarJacobianDeterminant.det_shcAdCL_pos
+             ReciprocityTheory.ChartRestriction.DS.PolarJacobianDeterminant.trF_shcAd_left(16), ReciprocityTheory.ChartRestriction.DS.PolarJacobianDeterminant.trF_comm(8)
+        22     1  proof UpperTheory.ConvolutionTheory.G3.unitAe
+             _private.Development.AutomorphicArithmetic.Foundations.Convolution.OrbitNormCounting.UnitAe.0.UpperTheory.ConvolutionTheory.G3.unit_index(22)
+        21     1  proof GlobalTheory.HeckePoisson.fourier_gauss
+             GlobalTheory.HeckePoisson.integrable_hmon_gauss(21)
+        20     2  proof PositivityTheory.SiegelWeilFormula.Act.C4.fiber_k
+             PositivityTheory.SiegelWeilFormula.Act.C4.padN_nF_k(11), PositivityTheory.SiegelWeilFormula.Act.C4.continuous_padN_k(9)
+        20     2  proof PositivityTheory.SiegelWeilFormula.Act.C4.fiber
+             PositivityTheory.SiegelWeilFormula.Act.C4.padN_nF(11), PositivityTheory.SiegelWeilFormula.Act.C4.continuous_padN(9)
+        20     1  proof GlobalTheory.ConjRowRepR.exists_contRep_rows
+             _private.Development.AbelianVarietyTheory.Proofs.TwistedOperators.ExistsContinuousRepIntertwinerImageRows.0.GlobalTheory.ConjRowRepR.gapGe_hundred_mul_r_pow_four(20)
+        19     2  proof UpperTheory.V.Z.Desc.V0.countE'_alt
+             UpperTheory.V.Z.J.D.compsEx(16), UpperTheory.V.Z.J.D.CompsEx(3)

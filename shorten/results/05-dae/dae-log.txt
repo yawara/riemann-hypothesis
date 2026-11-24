@@ -1,0 +1,26 @@
+[1445s] DAE: candidate positions 1549906 in 554324 theorems
+[2694s] DAE: pinned (partially applied) theorems 39335; positions left 1507211
+[6471s] DAE round 1: 427673 theorems changed; dead positions 508992
+[8419s] DAE round 2: 136769 theorems changed; dead positions 262563
+[9152s] DAE round 3: 59485 theorems changed; dead positions 166738
+[9593s] DAE round 4: 26448 theorems changed; dead positions 127950
+[9923s] DAE round 5: 11776 theorems changed; dead positions 111908
+[10212s] DAE round 6: 5152 theorems changed; dead positions 105325
+[10485s] DAE round 7: 2118 theorems changed; dead positions 102729
+[10756s] DAE round 8: 1018 theorems changed; dead positions 101497
+[11027s] DAE round 9: 463 theorems changed; dead positions 100959
+[11293s] DAE round 10: 211 theorems changed; dead positions 100709
+[11549s] DAE round 11: 111 theorems changed; dead positions 100583
+[11803s] DAE round 12: 46 theorems changed; dead positions 100531
+[12054s] DAE round 13: 18 theorems changed; dead positions 100511
+[12310s] DAE round 14: 8 theorems changed; dead positions 100501
+[12563s] DAE round 15: 6 theorems changed; dead positions 100493
+[12824s] DAE round 16: 7 theorems changed; dead positions 100485
+[13078s] DAE round 17: 1 theorems changed; dead positions 100482
+[13334s] DAE round 18: 1 theorems changed; dead positions 100479
+[13591s] DAE round 19: 1 theorems changed; dead positions 100476
+[13856s] DAE round 20: 1 theorems changed; dead positions 100473
+[14114s] DAE round 21: 1 theorems changed; dead positions 100470
+[14373s] DAE round 22: 0 theorems changed; dead positions 100470
+[15851s] DAE: rounds 22; theorems with dead args (reachable after) 67285, dead positions 100420
+[15857s] DAE: reachable project constants 1207146 -> 1206440; decls 800173 -> 799726; decl lines 10460844 -> 10455666 (-5178)

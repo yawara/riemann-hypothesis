@@ -48,7 +48,7 @@ Mathlib の定義が意図どおりである限り、Mathlib の RiemannHypothes
 | 短縮版のビルド | `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b-build.pid` | `JOBS=64 scripts/shorten_build_stage.sh /var/tmp/riemann-hypothesis-ywr/shorten/stage-1b`(`setsid` で切り離し。段階 1a のビルドは終わっている) |
 | メモリの見張り | (なし。`ps` で `shorten_memguard.sh` を探す) | `scripts/shorten_memguard.sh <ビルドの PID> 80 30` |
 | 段階 1a のカーネル再検査 | (なし。`ps` で `run_leanchecker.sh` を探す) | 11/24 19:33 起動。00:20 で 2,560/5,958 組・64,000 モジュールが通過、失敗 0(ビルドと CPU を分け合うので遅い。朝 7 時ごろの見込み) |
-| 使われない引数の見積もり(段階 2 の下調べ) | `$RUN_ROOT/shorten/analysis-dae1b.pid` | `RHSHRINK_DAE=1` の rhshrink(`$RUN_ROOT/shorten/analysis-dae1b-20261124T130655Z/`)。固定点の反復が 1 回 1 時間(1 回目で残る位置 1,507,211 → 508,992)。終わったら `python3 -I shorten/tools/domtree/dae_report.py $RUN_ROOT/shorten/analysis-dom1b-20261124T121043Z/domtree.tsv <その出力>/dae-dropped-decls.tsv <その出力>/dae-dead-args.tsv <その出力>/report` で、どの定理の使われない仮定が何行を抱えているかをまとめる |
+| 使われない引数の見積もり(段階 2 の下調べ。**02:31 に終了**) | `$RUN_ROOT/shorten/analysis-dae1b.pid` | `RHSHRINK_DAE=1` の rhshrink(`$RUN_ROOT/shorten/analysis-dae1b-20261124T130655Z/`)。固定点の反復が 1 回 1 時間(1 回目で残る位置 1,507,211 → 508,992)。終わったら `python3 -I shorten/tools/domtree/dae_report.py $RUN_ROOT/shorten/analysis-dom1b-20261124T121043Z/domtree.tsv <その出力>/dae-dropped-decls.tsv <その出力>/dae-dead-args.tsv <その出力>/report` で、どの定理の使われない仮定が何行を抱えているかをまとめる |
 | 宣言の属性の書き出し(守る宣言の見直し用) | `$RUN_ROOT/shorten/analysis-declinfo.pid` | `RHSHRINK_DECL_INFO=1` の rhshrink(別に作った `/var/tmp/riemann-hypothesis-ywr/shorten/rhshrink-dev` の実行ファイル。出力 `$RUN_ROOT/shorten/analysis-declinfo-20261124T151010Z/decl-info.tsv`) |
 | import を足してまとめる見積もり(厳しい版) | (なし) | `scripts/shorten_estimate_import_merge.py` と同じもの。出力 `$RUN_ROOT/shorten/refined-import-merge.out` |
 
@@ -117,7 +117,7 @@ mathlib で置き換えられるものにトライ。それが終わったら数
 5. import を足してまとめる: 厳しい見積もり(新たに見える Mathlib などのモジュールが無い、新たに見える宣言の名前が参照するモジュールの識別子と重ならない、を足した)の
    結果を README の「次の短縮の道」の表に書く。実際の計画は `scripts/shorten_plan1b.py` に、この条件で import を足す道を足して作る。
    4 と 5(と `--drop-open-list-refs`)は、全体の作り直しを 1 回にまとめる。
-6. 使われない引数の見積もりが終わったら、上の dae_report.py でまとめ、README の段階 2 の節に書く(名前と数字だけ。ソースの文面は載せない)。
+6. 使われない引数の見積もりは終わった(02:31)。消せるのは 447 宣言・5,178 行だけで、この道は効かない(README の段階 2 の節、`shorten/results/05-dae/`)。
 
 ## 見回り(ユーザーの依頼「50 おきには定点観測して」)
 
