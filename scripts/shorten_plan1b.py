@@ -100,6 +100,7 @@ def main():
     ap.add_argument("--stage-src", default="/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a/src")
     ap.add_argument("--out", required=True)
     ap.add_argument("--jobs", type=int, default=32)
+    ap.add_argument("--dump-refs", action="store_true", help="候補への参照の一覧 refs.tsv も書き出す(分析用)")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
 
@@ -333,6 +334,12 @@ def main():
         if not new:
             break
 
+    if args.dump_refs:
+        with open(os.path.join(args.out, "refs.tsv"), "w", encoding="utf-8") as fh:
+            fh.write("x_module\tx\tref_module\tline\towner\tproblem\n")
+            for xk, lst in stat.items():
+                for (r, okey, problem, named, _) in lst:
+                    fh.write(f"{xk[0]}\t{xk[1]}\t{r[0]}\t{r[1]}\t{okey[1] if okey else '-'}\t{problem or '-'}\n")
     # ---- 書き出し
     gone = set(merged)
     rewrites = []

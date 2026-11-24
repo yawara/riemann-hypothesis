@@ -15,7 +15,7 @@
 - コミットの末尾の共著者表記は、そのセッションの指示に従う。`scripts/publish_pages.sh`・`scripts/observe.py`・`scripts/status_updater.sh` にも同じ表記が書き込んであるので合わせて直す(動いている `status_updater.sh` は、別ファイルに書いてから `mv` で差し替える)。
 - 好みの詳細は Claude のメモリ(`~/.claude/projects/-home-ywr-riemann-hypothesis/memory/`)にもある。
 
-## いまの状況(2026-11-24 17:10 JST)
+## いまの状況(2026-11-24 19:40 JST)
 
 **検証は終わった**(パイプラインは 22:41 JST に `result=done`)。結果は精査してレポート(7.7〜7.9 節、表 1、1 節、9 節)と README に反映した。
 **最終判定は、ユーザーが文言を承認して(2026-11-22)、巻頭の判定欄に掲げた**: 印「通過」、見出し「予定したすべての検査を通過しました」、
@@ -35,12 +35,13 @@ Mathlib の定義が意図どおりである限り、Mathlib の RiemannHypothes
 | 定点観測 | 終了。#44(23:22 JST、段階 `finished`)で observer が自動で終わった(監視対象のプロセスがすべて終了したため)。進捗の自動更新も `finished` を書いて終わった |
 | 短縮の下調べ(`rhshrink`) | 完了(18:37)。使われていない宣言は約 330 万行(19.0%)、重複した定理の写し 99,393 個。結果は `shorten/results/01-analysis/` と `shorten/README.md` |
 | 短縮の段階 1a | 短縮版(148,924 モジュール、**14,159,480 行、−18.5%**)を `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a` に作成。1 回目の全体ビルド(20:26〜23:16、26,775 モジュールが通過)の失敗 30 件は原因 5 つで、すべて規則に取り込んで書き出し直した(`shorten/results/02-stage1a/full-build1-failures.tsv`、`shorten/README.md`) |
-| 短縮の段階 1a の全体ビルド | 2 回目(11/22 23:38〜11/23 09:28、並列 64、9 時間 50 分)は `✖` 8 行で、原因 4 つ(`shorten/results/02-stage1a/full-build2-failures.tsv`、`shorten/README.md`)。11/24 に 4 つとも規則に取り込み、閉包 6(`$RUN_ROOT/shorten/analysis-closure6-20261124T074447Z/`。1 回で閉じた)で書き出し直した(**148,931 モジュール、14,160,262 行、−18.5%**。変わったのは 31 ファイル)。**11/24 17:04 JST から続きのビルド中**(並列 64、ログは `stage-1a/builds/build-20261124T080440Z/`)。作り直すのは変わった 31 モジュールとその下流の 16,768 個で、18 時半ごろに終わる見込み |
+| 短縮の段階 1a の全体ビルドと検査 | **3 回目の全体ビルド(11/24 17:04〜19:07)でエラー 0**(**148,931 モジュール、14,160,262 行、−18.5%**)。公理(標準の 3 つのみ)・主張の一致・主張の依存は元と同じ結果で通過(`shorten/results/02-stage1a/checks/`)。**カーネル再検査は 11/24 19:33 から実行中**(並列 48、`/var/tmp/riemann-hypothesis-ywr/shorten/kernel-1a/latest-leanchecker-project/`、5〜6 時間の見込み) |
+| 短縮の段階 1b(重複の統合) | 作業中(ユーザーは 11/24「細かいとは任せるから進めて」)。1 回目の計画(53,545 個をまとめる)で書き出した版(110,555 モジュール・13,561,565 行、元から −21.9%)を試しにコンパイルし、同じ名前の宣言が 2 モジュールにある組の扱いの誤りを直した。**11/24 19:34 から、計画 → 閉包 → 書き出し → 試しのコンパイルをやり直し中**(作業用のスクリプト `$RUN_ROOT/shorten/run1b.sh`、ログは `$RUN_ROOT/shorten/run1b-v2.log`。計画は `$RUN_ROOT/shorten/plan1b-4/`、閉包は `c1b2-*`、短縮版は `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b`)。試しが通ったら stage-1b の全体ビルド(下流を含めて約 8.6 万モジュール、7〜8 時間)へ進む |
 
 ## 動いている常駐プロセス
 
 検証の常駐プロセス(検査パイプライン、Mathlib 再ビルドの連結、定点観測、進捗の自動更新)は、すべて役目を終えて止まっている。
-いま動いているのは短縮版のビルド(2026-11-24 17:04 JST に起動)とメモリの見張りだけ。
+いま動いているのは、段階 1a のカーネル再検査(`scripts/run_leanchecker.sh` を RH_LEAN_PROJECT・RH_RUN_ROOT で短縮版に向けたもの)と、段階 1b のやり直しの流れ(計画・閉包・書き出し・試しのコンパイル)。ビルドは動いていない(段階 1b のビルドは試しが通ってから起動する)。
 
 | 名前 | PID ファイル | 中身 |
 |---|---|---|
@@ -88,14 +89,18 @@ mathlib で置き換えられるものにトライ。それが終わったら数
 
 ### 短縮で次にやること(引き継ぎ)
 
-1. 11/24 17:04 から走らせている続きのビルドを見守る。失敗が出たら、ログ(`grep '^✖'` と直後の `error:` 行)から原因を調べ、規則に取り込んで
-   書き出し直す(上の手順 3〜4。試しの場所に出して差を確かめてから反映)。2 回目の全体ビルドの失敗 4 つ(fixed の import、`open private`、
-   `cpt_copy_thms`、読み込み順)は 11/24 に取り込み済み(`shorten/README.md`)。
-2. ビルドが通ったら、検証と同じ検査(`#print axioms`、主張の一致、カーネル再検査)を短縮版にかけ、`shorten/README.md` の表と結果を直し、
-   `shorten/results/02-stage1a/` の記録(report.json・closure-iterations.tsv・closure-final.json など)を閉包 6 の版に差し替える。
-3. 段階 1b(重複の統合)。下調べの `duplicates.tsv`・`aliases.tsv`(`shorten/results/01-analysis/`)が材料。見込みは `shorten/README.md` の
-   「次の短縮の道」(本体どうしの重複 約 39 万行、`…Statement` の包み 435,331 行、守る宣言の見直し 最大約 23 万行)。作り直しは下流すべてに及ぶので、
-   一部の組で試してから、残りを 1 回でまとめて書き換える。
+1. 段階 1a のカーネル再検査(11/24 19:33 起動)の結果を確かめ、`shorten/README.md` の検査の表と `shorten/results/02-stage1a/` に書く
+   (結果の見方は「各段階の結果の見方」と同じ。出力は `/var/tmp/riemann-hypothesis-ywr/shorten/kernel-1a/latest-leanchecker-project/`)。
+2. 段階 1b のやり直しの流れ(`$RUN_ROOT/shorten/run1b.sh`。計画 plan1b-4 → 閉包 c1b2 → stage-1b に書き出し → 3,000 個の試しのコンパイル)の
+   結果を見る(ログ `$RUN_ROOT/shorten/run1b-v2.log`、試しは `/var/tmp/riemann-hypothesis-ywr/shorten/try-1b-2/rc.tsv`)。試しの失敗は原因を調べて
+   計画か書き出しの規則に取り込み、やり直す。閉包のあとに「まとめた写しが残す宣言に紛れていないか」も確かめる(0 であるべき)。
+3. 試しが通ったら stage-1b の全体ビルド: `JOBS=64 setsid scripts/shorten_build_stage.sh /var/tmp/riemann-hypothesis-ywr/shorten/stage-1b` と
+   メモリの見張り(`.lake` は stage-1a から reflink で写してある)。作り直すのは約 8.6 万モジュール(7〜8 時間)。失敗は 1a と同じ手順で直す。
+4. 通ったら検査(`RH_LEAN_PROJECT=<stage-1b> RH_RESULTS_DIR=shorten/results/03-stage1b/checks RH_CHECK_DIR=… scripts/run_checks.sh`、
+   カーネル再検査は `RH_LEAN_PROJECT=… RH_RUN_ROOT=/var/tmp/riemann-hypothesis-ywr/shorten/kernel-1b VALIDATE=0 JOBS=… scripts/run_leanchecker.sh`)。
+   `shorten/README.md` の段階 1b の節の数字を、やり直した計画(plan1b-4: 53,513 個をまとめる)と結果に差し替え、`shorten/results/03-stage1b/` も差し替える。
+5. 次の手(段階 1b の続き): import を足してまとめる(README の「次の短縮の道」。無害な読み込みに限って約 2 万個・宣言の行 17 万行、足す import 2.4 万行)。
+   見積もりのスクリプトは一時置き場にあったので、やるときは `scripts/shorten_plan1b.py --dump-refs` の refs.tsv から作り直す。
 
 ## 見回り(ユーザーの依頼「50 おきには定点観測して」)
 
