@@ -195,6 +195,8 @@ def main():
     ap.add_argument("--module-refs", required=True)
     ap.add_argument("--keep-import-order", default=os.path.join(ROOT, "shorten", "keep-import-order.txt"),
                     help="import の読み込み順を保つモジュールの一覧(1 行 1 モジュール、# から行末は注釈)")
+    ap.add_argument("--rewrites", default=None,
+                    help="段階 1b: 書き換える参照(shorten_plan1b.py の rewrites.tsv。元のソースの行・文字位置)")
     ap.add_argument("--out", default="/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a")
     ap.add_argument("--jobs", type=int, default=24)
     ap.add_argument("--dry-run", action="store_true")
@@ -471,6 +473,14 @@ def main():
     edits = []      # (モジュール, 行, 種類, 内容)
     new_text = {}
     changes = {}
+    rewrites_by_module = collections.defaultdict(list)
+    if args.rewrites:
+        with open(args.rewrites, encoding="utf-8") as fh:
+            next(fh)
+            for l in fh:
+                m, a, ib, ie, x, rep, _ = l.rstrip("\n").split("\t")
+                rewrites_by_module[m].append((int(a), int(ib), int(ie), x, rep))
+    n_rewrites = collections.Counter()
     for m in kept_modules:
         lines = text[m]
         if m in fixed:
@@ -514,6 +524,23 @@ def main():
                 for i in range(s, e):
                     replace[i] = new_lines[i - s]
                 edits.append((m, s + 1, "attribute から名前を外す", " ".join(removed)))
+        # 段階 1b: まとめた定理への参照を、残す定理への参照に書き換える(同じ行は後ろから置き換える)
+        attr_lines = set(replace)
+        for (a, ib, ie, x, rep) in sorted(rewrites_by_module.get(m, ()), key=lambda t: (t[0], -t[1])):
+            if a in dl:
+                n_rewrites["消す行の中(書き換えない)"] += 1
+                continue
+            if a in attr_lines:
+                n_rewrites["attribute の行と重なる(書き換えない)"] += 1
+                continue
+            cur = replace.get(a, lines[a])
+            sl = lines[a][ib:ie]
+            xs = unpriv(x)
+            if not (sl == xs or xs.endswith("." + sl) or sl == "_root_." + xs):
+                n_rewrites["字面が合わない(書き換えない)"] += 1
+                continue
+            replace[a] = cur[:ib] + rep + cur[ie:]
+            n_rewrites["書き換えた"] += 1
         # 名前空間が見えるか。Lean は open・export の時点で名前空間があるかを確かめるので、このモジュールの
         # namespace 命令と残す宣言は、その位置より前にあるものだけを数える(self_ns に順に足す)
         vm = clos(m)
@@ -799,6 +826,7 @@ def main():
         "protected_beyond_kept_list": collections.Counter(r for _, _, r in protected),
         "edits": collections.Counter(k for _, _, k, _ in edits),
         "changed_modules": sum(1 for v in changes.values() if v[3]),
+        "rewrites": dict(n_rewrites),
     }
     print(json.dumps(report, ensure_ascii=False, indent=1, default=dict), flush=True)
     if args.dry_run:

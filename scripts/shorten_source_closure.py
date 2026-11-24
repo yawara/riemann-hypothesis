@@ -249,9 +249,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--analysis", default=os.path.join(RUN_ROOT, "shorten", "latest-analysis"))
     ap.add_argument("--extra-live", default=None)
+    ap.add_argument("--redirect", default=None,
+                    help="段階 1b: 参照を付け替える表(shorten_plan1b.py の redirect.tsv)。X への参照を C への参照とみなす")
     ap.add_argument("--out", default=None)
     ap.add_argument("--jobs", type=int, default=24)
     args = ap.parse_args()
+    redirect = {}
+    if args.redirect:
+        with open(args.redirect, encoding="utf-8") as fh:
+            next(fh)
+            for l in fh:
+                xm, x, cm, c = l.rstrip("\n").split("\t")
+                redirect[(xm, x)] = (cm, c)
     ana = os.path.realpath(args.analysis)
     out = args.out or os.path.join(ana, "source-closure")
     os.makedirs(out, exist_ok=True)
@@ -305,6 +314,7 @@ def main():
                     unresolved += 1
                     unresolved_list[(m, n)] += 1
                     continue
+                d = redirect.get(d, d)
                 if src is None:
                     module_refs[mod].add(d)
                 else:
@@ -334,7 +344,7 @@ def main():
     def refs_of(k, path=()):
         if k in full_refs:
             return full_refs[k]
-        r = {d for _, d in macros[k]["refs"]}
+        r = {redirect.get(d, d) for _, d in macros[k]["refs"]}
         for k2 in inner_uses.get(k, ()):
             if k2 not in path and k2 != k:
                 r |= refs_of(k2, path + (k,))

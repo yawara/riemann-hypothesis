@@ -74,6 +74,33 @@ partial def stripLams : Expr → Expr
   | .mdata _ b => stripLams b
   | e => e
 
+/-- メタデータを消す -/
+partial def stripMData (e : Expr) : Expr :=
+  e.replace fun
+    | .mdata _ b => some (stripMData b)
+    | _ => none
+
+/-- 型の先頭の ∀ の並び(→ を含む)の、束縛の種類(d 明示・i 暗黙・s 強い暗黙・I instance)と束縛変数の名前 -/
+partial def binderSig : Expr → String × String
+  | .forallE n _ b bi =>
+    let c := match bi with
+      | .default => "d"
+      | .implicit => "i"
+      | .strictImplicit => "s"
+      | .instImplicit => "I"
+    let (is, ns) := binderSig b
+    (c ++ is, n.toString ++ " " ++ ns)
+  | .mdata _ b => binderSig b
+  | _ => ("", "")
+
+/-- 段階 1b 用の厳しい比較の鍵: 宇宙変数を位置で付け替えた型(メタデータだけ消す。`Expr` の `==` は束縛変数名と
+    束縛の種類を無視するので、束縛の種類の並びと宇宙変数の数を別に持つ)。この鍵が同じ定理どうしは、ソース上の参照を
+    付け替えても同じように引数が渡る(名前つき引数を除く) -/
+def strictKey (lps : List Name) (ty : Expr) : Expr × String :=
+  let canon := (List.range lps.length).map fun i => Level.param (Name.mkSimple s!"u_{i}")
+  let t := stripMData (ty.instantiateLevelParams lps canon)
+  (t, s!"{(binderSig t).1}|{lps.length}")
+
 /-- 値が「ラムダの列のあとに定数を適用しただけ」なら (定数, 引数の数, 束縛変数でない引数の数) -/
 def aliasTarget? (v : Expr) : Option (Name × Nat × Nat) :=
   let body := stripLams v
@@ -164,6 +191,15 @@ def main (args : List String) : IO UInt32 := do
   unless missingRoots.isEmpty do
     log s!"{missingRoots.size} roots are not constants (skipped), e.g. {missingRoots.extract 0 3}"
   roots := roots.filter fun r => (env.find? r).isSome
+  -- 段階 1b: RHSHRINK_REDIRECT=<ファイル>(1 行に「消す定理\t残す定理」)があれば、辿るときに参照を付け替える
+  -- (消す定理は、起点でない限り辿られず dead になる)
+  let mut redir : Std.HashMap Name Name := {}
+  if let some f ← IO.getEnv "RHSHRINK_REDIRECT" then
+    for l in (← IO.FS.lines ⟨f⟩) do
+      match l.splitOn "\t" with
+      | [a, b] => redir := redir.insert (parseName a) (parseName b)
+      | _ => pure ()
+    log s!"redirects: {redir.size}"
   let mut seen : Std.HashSet Name := {}
   let mut ext : Std.HashSet Name := {}
   let mut stack : Array Name := roots
@@ -179,7 +215,8 @@ def main (args : List String) : IO UInt32 := do
     match env.find? n with
     | none => noInfo := noInfo.push n
     | some ci =>
-      for u in edges ci do
+      for u0 in edges ci do
+        let u := redir.getD u0 u0
         unless seen.contains u || ext.contains u do
           stack := stack.push u
     if seen.size % 250000 == 0 then log s!"reached {seen.size} project constants (stack {stack.size})"
@@ -287,11 +324,18 @@ def main (args : List String) : IO UInt32 := do
   let mut nAliasDef := 0
   let mut nDeclThm := 0
   let mut nDeclDef := 0
+  -- 段階 1b 用: RHSHRINK_STRICT_DUPS があれば、厳しい鍵(strictKey)で定理の組も作る(RHSHRINK_SKIP_DUPS と併用できる)
+  let strictDups := (← IO.getEnv "RHSHRINK_STRICT_DUPS").isSome
+  let mut strictIdx : Std.HashMap (Expr × String) (Array Name) := {}
   for n in seen do
-    if skipDups then break
+    if skipDups && !strictDups then break
     unless declLoc.contains n do continue
     match env.find? n with
     | some (.thmInfo v) =>
+      if strictDups then
+        let sk := strictKey v.levelParams v.type
+        strictIdx := strictIdx.insert sk ((strictIdx.getD sk #[]).push n)
+      if skipDups then continue
       nDeclThm := nDeclThm + 1
       let k := norm v.type
       thmIdx := thmIdx.insert k ((thmIdx.getD k #[]).push n)
@@ -299,6 +343,7 @@ def main (args : List String) : IO UInt32 := do
         aliasH.putStrLn s!"{n}\ttheorem\t{c}\t{isProjConst c}\t{na}\t{nb}"
         if nb == 0 then nAliasThm := nAliasThm + 1
     | some (.defnInfo v) =>
+      if skipDups then continue
       nDeclDef := nDeclDef + 1
       let k := (norm v.type, norm v.value)
       defIdx := defIdx.insert k ((defIdx.getD k #[]).push n)
@@ -313,6 +358,22 @@ def main (args : List String) : IO UInt32 := do
     | none => match modOf? n with
       | some i => s!"{names[i]!}\t-\t-"
       | none => "?\t-\t-"
+  if strictDups then
+    let sdupH ← IO.FS.Handle.mk (out / "duplicates-strict.tsv") .write
+    sdupH.putStrLn "group\tsize\tdecl\tmodule\tstart_line\tend_line\tprivate\tbinders\tbinder_names"
+    let mut sg := 0
+    let mut sExtra := 0
+    for ((_, sig), ns) in strictIdx do
+      if ns.size ≥ 2 then
+        sg := sg + 1
+        sExtra := sExtra + (ns.size - 1)
+        for n in ns do
+          let bn := match env.find? n with
+            | some ci => (binderSig (stripMData ci.type)).2
+            | none => ""
+          sdupH.putStrLn s!"{sg}\t{ns.size}\t{n}\t{loc n}\t{isPrivateName n}\t{sig}\t{bn}"
+    sdupH.flush
+    log s!"strict theorem duplicate groups: {sg} (+{sExtra} copies)"
   let dupH ← IO.FS.Handle.mk (out / "duplicates.tsv") .write
   dupH.putStrLn "group\tkind\tsize\tdecl\tmodule\tstart_line\tend_line"
   let mut g := 0

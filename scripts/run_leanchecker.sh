@@ -33,6 +33,8 @@
 # 使い方: JOBS=100 scripts/run_leanchecker.sh
 #         SCOPE=deps JOBS=100 scripts/run_leanchecker.sh
 #         PREV_RUNS=/var/tmp/.../leanchecker-project-XXXX VALIDATE=0 scripts/run_leanchecker.sh
+#   短縮版を検査するときは RH_LEAN_PROJECT=<短縮版の Lake プロジェクト> RH_RUN_ROOT=<出力の置き場所> VALIDATE=0 を付ける
+#   (検証の記録 latest-leanchecker-* を上書きしないよう、出力の置き場所を分ける)。
 set -uo pipefail
 export LC_ALL=C
 
@@ -53,7 +55,7 @@ ln -sfn "$OUT" "$RUN_ROOT/latest-leanchecker-$SCOPE"
 # rhcheck をビルドする(数秒)
 ( cd "$DRIVER_DIR" && lake build ) > "$OUT/driver-build.log" 2>&1 || { echo "rhcheck のビルドに失敗"; cat "$OUT/driver-build.log"; exit 1; }
 
-cd "$ROOT/lean"
+cd "${RH_LEAN_PROJECT:-$ROOT/lean}"
 # 検索パス: lake env の LEAN_PATH を実パスにし、プロジェクトを先頭に置く(存在しない場所は除く)
 LP="$(lake env printenv LEAN_PATH)"
 LPR="$( { echo "$LP" | tr ':' '\n' | grep -v '/packages/'; echo "$LP" | tr ':' '\n' | grep '/packages/'; } \

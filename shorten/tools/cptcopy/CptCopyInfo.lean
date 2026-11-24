@@ -11,9 +11,10 @@ open Lean Formalism.FourierDecayAlt.P.CptCopy
 写しはカーネルの項の外で作られるので、写しが使われていても、写しの元の宣言は「使われていない」と
 判定される。元を消すと写しが作られなくなる(段階 1a の 2 回目の全体ビルドで `…FinalS` が失敗した原因)。
 
-配布物のビルド結果を読むだけ。根ごとに、辿った宣言と写しの名前・モジュールを出す。
+配布物のビルド結果を読むだけ。根ごとに、写しの元と写しの名前・モジュール、辿った宣言を出す。
 
     COPY  根  元  写し  写しのモジュール  元のモジュール
+    SEEN  根  辿った宣言  モジュール
 
 使い方(配布物のビルド結果を LEAN_PATH に入れて):
     lean +leanprover/lean4:v4.33.1 --run shorten/tools/cptcopy/CptCopyInfo.lean
@@ -31,7 +32,10 @@ def main : IO Unit := do
   let (tainted, order) := toCopy env
   IO.println s!"INFO\ttainted={tainted.toList.length}\torder={order.size}"
   for r in roots do
-    let (_, t, o) := go env r ({}, {}, #[])
+    let (s, t, o) := go env r ({}, {}, #[])
     for n in o do
       let n' := mapName t n
       IO.println s!"COPY\t{r}\t{n}\t{n'}\t{modOf env n'}\t{modOf env n}"
+    -- 根から辿った宣言すべて(消したり、中の参照を書き換えたりすると、写しの作られ方が変わる)
+    for n in s.toList do
+      IO.println s!"SEEN\t{r}\t{n}\t{modOf env n}"
