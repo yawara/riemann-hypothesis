@@ -15,7 +15,7 @@
 - コミットの末尾の共著者表記は、そのセッションの指示に従う。`scripts/publish_pages.sh`・`scripts/observe.py`・`scripts/status_updater.sh` にも同じ表記が書き込んであるので合わせて直す(動いている `status_updater.sh` は、別ファイルに書いてから `mv` で差し替える)。
 - 好みの詳細は Claude のメモリ(`~/.claude/projects/-home-ywr-riemann-hypothesis/memory/`)にもある。
 
-## いまの状況(2026-11-22 23:45 JST)
+## いまの状況(2026-11-24 17:10 JST)
 
 **検証は終わった**(パイプラインは 22:41 JST に `result=done`)。結果は精査してレポート(7.7〜7.9 節、表 1、1 節、9 節)と README に反映した。
 **最終判定は、ユーザーが文言を承認して(2026-11-22)、巻頭の判定欄に掲げた**: 印「通過」、見出し「予定したすべての検査を通過しました」、
@@ -35,12 +35,12 @@ Mathlib の定義が意図どおりである限り、Mathlib の RiemannHypothes
 | 定点観測 | 終了。#44(23:22 JST、段階 `finished`)で observer が自動で終わった(監視対象のプロセスがすべて終了したため)。進捗の自動更新も `finished` を書いて終わった |
 | 短縮の下調べ(`rhshrink`) | 完了(18:37)。使われていない宣言は約 330 万行(19.0%)、重複した定理の写し 99,393 個。結果は `shorten/results/01-analysis/` と `shorten/README.md` |
 | 短縮の段階 1a | 短縮版(148,924 モジュール、**14,159,480 行、−18.5%**)を `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a` に作成。1 回目の全体ビルド(20:26〜23:16、26,775 モジュールが通過)の失敗 30 件は原因 5 つで、すべて規則に取り込んで書き出し直した(`shorten/results/02-stage1a/full-build1-failures.tsv`、`shorten/README.md`) |
-| 短縮の段階 1a の全体ビルド | 23:38 JST に並列 64(nice 10)で続きから再開(ログは `stage-1a/builds/build-20261122T143844Z/`、PID は `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a-build.pid`)。直前の並列 32 の回(23:21〜23:38)は失敗 0。空きメモリが 80 GiB を切ると `scripts/shorten_memguard.sh` が止める(記録は `/var/tmp/riemann-hypothesis-ywr/shorten/memguard.log`) |
+| 短縮の段階 1a の全体ビルド | 2 回目(11/22 23:38〜11/23 09:28、並列 64、9 時間 50 分)は `✖` 8 行で、原因 4 つ(`shorten/results/02-stage1a/full-build2-failures.tsv`、`shorten/README.md`)。11/24 に 4 つとも規則に取り込み、閉包 6(`$RUN_ROOT/shorten/analysis-closure6-20261124T074447Z/`。1 回で閉じた)で書き出し直した(**148,931 モジュール、14,160,262 行、−18.5%**。変わったのは 31 ファイル)。**11/24 17:04 JST から続きのビルド中**(並列 64、ログは `stage-1a/builds/build-20261124T080440Z/`)。作り直すのは変わった 31 モジュールとその下流の 16,768 個で、18 時半ごろに終わる見込み |
 
 ## 動いている常駐プロセス
 
 検証の常駐プロセス(検査パイプライン、Mathlib 再ビルドの連結、定点観測、進捗の自動更新)は、すべて役目を終えて止まっている。
-いま動いているのは短縮版のビルドだけ。
+いま動いているのは短縮版のビルド(2026-11-24 17:04 JST に起動)とメモリの見張りだけ。
 
 | 名前 | PID ファイル | 中身 |
 |---|---|---|
@@ -66,24 +66,36 @@ mathlib で置き換えられるものにトライ。それが終わったら数
   2. 閉包: `RH_ANALYSIS_TAG=closureN RHSHRINK_SKIP_DUPS=1 scripts/shorten_analyze.sh Main <主定理 5 件> @<起点の一覧>` と
      `scripts/shorten_source_closure.py --analysis <その出力>` を、足す宣言が 0 になるまで交互に回す(起点 = 守る宣言 + これまでに足した宣言)
   3. `scripts/shorten_stage1a.py --kept <最後の kept-decls.tsv> --decls <decls.tsv.zst> --protected <protected.tsv> --module-refs <最後の module-refs.tsv>` で短縮版を書き出す
-     (最後の閉包は `$RUN_ROOT/shorten/analysis-closure5-20261122T135849Z/`。書き出しは約 4 分。ビルド中に書き出さない: src/ を作り直すので、先にビルドを止める)
+     (最後の閉包は `$RUN_ROOT/shorten/analysis-closure6-20261124T074447Z/`。書き出しは約 4 分。ビルド中に書き出さない: src/ を作り直すので、先にビルドを止める)
   4. `JOBS=64 setsid scripts/shorten_build_stage.sh /var/tmp/riemann-hypothesis-ywr/shorten/stage-1a [対象 …]`(依存とビルド結果は reflink で写し、変わらないモジュールは再利用される)。
      起動したら `setsid scripts/shorten_memguard.sh <ビルドの PID> 80 30` も起動し、PID を `stage-1a-build.pid` に書く
+     (`setsid cmd &` の `$!` は setsid が別に作ったプロセスを指さないことがある。PID は `ps -eo pid,args` で `bash scripts/shorten_build_stage.sh` を探して取る)
+  - 閉包 6 の起点は `$RUN_ROOT/shorten/closure6-roots.txt`(閉包 5 の起点 + `cpt_copy_thms` の根 1 つ)。読み込み順を保つモジュールは
+    `shorten/keep-import-order.txt`(書き出しの既定の入力)。
+  - 書き出しは、先に別の場所(`--out /var/tmp/riemann-hypothesis-ywr/shorten/writer-test-…`)に出して `diff -rq` で今の短縮版と比べ、
+    変わるファイルとその下流の数を確かめてから、`rsync -a --checksum --delete <試し>/src/ <stage>/src/` で反映するとよい
 - これまでにはまった点(段階 1a): カーネルの項に現れない使われ方がある(`simp [X]` の使われなかった X、強制変換の instance、rfl の simp 補題、notation の構文定数)。
   `… in` の前置きは空行を挟んで宣言に掛かることがある。消したモジュールの import をそのまま引き継ぐと import が膨らむ(推移簡約する)。
   Lean 4.33 は同じ名前・同じ型の定理の重複 import を許す(133 組ある)ので、宣言は (モジュール, 名前) で区別する。
   前置きには `attribute […] … in`・`unseal … in`・`universe … in` もある。`open` は字下げした続きの行を持つことがあり、
   Lean は `open` の時点で名前空間があるかを確かめる(同じファイルの後ろで初めて現れる名前空間は見えない)。`export X (…)` も名前を外す対象。
   マクロの本文の名前は定義の位置で解決され、.ilean にも証明項にも跡が残らない(名前の末尾だけで照合すると `e`・`h` などが大量に当たる)。
-  Lake 4.33 は import 先の `.olean` の中身のハッシュで作り直すかを決める(ソースの行がずれると `.olean` が変わり、下流も作り直しになる)。
+  Lake 4.33 は import 先を推移的に辿ったすべての `.olean` の中身のハッシュで作り直すかを決める(モジュール方式でないファイルの
+  `legacyTransTrace`)。`.olean` が変わったモジュールの下流は、直接 import していなくてもすべて作り直しになる(出力が同じでも止まらない)。
+  `open private 名前 … from M`(Batteries)は名前を M の非公開の定数に末尾で照合する。配布物の自作コマンド `cpt_copy_thms` は
+  カーネルの項の外で写しを作る(写しの元を消すと写しができない)。import の推移簡約は読み込み順を変え、同じ優先度の instance の試す順が変わる
+  (読み込み順のせいで失敗したモジュールだけ `shorten/keep-import-order.txt` に挙げる。全体に当てると 75% の作り直しになる)。
 
 ### 短縮で次にやること(引き継ぎ)
 
-1. 段階 1a の全体ビルドを見守る(並列 64 で 23:38 JST に再開)。失敗が出たら、ログ(`grep '^✖'` と、その直後の `error:` 行)から原因を調べて
-   `scripts/shorten_stage1a.py`(または `shorten_protect.py`・閉包)に取り込み、ビルドを止めてから段階 1a の手順 3 で書き出し直し、手順 4 で続きからビルドする
-   (Lake は済んだモジュールを再利用する。中身が同じファイルは再ビルドされない)。
-2. ビルドが通ったら、検証と同じ検査(`#print axioms`、主張の一致、カーネル再検査)を短縮版にかけ、`shorten/README.md` に結果を書く。
-3. 段階 1b(重複の統合)。下調べの `duplicates.tsv`・`aliases.tsv`(`shorten/results/01-analysis/`)が材料。
+1. 11/24 17:04 から走らせている続きのビルドを見守る。失敗が出たら、ログ(`grep '^✖'` と直後の `error:` 行)から原因を調べ、規則に取り込んで
+   書き出し直す(上の手順 3〜4。試しの場所に出して差を確かめてから反映)。2 回目の全体ビルドの失敗 4 つ(fixed の import、`open private`、
+   `cpt_copy_thms`、読み込み順)は 11/24 に取り込み済み(`shorten/README.md`)。
+2. ビルドが通ったら、検証と同じ検査(`#print axioms`、主張の一致、カーネル再検査)を短縮版にかけ、`shorten/README.md` の表と結果を直し、
+   `shorten/results/02-stage1a/` の記録(report.json・closure-iterations.tsv・closure-final.json など)を閉包 6 の版に差し替える。
+3. 段階 1b(重複の統合)。下調べの `duplicates.tsv`・`aliases.tsv`(`shorten/results/01-analysis/`)が材料。見込みは `shorten/README.md` の
+   「次の短縮の道」(本体どうしの重複 約 39 万行、`…Statement` の包み 435,331 行、守る宣言の見直し 最大約 23 万行)。作り直しは下流すべてに及ぶので、
+   一部の組で試してから、残りを 1 回でまとめて書き換える。
 
 ## 見回り(ユーザーの依頼「50 おきには定点観測して」)
 

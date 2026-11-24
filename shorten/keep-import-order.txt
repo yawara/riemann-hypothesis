@@ -1,0 +1,8 @@
+# 段階 1a の書き出し(scripts/shorten_stage1a.py --keep-import-order)で、import の読み込み順を保つモジュール。
+# 推移簡約は読み込み順(深さ優先の帰りがけ順)を変え、同じ優先度の instance を試す順が変わる。
+# 全体のビルドで、読み込み順のせいでエラボレーションが変わると確かめたモジュールだけを挙げる。
+
+# 2026-11-24: 39 行目の `hpo.measurableSet` で OpensMeasurableSpace (GL …) が見つからなくなった
+# (行列・GL の MeasurableSpace の instance が配布物に複数ある)。消したモジュールの import を順に展開した
+# import なら通ることを、短縮版の環境での単体コンパイルで確かめた。
+Development.AutomorphicArithmetic.ThetaCorrespondence.ThetaPairLifts.ThirdPlaceSeries.LocLevel

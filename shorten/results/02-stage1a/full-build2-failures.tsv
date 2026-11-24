@@ -1,0 +1,9 @@
+module	first_error	cause
+Supplements.Kernels.MainTheoremsAll	bad import 'Supplements.Kernels.MainTheoremsCritical'(と `…SmallClassNumbers.CorGKOf`)	Main が直接 import するモジュールは本文を写すだけで、import もつなぎ直していなかった(消した 2 モジュールを import したまま)
+Supplements.Kernels.MainTheoremsCritical	no such file or directory	(上の続き)消したモジュールを import されたまま探された
+Development.AutomorphicArithmetic.AutomorphicVarieties.SmallClassNumbers.CorGKOf	no such file or directory	(上の続き)消したモジュールを import されたまま探された
+job computation	Supplements: some modules have bad imports	(上の続き)
+Main	bad import 'Supplements.Kernels.MainTheoremsAll'	(上の続き)
+Development.AutomorphicArithmetic.AutomorphicVarieties.ModularityArgument.LinkedUnramifiedChains.LogarithmicNormBounds.LinkedUnitaryEndsOfInputs	27:0 'UpperTheory.V.J.oe_modIn' not found in the provided declarations	`open private 名前 … from M`(Batteries)から、消した非公開の宣言の名前を外していなかった
+CompanionTheory.AutomorphicTheory.CompactTopologicalForms.FinalS	18:2 Unknown identifier `block_growth_bound_of_compact_coefCpt`	自作コマンド cpt_copy_thms がカーネルの項の外で作る写しの元(根 `…CutBP.block_growth_bound_of_compact_coef`)を消し、使われている写しが作られなくなった(cpt-copy.tsv)
+Development.AutomorphicArithmetic.ThetaCorrespondence.ThetaPairLifts.ThirdPlaceSeries.LocLevel	39:15 failed to synthesize OpensMeasurableSpace (GL …)	import の推移簡約で読み込み順が変わり、同じ優先度の instance(行列・GL の MeasurableSpace が配布物に複数ある)を試す順が変わった。消したモジュールの import を順に展開した import なら通ることを単体コンパイルで確かめた

@@ -9,16 +9,19 @@
 # ビルド設定に混ぜないため)。配布物のビルドと同じスレッドスタック設定を使う。
 #
 # 使い方: scripts/run_checks.sh
+#   短縮版に同じ検査をかけるときは、RH_LEAN_PROJECT=<短縮版の Lake プロジェクト> RH_RESULTS_DIR=<結果の置き場所>
+#   RH_CHECK_DIR=<作業場所> を付ける(既定は配布物の lean/ と verification/results/)。
 set -uo pipefail
 export LC_ALL=C.UTF-8
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CHK="$ROOT/verification/lean-checks"
-RES="$ROOT/verification/results"
+RES="${RH_RESULTS_DIR:-$ROOT/verification/results}"
 TMP="${RH_CHECK_DIR:-/var/tmp/riemann-hypothesis-ywr/checks}"
+PROJ="${RH_LEAN_PROJECT:-$ROOT/lean}"
 mkdir -p "$RES" "$TMP"
 
-cd "$ROOT/lean"
+cd "$PROJ"
 BASE_PATH="$(lake env printenv LEAN_PATH)"
 TSTACK="--tstack=4000000"
 

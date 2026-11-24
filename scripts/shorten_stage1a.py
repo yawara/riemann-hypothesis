@@ -24,10 +24,16 @@
   * `example` と `#check` などの命令は消す(環境に何も残さない)。範囲は、次に行頭から始まる行の手前まで。
   * attribute 命令と `open X (名前 …)`・`export X (名前 …)` からは、消す宣言を指す名前を外す(位置は .ilean の参照で
     特定する。字下げで続く行も含む)。名前が残らなければ命令ごと消す(`attribute […] … in` の前置きも)。
-  * モジュール: 残る宣言が無く、次のどれも無ければ丸ごと消す。Main・Statements と、Main が直接 import するモジュールは残す。
+  * モジュール: 残る宣言が無く、次のどれも無ければ丸ごと消す。Main・Statements と、Main が直接 import するモジュールは残す
+    (本文はそのまま写すが、import は下の規則でつなぎ直す)。
       - 宣言の外の大域的なメタ命令(run_cmd・macro_rules・initialize・export など)
       - local でない attribute 命令で、消さない定数(配布物の外の定数を含む)を指すもの
   * 消したモジュールを import していたモジュールは、その import を(推移的に)引き継ぎ、推移簡約する(閉包は変わらない)。
+    ただし --keep-import-order に挙げたモジュールは、読み込み順(深さ優先の帰りがけ順)を変えないよう、前にある import の
+    閉包に入るものだけを外す。推移簡約は読み込み順を変え、同じ優先度の instance を試す順が変わるため
+    (読み込み順のせいでエラボレーションが変わると確かめたモジュールだけを挙げる。全体に当てると import が約 5.8 万行増える)。
+  * `open private 名前 … from M`(Batteries): 名前は M の非公開の定数に末尾で照合される。消す非公開の宣言にしか
+    当たらない名前を外し、名前が残らないか M ごと消えるなら命令ごと消す。
   * open・export: その位置から見えなくなる配布物の名前空間を外す(import の閉包の中に、その名前空間の宣言や
     namespace 命令が残っているか、同じモジュールのそれより前に namespace 命令か残す宣言があるかで判定する。
     字下げで続く行も含む)。外すと空になる行は消し、名前空間が 1 つも残らなければ命令ごと消す。
@@ -187,6 +193,8 @@ def main():
     ap.add_argument("--kept", required=True)
     ap.add_argument("--protected", default=None)
     ap.add_argument("--module-refs", required=True)
+    ap.add_argument("--keep-import-order", default=os.path.join(ROOT, "shorten", "keep-import-order.txt"),
+                    help="import の読み込み順を保つモジュールの一覧(1 行 1 モジュール、# から行末は注釈)")
     ap.add_argument("--out", default="/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a")
     ap.add_argument("--jobs", type=int, default=24)
     ap.add_argument("--dry-run", action="store_true")
@@ -250,6 +258,12 @@ def main():
                 k = True
             keep_decl[(m, name)] = k
     names_by_module = {m: {n for n, _, _ in v} for m, v in decls.items()}
+    # 非公開の宣言(open private の照合用): モジュール -> [(private の接頭辞を外した名前, 残すか)]
+    priv_decls = collections.defaultdict(list)
+    for m in modules:
+        for name, _, _ in decls.get(m, []):
+            if name.startswith("_private."):
+                priv_decls[m].append((unpriv(name), keep_decl[(m, name)]))
 
     def owner(m, n):
         names = names_by_module.get(m)
@@ -360,6 +374,11 @@ def main():
 
     # ---- 4. import のつなぎ直しと推移簡約
     orig_imports = {m: [mm.group(1) for l in text[m] if (mm := IMPORT_RE.match(l))] for m in modules}
+    keep_order = set()
+    if args.keep_import_order and os.path.exists(args.keep_import_order):
+        with open(args.keep_import_order, encoding="utf-8") as fh:
+            keep_order = {x for l in fh if (x := l.split("#", 1)[0].strip())}
+    print(f"keep import order: {len(keep_order)} modules", flush=True)
     memo = {}
 
     def expand(m):
@@ -393,6 +412,17 @@ def main():
         ex = expand(m)
         if ex == orig_imports[m]:
             new_imports[m] = ex
+            continue
+        if m in keep_order:
+            # 読み込み順(深さ優先の帰りがけ順)を変えない簡約: 前にある import の閉包に入るものだけ外す
+            new, seen = [], 0
+            for y in ex:
+                if y in idx:
+                    if (seen >> idx[y]) & 1:
+                        continue
+                    seen |= (1 << idx[y]) | clos(y)
+                new.append(y)
+            new_imports[m] = new
             continue
         u = 0
         for y in ex:
@@ -444,8 +474,17 @@ def main():
     for m in kept_modules:
         lines = text[m]
         if m in fixed:
-            new_text[m] = lines
-            changes[m] = (0, 0, False, False)
+            # 本文はそのまま写す。import だけは、消したモジュールの import を引き継いだものに差し替える
+            out, imports_done = [], False
+            for l in lines:
+                if IMPORT_RE.match(l):
+                    if not imports_done:
+                        out.extend(f"import {x}" for x in new_imports[m])
+                        imports_done = True
+                    continue
+                out.append(l)
+            new_text[m] = out
+            changes[m] = (0, 0, new_imports[m] != orig_imports[m], out != lines)
             continue
         dl = set(deleted_lines[m])
         rbl = module_refs_by_line(m)
@@ -582,6 +621,43 @@ def main():
             if om:
                 jm = OPEN_RE.match(joined)
                 body = jm.group(2)
+                if body.startswith("private ") and not jm.group(3):
+                    # `open private 名前 … from M …`(Batteries): 名前は M の非公開の定数の名前に末尾で照合される
+                    toks = joined.split()
+                    fpos = toks.index("from") if "from" in toks else -1
+                    pnames = toks[2:fpos] if fpos > 0 else []
+                    pmods = toks[fpos + 1:] if fpos > 0 else []
+                    if pnames and pmods and "in" not in pnames and all(is_project_module(x) for x in pmods):
+                        skip_to = j
+                        if any(x not in idx for x in pmods):
+                            edits.append((m, i + 1, "open private を削除(元のモジュールが消える)", " ".join(pnames)))
+                            n_open_fix += 1
+                            del_since_text = True
+                            continue
+                        gone = []
+                        for nm in pnames:
+                            hits = [k for x in pmods for (u, k) in priv_decls.get(x, ())
+                                    if u == nm or u.endswith("." + nm)]
+                            if hits and not any(hits):
+                                gone.append(nm)
+                        if not gone:
+                            out.extend(seg)
+                            continue
+                        n_open_fix += 1
+                        if len(gone) == len(pnames):
+                            edits.append((m, i + 1, "open private を削除(名前が残らない)", " ".join(gone)))
+                            del_since_text = True
+                            continue
+                        edits.append((m, i + 1, "open private から名前を外す", " ".join(gone)))
+                        gs = set(gone)
+                        for k, x in enumerate(seg):
+                            ts = [t for t in x.split() if t not in gs]
+                            if k > 0 and not ts:
+                                continue
+                            out.append(re.match(r"^\s*", x).group(0) + " ".join(ts))
+                        continue
+                    out.append(l)
+                    continue
                 if ((not OPEN_SIMPLE_RE.match(body) and not OPEN_LIST_RE.match(body))
                         or KEYWORDS & set(body.split("(")[0].split())):
                     out.append(l)  # 名前空間と名前の並び以外(`open X in theorem …` を 1 行に書いたものなど)は触らない
