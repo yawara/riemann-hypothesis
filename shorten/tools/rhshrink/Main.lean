@@ -443,6 +443,22 @@ def main (args : List String) : IO UInt32 := do
   modsH.flush
   log s!"declarations: {tot.getD "decls" 0} ({tot.getD "live_decls" 0} live, {tot.getD "aux_decls" 0} aux, {tot.getD "dead_decls" 0} dead)"
 
+  -- 守る宣言の見直し用: RHSHRINK_DECL_INFO があれば、宣言ごとに `@[defeq]`・`@[backward_defeq]` の有無
+  -- (dsimp・simp が証明項に跡を残さずに使う rfl 補題かどうか)と、型の結論の頭の定数(instance ならその class)を書き出す
+  if (← IO.getEnv "RHSHRINK_DECL_INFO").isSome then
+    let h ← IO.FS.Handle.mk (out / "decl-info.tsv") .write
+    h.putStrLn "decl\tkind\tdefeq\tbackward_defeq\tconcl_head"
+    for (n, _) in declLoc do
+      let some ci := env.find? n | continue
+      let head := match ci.type.getForallBody.getAppFn with
+        | .const c _ => c.toString
+        | _ => "-"
+      let df := if defeqAttr.hasTag env n then 1 else 0
+      let bdf := if backwardDefeqAttr.hasTag env n then 1 else 0
+      h.putStrLn s!"{n}\t{kindOf ci}\t{df}\t{bdf}\t{head}"
+    h.flush
+    log "decl info written"
+
   -- 段階 2 の下調べ: RHSHRINK_EDGES があれば、到達した宣言どうしの依存の辺を書き出す(支配木の計算用)。
   -- 補助定数は持ち主の宣言にまとめる。定理は主張(型)と証明(値と補助定数)を分け、辺の種類を
   -- T = 定理の主張から、V = 定理の証明から、D = 定理でない宣言から、とする(付け替え表があれば付け替えた先へ)。

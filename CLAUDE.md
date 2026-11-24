@@ -15,7 +15,7 @@
 - コミットの末尾の共著者表記は、そのセッションの指示に従う。`scripts/publish_pages.sh`・`scripts/observe.py`・`scripts/status_updater.sh` にも同じ表記が書き込んであるので合わせて直す(動いている `status_updater.sh` は、別ファイルに書いてから `mv` で差し替える)。
 - 好みの詳細は Claude のメモリ(`~/.claude/projects/-home-ywr-riemann-hypothesis/memory/`)にもある。
 
-## いまの状況(2026-11-25 00:30 JST)
+## いまの状況(2026-11-25 00:20 JST。レート制限の前に書いた引き継ぎ)
 
 **検証は終わった**(パイプラインは 22:41 JST に `result=done`)。結果は精査してレポート(7.7〜7.9 節、表 1、1 節、9 節)と README に反映した。
 **最終判定は、ユーザーが文言を承認して(2026-11-22)、巻頭の判定欄に掲げた**: 印「通過」、見出し「予定したすべての検査を通過しました」、
@@ -47,9 +47,15 @@ Mathlib の定義が意図どおりである限り、Mathlib の RiemannHypothes
 |---|---|---|
 | 短縮版のビルド | `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b-build.pid` | `JOBS=64 scripts/shorten_build_stage.sh /var/tmp/riemann-hypothesis-ywr/shorten/stage-1b`(`setsid` で切り離し。段階 1a のビルドは終わっている) |
 | メモリの見張り | (なし。`ps` で `shorten_memguard.sh` を探す) | `scripts/shorten_memguard.sh <ビルドの PID> 80 30` |
+| 段階 1a のカーネル再検査 | (なし。`ps` で `run_leanchecker.sh` を探す) | 11/24 19:33 起動。00:20 で 2,560/5,958 組・64,000 モジュールが通過、失敗 0(ビルドと CPU を分け合うので遅い。朝 7 時ごろの見込み) |
+| 使われない引数の見積もり(段階 2 の下調べ) | `$RUN_ROOT/shorten/analysis-dae1b.pid` | `RHSHRINK_DAE=1` の rhshrink(`$RUN_ROOT/shorten/analysis-dae1b-20261124T130655Z/`)。固定点の反復が 1 回 1 時間(1 回目で残る位置 1,507,211 → 508,992)。終わったら `python3 -I shorten/tools/domtree/dae_report.py $RUN_ROOT/shorten/analysis-dom1b-20261124T121043Z/domtree.tsv <その出力>/dae-dropped-decls.tsv <その出力>/dae-dead-args.tsv <その出力>/report` で、どの定理の使われない仮定が何行を抱えているかをまとめる |
+| 宣言の属性の書き出し(守る宣言の見直し用) | `$RUN_ROOT/shorten/analysis-declinfo.pid` | `RHSHRINK_DECL_INFO=1` の rhshrink(別に作った `/var/tmp/riemann-hypothesis-ywr/shorten/rhshrink-dev` の実行ファイル。出力 `$RUN_ROOT/shorten/analysis-declinfo-20261124T151010Z/decl-info.tsv`) |
+| import を足してまとめる見積もり(厳しい版) | (なし) | `scripts/shorten_estimate_import_merge.py` と同じもの。出力 `$RUN_ROOT/shorten/refined-import-merge.out` |
 
 ビルドの進み具合: `grep -oE '^\S+ \[[0-9]+/[0-9]+\]' <ログ>/build.log | tail -1`、失敗: `grep -c '^✖' <ログ>/build.log`。
 ビルドを止めるときは `kill -TERM -- -<ビルドの PID>`(プロセスグループごと)。`pkill -f` は自分のコマンド行に当たるので使わない。
+
+`shorten/tools/rhshrink/Main.lean` には `RHSHRINK_DECL_INFO` を足したが、使われない引数の見積もりがその実行ファイルを使って動いているので、そこではまだビルドしていない。見積もりが終わるまでは、解析を `RH_RHSHRINK_DIR=/var/tmp/riemann-hypothesis-ywr/shorten/rhshrink-dev scripts/shorten_analyze.sh …`(閉包の繰り返し `scripts/shorten_closure_loop.sh` も環境変数をそのまま引き継ぐ)で回す。終わったあとは普通に回せばよい(最初に作り直す)。
 
 ## 証明の短縮(2 つ目の目標、2026-11-22 にユーザーが追加)
 
@@ -89,20 +95,29 @@ mathlib で置き換えられるものにトライ。それが終わったら数
 
 ### 短縮で次にやること(引き継ぎ)
 
-1. 段階 1a のカーネル再検査(11/24 19:33 起動)の結果を確かめ、`shorten/README.md` の検査の表と `shorten/results/02-stage1a/` に書く
-   (結果の見方は「各段階の結果の見方」と同じ。出力は `/var/tmp/riemann-hypothesis-ywr/shorten/kernel-1a/latest-leanchecker-project/`)。
-2. 段階 1b の全体ビルド(11/24 20:53 JST 起動)を見る。進み具合と失敗の数え方は上の「動いている常駐プロセス」の下。
-   失敗 1 件(上の表)の直しは書き出し済み。ビルドが終わったら反映して続きからビルドする(ほかの失敗があれば同じ回でまとめて直す)。
-   計画のスクリプトには discharger の中の記録されない参照で写しを残す条件を足した(次に計画を立てるときから効く)。
-   失敗は 1a と同じ手順で直す(ログの `✖` の行とその下のエラーを読み、計画 `scripts/shorten_plan1b.py` か書き出し `scripts/shorten_stage1a.py` の
-   規則に取り込む → 計画・閉包・書き出しを `$RUN_ROOT/shorten/run1b.sh` の手順でやり直す。書き出しは試しの場所に出して `diff -rq` で
-   変わるファイルを確かめ、ビルドが終わってから `rsync -a --checksum --delete` で反映し、続きからビルドする)。
-3. 通ったら検査(`RH_LEAN_PROJECT=<stage-1b> RH_RESULTS_DIR=shorten/results/03-stage1b/checks RH_CHECK_DIR=… scripts/run_checks.sh`、
+1. **段階 1b の全体ビルドが終わったら(朝 8 時ごろの見込み)、失敗 1 件の直しを反映して続きからビルドする**。
+   ビルドの終了は `stage-1b-build.pid` のプロセスが消えることで分かる(ログの `meta.txt` に終了コード)。ほかの失敗があれば、同じ回でまとめて直す
+   (ログの `✖` の行とその下のエラーを読み、計画 `scripts/shorten_plan1b.py` か書き出し `scripts/shorten_stage1a.py` の規則に取り込む)。
+   反映は `rsync -a --checksum --delete /var/tmp/riemann-hypothesis-ywr/shorten/writer-test-1b-fix1/src/ /var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/src/` と
+   `stage1a/`(report.json など)の同じ写し。変わるのは `…HolomorphicFamilies.BiextChangeSecondFactor.lean` の 1 ファイルだけ(反映の前に `diff -rq` で確かめる)。
+   続きのビルドは `JOBS=64 setsid scripts/shorten_build_stage.sh /var/tmp/riemann-hypothesis-ywr/shorten/stage-1b` と `scripts/shorten_memguard.sh <PID> 80 30`
+   (PID は `ps -eo pid,args` で `bash scripts/shorten_build_stage.sh` を探し、`stage-1b-build.pid` に書く)。
+   直した版の数字: 110,562 モジュール・**13,562,091 行**・宣言 844,184 個(計画 `$RUN_ROOT/shorten/plan1b-4p/`、記録は `shorten/results/03-stage1b/unmerged-after-build.tsv`)。
+   README の段階 1b の表(13,562,079 行)は、ビルドが通ったらこの数字に直す。
+2. 通ったら検査(`RH_LEAN_PROJECT=/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b RH_RESULTS_DIR=shorten/results/03-stage1b/checks RH_CHECK_DIR=/var/tmp/riemann-hypothesis-ywr/shorten/checks-1b scripts/run_checks.sh`、
    カーネル再検査は `RH_LEAN_PROJECT=… RH_RUN_ROOT=/var/tmp/riemann-hypothesis-ywr/shorten/kernel-1b VALIDATE=0 JOBS=… scripts/run_leanchecker.sh`)。
-   `shorten/README.md` の段階 1b の節(「全体のビルド」の行と検査の表)と、ルートの `README.md` の行数を直す。
-4. 次の手(段階 1b の続き): import を足してまとめる(README の「次の短縮の道」。無害な読み込みに限って約 2 万個・宣言の行 17 万行、足す import 2.4 万行)。
-   見積もりのスクリプトは `scripts/shorten_estimate_import_merge.py`(入力は `scripts/shorten_plan1b.py --dump-refs` の refs.tsv と plan1b-4)。
-   守る宣言の見直し(強制変換でない instance・rfl でない simp 補題は、使われれば証明項に跡が残る)も候補。全体の作り直しは 1 回にまとめる。
+   `shorten/README.md` の段階 1b の節(「全体のビルド」の段落と検査の表)と、ルートの `README.md` の行数を直す。
+3. 段階 1a のカーネル再検査が終わったら、`meta.txt` の末尾(`failed_chunks`・`ok_modules`・`missing_modules`・`failed_modules`)を確かめ、
+   `shorten/README.md` の段階 1a の検査の表と `shorten/results/02-stage1a/` に書く。
+4. 守る宣言の見直し: `decl-info.tsv` ができたら
+   `python3 -I scripts/shorten_protect_review.py --protected $RUN_ROOT/shorten/protect/protected.tsv --info <decl-info.tsv> --out $RUN_ROOT/shorten/protect-review --extra-root Formalism.FourierDecayAlt.P.CutBP.block_growth_bound_of_compact_coef`
+   で守り続ける起点(roots.txt)を作り、`scripts/shorten_closure_loop.sh pr1 <roots.txt> $RUN_ROOT/shorten/plan1b-4p/merge.tsv $RUN_ROOT/shorten/plan1b-4/redirect.tsv`
+   (上の RH_RHSHRINK_DIR に注意)で閉包を取り、残す宣言が段階 1b(844,184 個)からどれだけ減るかを見る。外すのは、rfl でない(`@[defeq]`・`@[backward_defeq]` の無い)
+   simp の定理・ext の定理と、強制変換(`Coe…`)でない class の instance。
+5. import を足してまとめる: 厳しい見積もり(新たに見える Mathlib などのモジュールが無い、新たに見える宣言の名前が参照するモジュールの識別子と重ならない、を足した)の
+   結果を README の「次の短縮の道」の表に書く。実際の計画は `scripts/shorten_plan1b.py` に、この条件で import を足す道を足して作る。
+   4 と 5(と `--drop-open-list-refs`)は、全体の作り直しを 1 回にまとめる。
+6. 使われない引数の見積もりが終わったら、上の dae_report.py でまとめ、README の段階 2 の節に書く(名前と数字だけ。ソースの文面は載せない)。
 
 ## 見回り(ユーザーの依頼「50 おきには定点観測して」)
 

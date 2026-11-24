@@ -17,7 +17,7 @@ TS="$(date -u +%Y%m%dT%H%M%SZ)"
 TAG="${RH_ANALYSIS_TAG:-}"
 OUT="$RUN_ROOT/shorten/analysis-${TAG:+$TAG-}$TS"
 TC="${RH_TOOLCHAIN:-$HOME/.elan/toolchains/leanprover--lean4---v4.33.1}"
-TOOL_DIR="$ROOT/shorten/tools/rhshrink"
+TOOL_DIR="${RH_RHSHRINK_DIR:-$ROOT/shorten/tools/rhshrink}"  # 動いている解析の実行ファイルに触らないとき、別に写した道具を使う
 TOOL="$TOOL_DIR/.lake/build/bin/rhshrink"
 mkdir -p "$OUT"
 [ -z "$TAG" ] && ln -sfn "$OUT" "$RUN_ROOT/shorten/latest-analysis"
