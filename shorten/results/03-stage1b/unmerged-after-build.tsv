@@ -1,0 +1,3 @@
+x_module	x	reason
+ReciprocityTheory.ReductiveGroups.ArithmeticGeometry.PullbackSections.HolomorphicFamilies.BiextChangeSecondFactor	ReciprocityTheory.ChartRestriction.G.PullbackSections.CVA.cc_pt'	simp の discharger(disch := simp [...])の中でだけ使われ、.ilean に参照が記録されない
+ReciprocityTheory.ReductiveGroups.ArithmeticGeometry.PullbackSections.HolomorphicFamilies.BiextChangeSecondFactor	ReciprocityTheory.ChartRestriction.G.PullbackSections.CVA.cc_comp1'	simp の discharger(disch := simp [...])の中でだけ使われ、.ilean に参照が記録されない

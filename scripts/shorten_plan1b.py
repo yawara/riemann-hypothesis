@@ -17,6 +17,11 @@ X をまとめる条件(どれかに外れれば X は残す。blocked.tsv に�
       - その位置から C が見える: C のモジュールが参照するモジュールの import の閉包(段階 1a の短縮版)にあるか、
         同じモジュールなら参照を含む宣言より前で C が終わっている(C の証明が X を使っている場合の循環もこれで防ぐ)
   * 宣言の外の参照は `open X (…)`・`export X (…)` の中だけ(段階 1a の書き出しが、消す宣言の名前を外す)。
+  * discharger の中に .ilean に記録されない参照がない: `simp (disch := simp [X])` のような discharger の引数の中の参照は
+    .ilean に記録されず、書き換えから漏れる(段階 1b の 1 回目の全体ビルドで失敗した)。コメントと文字列を除いたソースで、
+    `(disch := …)`・`(discharger := …)` の括弧の中に、X が見える位置で X の名前(の後ろの部分)と同じ識別子があり、
+    どの .ilean の参照・定義の範囲にも入らないなら、X は残す。discharger の外の記録されない字面(局所変数の名前、
+    キーワード、`first` の失敗した分岐など)は害がないので数えない(unrecorded.tsv に in_discharger=0 で書く)。
 C の選び方: 組の中で、非公開でない宣言のうち、まとめられる写しが最も多いもの。同じなら行数の少ない(短い証明の)もの。
 残った写しの中で、同じことを繰り返す。参照を含む宣言自身がまとめられて消えるなら、その参照は数えない
 (まとめる集合が変わらなくなるまで繰り返す)。
@@ -30,6 +35,7 @@ C の選び方: 組の中で、非公開でない宣言のうち、まとめら�
       rewrites.tsv(書き換える参照の位置)、blocked.tsv、summary.json
 """
 import argparse
+import bisect
 import collections
 import json
 import multiprocessing as mp
@@ -45,8 +51,11 @@ PROJECT_ROOTS = {"BuildAid", "CompanionTheory", "Development", "Formalism", "Gro
 IMPORT_RE = re.compile(r"^import\s+(\S+)\s*$")
 OPEN_EXPORT_RE = re.compile(r"^\s*(open|export)\b")
 NAMED_ARG_RE = re.compile(r"\(\s*[^\s():=,]+\s*:=")
+DISCH_RE = re.compile(r"\((?:disch|discharger)\s*:=")
+IDENT_RE = re.compile(r"(?<![\w'!?.])((?:«[^»]*»|[^\W\d][\w'!?₀-₉ₐ-ₜᵢ-ᵪ]*)(?:\.(?:«[^»]*»|[^\W\d][\w'!?₀-₉ₐ-ₜᵢ-ᵪ]*))*)")
 
 CANDIDATES = None
+SHORT_NAMES = None
 
 
 def unpriv(n):
@@ -66,17 +75,69 @@ def u16_to_idx(s, u16):
 
 
 def init_worker(cands):
-    global CANDIDATES
+    global CANDIDATES, SHORT_NAMES
     CANDIDATES = cands
+    SHORT_NAMES = {unpriv(n).rsplit(".", 1)[-1] for _, n in cands}
+
+
+def blank_comments(text):
+    """コメント・文字列・文字リテラルを空白に置き換える(行と列の位置は保つ)"""
+    out = list(text)
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        if c == "-" and text.startswith("--", i):
+            j = text.find("\n", i)
+            j = n if j < 0 else j
+            for k in range(i, j):
+                out[k] = " "
+            i = j
+        elif c == "/" and text.startswith("/-", i):
+            depth, j = 1, i + 2
+            while j < n and depth:
+                if text.startswith("/-", j):
+                    depth += 1
+                    j += 2
+                elif text.startswith("-/", j):
+                    depth -= 1
+                    j += 2
+                else:
+                    j += 1
+            for k in range(i, j):
+                if out[k] != "\n":
+                    out[k] = " "
+            i = j
+        elif c == '"':
+            j = i + 1
+            while j < n and text[j] != '"':
+                j += 2 if text[j] == "\\" else 1
+            j = min(j + 1, n)
+            for k in range(i, j):
+                if out[k] != "\n":
+                    out[k] = " "
+            i = j
+        elif c == "'" and (i == 0 or not (text[i - 1].isalnum() or text[i - 1] in "_'!?₀₁₂₃₄₅₆₇₈₉")):
+            m = re.match(r"'(\\.[^']*|[^'\\])'", text[i:i + 12])
+            if m:
+                for k in range(i, i + m.end()):
+                    out[k] = " "
+                i += m.end()
+            else:
+                i += 1
+        else:
+            i += 1
+    return "".join(out)
 
 
 def refs_in_module(m):
-    """モジュール m の .ilean から、候補の定数への参照 (行, 列, 終わりの行, 終わりの列, 参照先の名前, 持ち主) を返す"""
+    """モジュール m の .ilean から、候補の定数への参照 (行, 列, 終わりの行, 終わりの列, 参照先の名前, 持ち主) を返す。
+    あわせて、ソースの識別子のうち、末尾が候補の名前の末尾と同じで、どの .ilean の参照・定義の範囲にも入らないもの
+    (行, 始めの文字位置, 終わりの文字位置, 字面)も返す"""
     try:
         with open(os.path.join(ILEAN_ROOT, *m.split(".")) + ".ilean", encoding="utf-8") as fh:
             d = json.load(fh)
     except (OSError, ValueError):
-        return m, []
+        return m, [], []
     out = []
     for key, v in d.get("references", {}).items():
         if not key.startswith('{"c":'):
@@ -86,7 +147,54 @@ def refs_in_module(m):
             continue
         for u in v.get("usages", []):
             out.append((u[0], u[1], u[2], u[3], (c["m"], c["n"]), u[4] if len(u) >= 5 else None))
-    return m, out
+    # .ilean に記録されない字面の参照
+    try:
+        with open(os.path.join(SRC, *m.split(".")) + ".lean", encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError:
+        return m, out, []
+    clean = blank_comments(text)
+    starts = [0]
+    for i, ch in enumerate(clean):
+        if ch == "\n":
+            starts.append(i + 1)
+    # simp などの discharger の引数 `(disch := …)`・`(discharger := …)` の範囲(括弧の対応で閉じるところまで)
+    dspans = []
+    for mm in DISCH_RE.finditer(clean):
+        depth, j = 0, mm.start()
+        while j < len(clean):
+            if clean[j] == "(":
+                depth += 1
+            elif clean[j] == ")":
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        dspans.append((mm.start(), j))
+    cands = []
+    for mm in IDENT_RE.finditer(clean):
+        tok = mm.group(1)
+        if tok.rsplit(".", 1)[-1] in SHORT_NAMES:
+            ln = bisect.bisect_right(starts, mm.start(1)) - 1
+            a = mm.start(1) - starts[ln]
+            in_disch = any(x <= mm.start(1) < y for (x, y) in dspans)
+            cands.append((ln, a, a + len(tok), tok, in_disch))
+    if not cands:
+        return m, out, []
+    lines = text.split("\n")
+    cover = collections.defaultdict(list)
+    for v in d.get("references", {}).values():
+        rs = list(v.get("usages") or [])
+        if v.get("definition"):
+            rs.append(v["definition"])
+        for u in rs:
+            for ln in range(u[0], u[2] + 1):
+                if ln < len(lines):
+                    a = u16_to_idx(lines[ln], u[1]) if ln == u[0] else 0
+                    b = u16_to_idx(lines[ln], u[3]) if ln == u[2] else len(lines[ln])
+                    cover[ln].append((a, b))
+    unrec = [c for c in cands if not any(x < c[2] and c[1] < y for (x, y) in cover.get(c[0], ()))]
+    return m, out, unrec
 
 
 def main():
@@ -223,14 +331,66 @@ def main():
         elif k[0] in fixed:
             excluded[k] = "そのまま写すモジュールにある"
     refs = collections.defaultdict(list)
+    unrecorded = []
     modules = sorted({m for m, _ in kept})
     with mp.Pool(args.jobs, initializer=init_worker, initargs=(set(info),)) as pool:
-        for i, (m, rs) in enumerate(pool.imap_unordered(refs_in_module, modules, chunksize=64)):
+        for i, (m, rs, us) in enumerate(pool.imap_unordered(refs_in_module, modules, chunksize=64)):
             for r in rs:
                 refs[r[4]].append((m,) + r[:4] + (r[5],))
+            for u in us:
+                unrecorded.append((m,) + u)
             if (i + 1) % 30000 == 0:
                 print(f"  ilean {i + 1}/{len(modules)}", flush=True)
-    print(f"references to candidates: {sum(len(v) for v in refs.values())}", flush=True)
+    print(f"references to candidates: {sum(len(v) for v in refs.values())}; "
+          f"unrecorded tokens with a candidate's last name: {len(unrecorded)}", flush=True)
+
+    # ---- .ilean に記録されない字面の参照: 字面が候補 X の名前の後ろの部分と同じで、X が見える位置にあり、段階 1a で
+    # 残した宣言の中(または宣言の外)にあるもの。局所変数などとは区別せず、その X はまとめない
+    by_short = collections.defaultdict(list)
+    for k in info:
+        by_short[unpriv(k[1]).rsplit(".", 1)[-1]].append(k)
+    spans = {}
+
+    def enclosing(m, ln1):
+        if m not in spans:
+            spans[m] = sorted((a, b, n) for n, (a, b) in rng.get(m, {}).items())
+        best = None
+        for (a, b, n) in spans[m]:
+            if a > ln1:
+                break
+            if a <= ln1 <= b and (best is None or b - a < best[1] - best[0]):
+                best = (a, b, n)
+        return best
+
+    unrec_rows = []
+    for (m, ln, a, b, tok, in_disch) in unrecorded:
+        hits = []
+        for xk in by_short[tok.rsplit(".", 1)[-1]]:
+            xn = unpriv(xk[1])
+            if not (xn == tok or xn.endswith("." + tok) or tok == "_root_." + xn):
+                continue
+            if xk[0] == m:
+                if info[xk]["end"] >= ln + 1:
+                    continue
+            elif m not in clos or xk[0] not in idx or not (clos[m] >> idx[xk[0]]) & 1:
+                continue
+            hits.append(xk)
+        if not hits:
+            continue
+        ow = enclosing(m, ln + 1)
+        if ow is not None and (m, ow[2]) not in kept:
+            continue
+        for xk in hits:
+            unrec_rows.append((m, ln + 1, a, tok, ow[2] if ow else "-", xk, in_disch))
+            if in_disch and xk not in excluded:
+                excluded[xk] = "discharger の中の記録されない参照"
+    print(f"unrecorded references: {len(unrec_rows)} (X: {len({r[5] for r in unrec_rows})}); "
+          f"in a discharger: {sum(1 for r in unrec_rows if r[6])} (X: {len({r[5] for r in unrec_rows if r[6]})})",
+          flush=True)
+    with open(os.path.join(args.out, "unrecorded.tsv"), "w", encoding="utf-8") as fh:
+        fh.write("module\tline\tcol\ttoken\towner\tx_module\tx\tin_discharger\n")
+        fh.write("".join(f"{m}\t{l}\t{c}\t{t}\t{o}\t{xk[0]}\t{xk[1]}\t{int(dd)}\n"
+                         for m, l, c, t, o, xk, dd in unrec_rows))
 
     # ---- 参照ごとの、C によらない判定
     text_cache = {}
