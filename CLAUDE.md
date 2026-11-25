@@ -15,7 +15,7 @@
 - コミットの末尾の共著者表記は、そのセッションの指示に従う。`scripts/publish_pages.sh`・`scripts/observe.py`・`scripts/status_updater.sh` にも同じ表記が書き込んであるので合わせて直す(動いている `status_updater.sh` は、別ファイルに書いてから `mv` で差し替える)。
 - 好みの詳細は Claude のメモリ(`~/.claude/projects/-home-ywr-riemann-hypothesis/memory/`)にもある。
 
-## いまの状況(2026-11-25 10:50 JST。レート制限の前に書いた引き継ぎ)
+## いまの状況(2026-11-25 15:40 JST)
 
 **検証は終わった**(パイプラインは 22:41 JST に `result=done`)。結果は精査してレポート(7.7〜7.9 節、表 1、1 節、9 節)と README に反映した。
 **最終判定は、ユーザーが文言を承認して(2026-11-22)、巻頭の判定欄に掲げた**: 印「通過」、見出し「予定したすべての検査を通過しました」、
@@ -36,12 +36,11 @@ Mathlib の定義が意図どおりである限り、Mathlib の RiemannHypothes
 | 短縮の下調べ(`rhshrink`) | 完了(18:37)。使われていない宣言は約 330 万行(19.0%)、重複した定理の写し 99,393 個。結果は `shorten/results/01-analysis/` と `shorten/README.md` |
 | 短縮の段階 1a | 短縮版(148,924 モジュール、**14,159,480 行、−18.5%**)を `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a` に作成。1 回目の全体ビルド(20:26〜23:16、26,775 モジュールが通過)の失敗 30 件は原因 5 つで、すべて規則に取り込んで書き出し直した(`shorten/results/02-stage1a/full-build1-failures.tsv`、`shorten/README.md`) |
 | 短縮の段階 1a の全体ビルドと検査 | **3 回目の全体ビルド(11/24 17:04〜19:07)でエラー 0**(**148,931 モジュール、14,160,262 行、−18.5%**)。公理(標準の 3 つのみ)・主張の一致・主張の依存は元と同じ結果で通過(`shorten/results/02-stage1a/checks/`)。**カーネル再検査も通過**(11/25 09:13 終了、148,931 / 148,931 モジュール、失敗 0。`shorten/results/02-stage1a/checks/04-kernel-recheck-meta.txt`) |
-| 短縮の段階 1b(重複の統合) | 作業中(ユーザーは 11/24「細かいとは任せるから進めて」)。やり直した計画(`$RUN_ROOT/shorten/plan1b-4/`、53,513 個をまとめる)→ 閉包(`analysis-c1b2-3-…`、3 回で閉じ、残す宣言 844,182 個、まとめた写しの紛れ 0)→ 書き出し(**110,562 モジュール・13,562,079 行、元から −21.9%**)→ 試し(変わった 29,014 モジュールから 3,000 個、失敗 0)まで済んだ。**全体ビルドを 11/24 20:53 JST に起動**(並列 64、ログ `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/builds/build-20261124T115302Z/`、7〜8 時間の見込み)。README の段階 1b の節と `shorten/results/03-stage1b/` はやり直した計画の数字に差し替え済み。**ビルド中に 1 モジュールが失敗**(`…HolomorphicFamilies.BiextChangeSecondFactor`、下流 557 個。discharger `disch := simp [...]` の中の参照が .ilean に無く、写し 2 個 `cc_pt'`・`cc_comp1'` を消していた)。02:05 に 2 件目が失敗(`…DivisorProofs.PrimitiveFrameDatumZetaIntegralEqSmaller`。`…Statement` モジュールが消えて import を引き継ぎ・推移簡約したため読み込み順が変わり `μ.IsHaarMeasure` が見つからない。`shorten/keep-import-order.txt` に足して直した)。08:54 に 3 件目(`…WordSpans.ModelWalkOfInputs`。名前を長い `_root_.…` に書き換えて、同じ行の後ろの `(by have …` の列がずれ、そろえてあった続きの行と合わなくなった。書き出し `scripts/shorten_stage1a.py` に、そろえた続きの行も同じだけずらす規則を足して直した)。3 件を直した版を `/var/tmp/riemann-hypothesis-ywr/shorten/writer-test-1b-fix3/` に書き出し済み(計画 `$RUN_ROOT/shorten/plan1b-4p/` = plan1b-4 から 2 個を外し、残す宣言に 2 個を足したもの。変わるのは失敗した 3 ファイルと、まだビルドしていない `…FirstChernCocycleAllLevels` の 4 ファイルだけ。どれも単体コンパイルが通過)。**ビルドが終わったら** `rsync -a --checksum --delete <fix3>/src/ <stage-1b>/src/` と `stage1a/` を反映して続きからビルドする |
+| 短縮の段階 1b(重複の統合) | **完了(11/25 15:35)。全体ビルドと全検査(公理・主張の一致・主張の依存・カーネル再検査 110,562 / 110,562)を通過。110,562 モジュール・13,562,093 行、元から −21.9%**。以下は経緯(ユーザーは 11/24「細かいとは任せるから進めて」)。やり直した計画(`$RUN_ROOT/shorten/plan1b-4/`、53,513 個をまとめる)→ 閉包(`analysis-c1b2-3-…`、3 回で閉じ、残す宣言 844,182 個、まとめた写しの紛れ 0)→ 書き出し(**110,562 モジュール・13,562,079 行、元から −21.9%**)→ 試し(変わった 29,014 モジュールから 3,000 個、失敗 0)まで済んだ。**全体ビルドを 11/24 20:53 JST に起動**(並列 64、ログ `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/builds/build-20261124T115302Z/`、7〜8 時間の見込み)。README の段階 1b の節と `shorten/results/03-stage1b/` はやり直した計画の数字に差し替え済み。**ビルド中に 1 モジュールが失敗**(`…HolomorphicFamilies.BiextChangeSecondFactor`、下流 557 個。discharger `disch := simp [...]` の中の参照が .ilean に無く、写し 2 個 `cc_pt'`・`cc_comp1'` を消していた)。02:05 に 2 件目が失敗(`…DivisorProofs.PrimitiveFrameDatumZetaIntegralEqSmaller`。`…Statement` モジュールが消えて import を引き継ぎ・推移簡約したため読み込み順が変わり `μ.IsHaarMeasure` が見つからない。`shorten/keep-import-order.txt` に足して直した)。08:54 に 3 件目(`…WordSpans.ModelWalkOfInputs`。名前を長い `_root_.…` に書き換えて、同じ行の後ろの `(by have …` の列がずれ、そろえてあった続きの行と合わなくなった。書き出し `scripts/shorten_stage1a.py` に、そろえた続きの行も同じだけずらす規則を足して直した)。3 件を直した版を `/var/tmp/riemann-hypothesis-ywr/shorten/writer-test-1b-fix3/` に書き出し済み(計画 `$RUN_ROOT/shorten/plan1b-4p/` = plan1b-4 から 2 個を外し、残す宣言に 2 個を足したもの。変わるのは失敗した 3 ファイルと、まだビルドしていない `…FirstChernCocycleAllLevels` の 4 ファイルだけ。どれも単体コンパイルが通過)。**ビルドが終わったら** `rsync -a --checksum --delete <fix3>/src/ <stage-1b>/src/` と `stage1a/` を反映して続きからビルドする |
 
 ## 動いている常駐プロセス
 
-検証の常駐プロセス(検査パイプライン、Mathlib 再ビルドの連結、定点観測、進捗の自動更新)は、すべて役目を終えて止まっている。
-いま動いているのは、段階 1a のカーネル再検査(`scripts/run_leanchecker.sh` を RH_LEAN_PROJECT・RH_RUN_ROOT で短縮版に向けたもの。PID は `ps` で `run_leanchecker.sh` を探す)と、段階 1b の全体ビルドとメモリの見張り。
+**11/25 15:35 の時点で、短縮の常駐プロセスはすべて終わっている**(段階 1b のビルド・メモリの見張り・カーネル再検査、解析)。下の表は記録として残す。新しくビルドを起動するときは、同じ手順でビルドとメモリの見張りを起動する。
 
 | 名前 | PID ファイル | 中身 |
 |---|---|---|
@@ -95,7 +94,7 @@ mathlib で置き換えられるものにトライ。それが終わったら数
 
 ### 短縮で次にやること(引き継ぎ)
 
-1. **段階 1b の全体ビルドは 11/25 10:15 に終わり(13 時間 22 分、失敗は直し済みの 3 件だけ)、直した 4 ファイルを反映して 10:17 に続きのビルドを起動した**(ログ `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/builds/build-20261125T011702Z/`、PID は `stage-1b-build.pid`、作り直しは約 700 モジュール)。反映後の数字は 110,562 モジュール・**13,562,093 行**・宣言 844,184 個。続きのビルドは見積もりのスクリプトのメモリのせいで 10:20 に止まり、**10:23 に再起動**(ログ `…/stage-1b/builds/build-20261125T012325Z/`)。**10:44 に通った(エラー 0)**。2 の検査は **11:06 にすべて通過**(公理・主張の一致・主張の依存とも段階 1a と同じ結果。README に記載)。カーネル再検査を 10:46 に起動した(ログ: 検査は `/var/tmp/riemann-hypothesis-ywr/shorten/checks-1b/`、結果は `shorten/results/03-stage1b/checks/`。カーネル再検査は `/var/tmp/riemann-hypothesis-ywr/shorten/kernel-1b/latest-leanchecker-project/`、並列 48)。以下は反映までの手順の控え。
+1. **段階 1b の全体ビルドは 11/25 10:15 に終わり(13 時間 22 分、失敗は直し済みの 3 件だけ)、直した 4 ファイルを反映して 10:17 に続きのビルドを起動した**(ログ `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/builds/build-20261125T011702Z/`、PID は `stage-1b-build.pid`、作り直しは約 700 モジュール)。反映後の数字は 110,562 モジュール・**13,562,093 行**・宣言 844,184 個。続きのビルドは見積もりのスクリプトのメモリのせいで 10:20 に止まり、**10:23 に再起動**(ログ `…/stage-1b/builds/build-20261125T012325Z/`)。**10:44 に通った(エラー 0)**。2 の検査は **11:06 にすべて通過**(公理・主張の一致・主張の依存とも段階 1a と同じ結果。README に記載)。**カーネル再検査も 15:35 に全モジュール通過**(110,562 / 110,562、失敗 0。10:46 起動。ログ: 検査は `/var/tmp/riemann-hypothesis-ywr/shorten/checks-1b/`、結果は `shorten/results/03-stage1b/checks/`。カーネル再検査は `/var/tmp/riemann-hypothesis-ywr/shorten/kernel-1b/latest-leanchecker-project/`、並列 48)。以下は反映までの手順の控え。
    ビルドの終了は `stage-1b-build.pid` のプロセスが消えることで分かる(ログの `meta.txt` に終了コード)。ほかの失敗があれば、同じ回でまとめて直す
    (ログの `✖` の行とその下のエラーを読み、計画 `scripts/shorten_plan1b.py` か書き出し `scripts/shorten_stage1a.py` の規則に取り込む)。
    反映は `rsync -a --checksum --delete /var/tmp/riemann-hypothesis-ywr/shorten/writer-test-1b-fix3/src/ /var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/src/` と
