@@ -15,7 +15,7 @@
 - コミットの末尾の共著者表記は、そのセッションの指示に従う。`scripts/publish_pages.sh`・`scripts/observe.py`・`scripts/status_updater.sh` にも同じ表記が書き込んであるので合わせて直す(動いている `status_updater.sh` は、別ファイルに書いてから `mv` で差し替える)。
 - 好みの詳細は Claude のメモリ(`~/.claude/projects/-home-ywr-riemann-hypothesis/memory/`)にもある。
 
-## いまの状況(2026-11-25 09:20 JST。レート制限の前に書いた引き継ぎ)
+## いまの状況(2026-11-25 10:25 JST。レート制限の前に書いた引き継ぎ)
 
 **検証は終わった**(パイプラインは 22:41 JST に `result=done`)。結果は精査してレポート(7.7〜7.9 節、表 1、1 節、9 節)と README に反映した。
 **最終判定は、ユーザーが文言を承認して(2026-11-22)、巻頭の判定欄に掲げた**: 印「通過」、見出し「予定したすべての検査を通過しました」、
@@ -35,7 +35,7 @@ Mathlib の定義が意図どおりである限り、Mathlib の RiemannHypothes
 | 定点観測 | 終了。#44(23:22 JST、段階 `finished`)で observer が自動で終わった(監視対象のプロセスがすべて終了したため)。進捗の自動更新も `finished` を書いて終わった |
 | 短縮の下調べ(`rhshrink`) | 完了(18:37)。使われていない宣言は約 330 万行(19.0%)、重複した定理の写し 99,393 個。結果は `shorten/results/01-analysis/` と `shorten/README.md` |
 | 短縮の段階 1a | 短縮版(148,924 モジュール、**14,159,480 行、−18.5%**)を `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1a` に作成。1 回目の全体ビルド(20:26〜23:16、26,775 モジュールが通過)の失敗 30 件は原因 5 つで、すべて規則に取り込んで書き出し直した(`shorten/results/02-stage1a/full-build1-failures.tsv`、`shorten/README.md`) |
-| 短縮の段階 1a の全体ビルドと検査 | **3 回目の全体ビルド(11/24 17:04〜19:07)でエラー 0**(**148,931 モジュール、14,160,262 行、−18.5%**)。公理(標準の 3 つのみ)・主張の一致・主張の依存は元と同じ結果で通過(`shorten/results/02-stage1a/checks/`)。**カーネル再検査は 11/24 19:33 から実行中**(並列 48、`/var/tmp/riemann-hypothesis-ywr/shorten/kernel-1a/latest-leanchecker-project/`、5〜6 時間の見込み) |
+| 短縮の段階 1a の全体ビルドと検査 | **3 回目の全体ビルド(11/24 17:04〜19:07)でエラー 0**(**148,931 モジュール、14,160,262 行、−18.5%**)。公理(標準の 3 つのみ)・主張の一致・主張の依存は元と同じ結果で通過(`shorten/results/02-stage1a/checks/`)。**カーネル再検査も通過**(11/25 09:13 終了、148,931 / 148,931 モジュール、失敗 0。`shorten/results/02-stage1a/checks/04-kernel-recheck-meta.txt`) |
 | 短縮の段階 1b(重複の統合) | 作業中(ユーザーは 11/24「細かいとは任せるから進めて」)。やり直した計画(`$RUN_ROOT/shorten/plan1b-4/`、53,513 個をまとめる)→ 閉包(`analysis-c1b2-3-…`、3 回で閉じ、残す宣言 844,182 個、まとめた写しの紛れ 0)→ 書き出し(**110,562 モジュール・13,562,079 行、元から −21.9%**)→ 試し(変わった 29,014 モジュールから 3,000 個、失敗 0)まで済んだ。**全体ビルドを 11/24 20:53 JST に起動**(並列 64、ログ `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/builds/build-20261124T115302Z/`、7〜8 時間の見込み)。README の段階 1b の節と `shorten/results/03-stage1b/` はやり直した計画の数字に差し替え済み。**ビルド中に 1 モジュールが失敗**(`…HolomorphicFamilies.BiextChangeSecondFactor`、下流 557 個。discharger `disch := simp [...]` の中の参照が .ilean に無く、写し 2 個 `cc_pt'`・`cc_comp1'` を消していた)。02:05 に 2 件目が失敗(`…DivisorProofs.PrimitiveFrameDatumZetaIntegralEqSmaller`。`…Statement` モジュールが消えて import を引き継ぎ・推移簡約したため読み込み順が変わり `μ.IsHaarMeasure` が見つからない。`shorten/keep-import-order.txt` に足して直した)。08:54 に 3 件目(`…WordSpans.ModelWalkOfInputs`。名前を長い `_root_.…` に書き換えて、同じ行の後ろの `(by have …` の列がずれ、そろえてあった続きの行と合わなくなった。書き出し `scripts/shorten_stage1a.py` に、そろえた続きの行も同じだけずらす規則を足して直した)。3 件を直した版を `/var/tmp/riemann-hypothesis-ywr/shorten/writer-test-1b-fix3/` に書き出し済み(計画 `$RUN_ROOT/shorten/plan1b-4p/` = plan1b-4 から 2 個を外し、残す宣言に 2 個を足したもの。変わるのは失敗した 3 ファイルと、まだビルドしていない `…FirstChernCocycleAllLevels` の 4 ファイルだけ。どれも単体コンパイルが通過)。**ビルドが終わったら** `rsync -a --checksum --delete <fix3>/src/ <stage-1b>/src/` と `stage1a/` を反映して続きからビルドする |
 
 ## 動いている常駐プロセス
@@ -47,7 +47,7 @@ Mathlib の定義が意図どおりである限り、Mathlib の RiemannHypothes
 |---|---|---|
 | 短縮版のビルド | `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b-build.pid` | `JOBS=64 scripts/shorten_build_stage.sh /var/tmp/riemann-hypothesis-ywr/shorten/stage-1b`(`setsid` で切り離し。段階 1a のビルドは終わっている) |
 | メモリの見張り | (なし。`ps` で `shorten_memguard.sh` を探す) | `scripts/shorten_memguard.sh <ビルドの PID> 80 30` |
-| 段階 1a のカーネル再検査 | (なし。`ps` で `run_leanchecker.sh` を探す) | 11/24 19:33 起動。00:20 で 2,560/5,958 組・64,000 モジュールが通過、失敗 0(ビルドと CPU を分け合うので遅い。朝 7 時ごろの見込み) |
+| 段階 1a のカーネル再検査(**11/25 09:13 に終了、全モジュール通過**) | (なし) | 11/24 19:33 起動。00:20 で 2,560/5,958 組・64,000 モジュールが通過、失敗 0(ビルドと CPU を分け合うので遅い。朝 7 時ごろの見込み) |
 | 使われない引数の見積もり(段階 2 の下調べ。**02:31 に終了**) | `$RUN_ROOT/shorten/analysis-dae1b.pid` | `RHSHRINK_DAE=1` の rhshrink(`$RUN_ROOT/shorten/analysis-dae1b-20261124T130655Z/`)。固定点の反復が 1 回 1 時間(1 回目で残る位置 1,507,211 → 508,992)。終わったら `python3 -I shorten/tools/domtree/dae_report.py $RUN_ROOT/shorten/analysis-dom1b-20261124T121043Z/domtree.tsv <その出力>/dae-dropped-decls.tsv <その出力>/dae-dead-args.tsv <その出力>/report` で、どの定理の使われない仮定が何行を抱えているかをまとめる |
 | 宣言の属性の書き出し(守る宣言の見直し用) | `$RUN_ROOT/shorten/analysis-declinfo.pid` | `RHSHRINK_DECL_INFO=1` の rhshrink(別に作った `/var/tmp/riemann-hypothesis-ywr/shorten/rhshrink-dev` の実行ファイル。出力 `$RUN_ROOT/shorten/analysis-declinfo-20261124T151010Z/decl-info.tsv`) |
 | import を足してまとめる見積もり(厳しい版) | (なし) | `scripts/shorten_estimate_import_merge.py` と同じもの。出力 `$RUN_ROOT/shorten/refined-import-merge.out` |
@@ -95,7 +95,7 @@ mathlib で置き換えられるものにトライ。それが終わったら数
 
 ### 短縮で次にやること(引き継ぎ)
 
-1. **段階 1b の全体ビルドが終わったら(11/25 の昼前の見込み)、失敗 3 件の直しを反映して続きからビルドする**。
+1. **段階 1b の全体ビルドは 11/25 10:15 に終わり(13 時間 22 分、失敗は直し済みの 3 件だけ)、直した 4 ファイルを反映して 10:17 に続きのビルドを起動した**(ログ `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/builds/build-20261125T011702Z/`、PID は `stage-1b-build.pid`、作り直しは約 700 モジュール)。反映後の数字は 110,562 モジュール・**13,562,093 行**・宣言 844,184 個。通ったら 2 へ。以下は反映までの手順の控え。
    ビルドの終了は `stage-1b-build.pid` のプロセスが消えることで分かる(ログの `meta.txt` に終了コード)。ほかの失敗があれば、同じ回でまとめて直す
    (ログの `✖` の行とその下のエラーを読み、計画 `scripts/shorten_plan1b.py` か書き出し `scripts/shorten_stage1a.py` の規則に取り込む)。
    反映は `rsync -a --checksum --delete /var/tmp/riemann-hypothesis-ywr/shorten/writer-test-1b-fix3/src/ /var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/src/` と
@@ -107,7 +107,7 @@ mathlib で置き換えられるものにトライ。それが終わったら数
 2. 通ったら検査(`RH_LEAN_PROJECT=/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b RH_RESULTS_DIR=shorten/results/03-stage1b/checks RH_CHECK_DIR=/var/tmp/riemann-hypothesis-ywr/shorten/checks-1b scripts/run_checks.sh`、
    カーネル再検査は `RH_LEAN_PROJECT=… RH_RUN_ROOT=/var/tmp/riemann-hypothesis-ywr/shorten/kernel-1b VALIDATE=0 JOBS=… scripts/run_leanchecker.sh`)。
    `shorten/README.md` の段階 1b の節(「全体のビルド」の段落と検査の表)と、ルートの `README.md` の行数を直す。
-3. 段階 1a のカーネル再検査が終わったら、`meta.txt` の末尾(`failed_chunks`・`ok_modules`・`missing_modules`・`failed_modules`)を確かめ、
+3. (済み)段階 1a のカーネル再検査が終わったら、`meta.txt` の末尾(`failed_chunks`・`ok_modules`・`missing_modules`・`failed_modules`)を確かめ、
    `shorten/README.md` の段階 1a の検査の表と `shorten/results/02-stage1a/` に書く。
 4. 守る宣言の見直し: **閉包 pr1 は閉じた**(`$RUN_ROOT/shorten/analysis-pr1-3-20261124T180925Z/`)。段階 1b から 9,856 宣言・**51,418 行**が減り、598 モジュールが空になる(外した宣言 3,282 個と、それだけが使っていた宣言 6,574 個)。README の「次の短縮の道」に書いて、次の作り直しに入れる。以下は経緯: 判定は済み(`$RUN_ROOT/shorten/protect-review/summary.json`。守る 22,043 個のうち外すのは 11,077 個 = 強制変換でない instance 8,177、rfl でない simp の定理 2,646、ext の定理 254)。**閉包 `pr1` を 11/25 02:07 に起動**(ログ `$RUN_ROOT/shorten/pr1-loop.log`、1 回 15〜25 分で 2〜3 回)。閉じたら、最後の `analysis-pr1-k-…/source-closure/kept-decls.tsv` の数を段階 1b の 844,184 個と比べ、減る行を数えて README に書く。以下は手順の控え: `decl-info.tsv` ができたら
    `python3 -I scripts/shorten_protect_review.py --protected $RUN_ROOT/shorten/protect/protected.tsv --info <decl-info.tsv> --out $RUN_ROOT/shorten/protect-review --extra-root Formalism.FourierDecayAlt.P.CutBP.block_growth_bound_of_compact_coef`
