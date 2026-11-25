@@ -15,7 +15,7 @@
 - コミットの末尾の共著者表記は、そのセッションの指示に従う。`scripts/publish_pages.sh`・`scripts/observe.py`・`scripts/status_updater.sh` にも同じ表記が書き込んであるので合わせて直す(動いている `status_updater.sh` は、別ファイルに書いてから `mv` で差し替える)。
 - 好みの詳細は Claude のメモリ(`~/.claude/projects/-home-ywr-riemann-hypothesis/memory/`)にもある。
 
-## いまの状況(2026-11-25 10:25 JST。レート制限の前に書いた引き継ぎ)
+## いまの状況(2026-11-25 10:50 JST。レート制限の前に書いた引き継ぎ)
 
 **検証は終わった**(パイプラインは 22:41 JST に `result=done`)。結果は精査してレポート(7.7〜7.9 節、表 1、1 節、9 節)と README に反映した。
 **最終判定は、ユーザーが文言を承認して(2026-11-22)、巻頭の判定欄に掲げた**: 印「通過」、見出し「予定したすべての検査を通過しました」、
@@ -95,7 +95,7 @@ mathlib で置き換えられるものにトライ。それが終わったら数
 
 ### 短縮で次にやること(引き継ぎ)
 
-1. **段階 1b の全体ビルドは 11/25 10:15 に終わり(13 時間 22 分、失敗は直し済みの 3 件だけ)、直した 4 ファイルを反映して 10:17 に続きのビルドを起動した**(ログ `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/builds/build-20261125T011702Z/`、PID は `stage-1b-build.pid`、作り直しは約 700 モジュール)。反映後の数字は 110,562 モジュール・**13,562,093 行**・宣言 844,184 個。続きのビルドは見積もりのスクリプトのメモリのせいで 10:20 に止まり、**10:23 に再起動**(ログ `…/stage-1b/builds/build-20261125T012325Z/`)。通ったら 2 へ。以下は反映までの手順の控え。
+1. **段階 1b の全体ビルドは 11/25 10:15 に終わり(13 時間 22 分、失敗は直し済みの 3 件だけ)、直した 4 ファイルを反映して 10:17 に続きのビルドを起動した**(ログ `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/builds/build-20261125T011702Z/`、PID は `stage-1b-build.pid`、作り直しは約 700 モジュール)。反映後の数字は 110,562 モジュール・**13,562,093 行**・宣言 844,184 個。続きのビルドは見積もりのスクリプトのメモリのせいで 10:20 に止まり、**10:23 に再起動**(ログ `…/stage-1b/builds/build-20261125T012325Z/`)。**10:44 に通った(エラー 0)**。2 の検査とカーネル再検査を 10:46 に起動した(ログ: 検査は `/var/tmp/riemann-hypothesis-ywr/shorten/checks-1b/`、結果は `shorten/results/03-stage1b/checks/`。カーネル再検査は `/var/tmp/riemann-hypothesis-ywr/shorten/kernel-1b/latest-leanchecker-project/`、並列 48)。以下は反映までの手順の控え。
    ビルドの終了は `stage-1b-build.pid` のプロセスが消えることで分かる(ログの `meta.txt` に終了コード)。ほかの失敗があれば、同じ回でまとめて直す
    (ログの `✖` の行とその下のエラーを読み、計画 `scripts/shorten_plan1b.py` か書き出し `scripts/shorten_stage1a.py` の規則に取り込む)。
    反映は `rsync -a --checksum --delete /var/tmp/riemann-hypothesis-ywr/shorten/writer-test-1b-fix3/src/ /var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/src/` と
