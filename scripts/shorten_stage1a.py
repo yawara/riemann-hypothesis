@@ -526,6 +526,7 @@ def main():
                 edits.append((m, s + 1, "attribute から名前を外す", " ".join(removed)))
         # 段階 1b: まとめた定理への参照を、残す定理への参照に書き換える(同じ行は後ろから置き換える)
         attr_lines = set(replace)
+        applied = collections.defaultdict(list)   # 行 -> [(元の列, 長さの差)]
         for (a, ib, ie, x, rep) in sorted(rewrites_by_module.get(m, ()), key=lambda t: (t[0], -t[1])):
             if a in dl:
                 n_rewrites["消す行の中(書き換えない)"] += 1
@@ -540,7 +541,41 @@ def main():
                 n_rewrites["字面が合わない(書き換えない)"] += 1
                 continue
             replace[a] = cur[:ib] + rep + cur[ie:]
+            applied[a].append((ib, len(rep) - (ie - ib)))
             n_rewrites["書き換えた"] += 1
+        # 書き換えで行が長くなると、その位置より右から始まる `by` のタクティク列などの列もずれる。続きの行が、書き換えた
+        # 位置より右にある元の行の字句と同じ列にそろえてあれば(そろえた列で始まる並びの続き)、その行と、その下の
+        # より深い行を同じだけずらす(2026-11-25、段階 1b の全体ビルドで `(by have … \n linarith)` が崩れた)
+        shift = collections.Counter()
+        for a, rws in applied.items():
+            la = lines[a]
+            ind_a = len(la) - len(la.lstrip(" "))
+            anchor = None
+            for j in range(a + 1, len(lines)):
+                t = lines[j]
+                if not t.strip():
+                    continue
+                ind = len(t) - len(t.lstrip(" "))
+                if ind <= ind_a:
+                    break
+                if anchor and ind > anchor[0]:
+                    shift[j] += anchor[1]
+                    continue
+                anchor = None
+                d = sum(dd for (ib, dd) in rws if ib < ind)
+                if d and ind < len(la) and la[ind] != " " and la[ind - 1] in " ([{⟨":
+                    shift[j] += d
+                    anchor = (ind, d)
+        for j, d in shift.items():
+            if j in dl or d == 0:
+                continue
+            cur = replace.get(j, lines[j])
+            if d > 0:
+                replace[j] = " " * d + cur
+            else:
+                k = min(-d, len(cur) - len(cur.lstrip(" ")))
+                replace[j] = cur[k:]
+            n_rewrites["続きの行の字下げをずらした"] += 1
         # 名前空間が見えるか。Lean は open・export の時点で名前空間があるかを確かめるので、このモジュールの
         # namespace 命令と残す宣言は、その位置より前にあるものだけを数える(self_ns に順に足す)
         vm = clos(m)
