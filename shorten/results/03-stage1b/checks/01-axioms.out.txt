@@ -1,0 +1,13 @@
+# 01-axioms
+# started_at_utc: 2026-11-25T01:45:53Z
+# lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+# command: lean --tstack=4000000 --root=/home/ywr/riemann-hypothesis/verification/lean-checks /home/ywr/riemann-hypothesis/verification/lean-checks/AxiomsCheck.lean
+
+'riemannHypothesis' depends on axioms: [propext, Classical.choice, Quot.sound]
+'riemannZeta_eq_zero_re' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LFunction_ne_zero_of_half_lt_re' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LFunction_eq_zero_re' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LFunction_eq_zero_re_of_isPrimitive' depends on axioms: [propext, Classical.choice, Quot.sound]
+# wall=85.03s user=36.49s sys=48.56s maxrss=40098784KB
+# exit_code: 0
+# finished_at_utc: 2026-11-25T01:47:18Z

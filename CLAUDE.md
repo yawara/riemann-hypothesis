@@ -95,7 +95,7 @@ mathlib で置き換えられるものにトライ。それが終わったら数
 
 ### 短縮で次にやること(引き継ぎ)
 
-1. **段階 1b の全体ビルドは 11/25 10:15 に終わり(13 時間 22 分、失敗は直し済みの 3 件だけ)、直した 4 ファイルを反映して 10:17 に続きのビルドを起動した**(ログ `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/builds/build-20261125T011702Z/`、PID は `stage-1b-build.pid`、作り直しは約 700 モジュール)。反映後の数字は 110,562 モジュール・**13,562,093 行**・宣言 844,184 個。続きのビルドは見積もりのスクリプトのメモリのせいで 10:20 に止まり、**10:23 に再起動**(ログ `…/stage-1b/builds/build-20261125T012325Z/`)。**10:44 に通った(エラー 0)**。2 の検査とカーネル再検査を 10:46 に起動した(ログ: 検査は `/var/tmp/riemann-hypothesis-ywr/shorten/checks-1b/`、結果は `shorten/results/03-stage1b/checks/`。カーネル再検査は `/var/tmp/riemann-hypothesis-ywr/shorten/kernel-1b/latest-leanchecker-project/`、並列 48)。以下は反映までの手順の控え。
+1. **段階 1b の全体ビルドは 11/25 10:15 に終わり(13 時間 22 分、失敗は直し済みの 3 件だけ)、直した 4 ファイルを反映して 10:17 に続きのビルドを起動した**(ログ `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/builds/build-20261125T011702Z/`、PID は `stage-1b-build.pid`、作り直しは約 700 モジュール)。反映後の数字は 110,562 モジュール・**13,562,093 行**・宣言 844,184 個。続きのビルドは見積もりのスクリプトのメモリのせいで 10:20 に止まり、**10:23 に再起動**(ログ `…/stage-1b/builds/build-20261125T012325Z/`)。**10:44 に通った(エラー 0)**。2 の検査は **11:06 にすべて通過**(公理・主張の一致・主張の依存とも段階 1a と同じ結果。README に記載)。カーネル再検査を 10:46 に起動した(ログ: 検査は `/var/tmp/riemann-hypothesis-ywr/shorten/checks-1b/`、結果は `shorten/results/03-stage1b/checks/`。カーネル再検査は `/var/tmp/riemann-hypothesis-ywr/shorten/kernel-1b/latest-leanchecker-project/`、並列 48)。以下は反映までの手順の控え。
    ビルドの終了は `stage-1b-build.pid` のプロセスが消えることで分かる(ログの `meta.txt` に終了コード)。ほかの失敗があれば、同じ回でまとめて直す
    (ログの `✖` の行とその下のエラーを読み、計画 `scripts/shorten_plan1b.py` か書き出し `scripts/shorten_stage1a.py` の規則に取り込む)。
    反映は `rsync -a --checksum --delete /var/tmp/riemann-hypothesis-ywr/shorten/writer-test-1b-fix3/src/ /var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/src/` と

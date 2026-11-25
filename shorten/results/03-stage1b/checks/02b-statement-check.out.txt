@@ -1,0 +1,14 @@
+# 02b-statement-check
+# started_at_utc: 2026-11-25T01:47:27Z
+# lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+# command: lean --tstack=4000000 --root=/home/ywr/riemann-hypothesis/verification/lean-checks /home/ywr/riemann-hypothesis/verification/lean-checks/StatementCheck.lean
+
+'check_RH' depends on axioms: [propext, Classical.choice, Quot.sound]
+'check_RH_mathlib' depends on axioms: [propext, Classical.choice, Quot.sound]
+'check_RH_statements' depends on axioms: [propext, Classical.choice, Quot.sound]
+'check_GRH_halfPlane' depends on axioms: [propext, Classical.choice, Quot.sound]
+'check_GRH_strip' depends on axioms: [propext, Classical.choice, Quot.sound]
+'check_GRH_strip_primitive' depends on axioms: [propext, Classical.choice, Quot.sound]
+# wall=78.28s user=34.32s sys=44.06s maxrss=40107212KB
+# exit_code: 0
+# finished_at_utc: 2026-11-25T01:48:45Z

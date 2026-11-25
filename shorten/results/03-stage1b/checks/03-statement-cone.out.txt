@@ -1,0 +1,48 @@
+# 03-statement-cone
+# started_at_utc: 2026-11-25T01:48:45Z
+# lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+# command: lean --tstack=4000000 --root=/home/ywr/riemann-hypothesis/verification/lean-checks /home/ywr/riemann-hypothesis/verification/lean-checks/StatementCone.lean
+
+RiemannHypothesis is defined in module: Mathlib.NumberTheory.LSeries.RiemannZeta
+riemannZeta is defined in module: Mathlib.NumberTheory.LSeries.RiemannZeta
+DirichletCharacter.LFunction is defined in module: Mathlib.NumberTheory.LSeries.DirichletContinuation
+number of imported modules: 121575
+[riemannHypothesis]
+  defined in module: Main
+  type: RiemannHypothesis
+  statement cone: 4981 constants
+  by module root: [(Batteries, 6), (Init, 792), (Mathlib, 4183)]
+  constants defined in the distributed project: []
+[riemannZeta_eq_zero_re]
+  defined in module: Main
+  type: RiemannZetaZerosOnLine
+  statement cone: 4981 constants
+  by module root: [(Batteries, 6), (Init, 792), (Mathlib, 4181), (Statements, 2)]
+  constants defined in the distributed project: [(RiemannZetaZerosOnLine._proof_1, Statements),
+ (RiemannZetaZerosOnLine, Statements)]
+[LFunction_ne_zero_of_half_lt_re]
+  defined in module: Main
+  type: DirichletLNonvanishingRightOfHalf
+  statement cone: 5223 constants
+  by module root: [(Batteries, 6), (Init, 832), (Mathlib, 4383), (Statements, 2)]
+  constants defined in the distributed project: [(RiemannZetaZerosOnLine._proof_1, Statements),
+ (DirichletLNonvanishingRightOfHalf, Statements)]
+[LFunction_eq_zero_re]
+  defined in module: Main
+  type: DirichletLZerosOnLine
+  statement cone: 5217 constants
+  by module root: [(Batteries, 6), (Init, 832), (Mathlib, 4377), (Statements, 2)]
+  constants defined in the distributed project: [(DirichletLZerosOnLine, Statements),
+ (RiemannZetaZerosOnLine._proof_1, Statements)]
+[LFunction_eq_zero_re_of_isPrimitive]
+  defined in module: Main
+  type: PrimitiveDirichletLZerosOnLine
+  statement cone: 5333 constants
+  by module root: [(Batteries, 6), (Init, 832), (Mathlib, 4493), (Statements, 2)]
+  constants defined in the distributed project: [(PrimitiveDirichletLZerosOnLine, Statements),
+ (RiemannZetaZerosOnLine._proof_1, Statements)]
+def RiemannHypothesis : Prop :=
+∀ (s : ℂ), riemannZeta s = 0 → (¬∃ n, s = -2 * (↑n + 1)) → s ≠ 1 → s.re = 1 / 2
+# wall=1042.93s user=977.43s sys=65.52s maxrss=40149264KB
+# exit_code: 0
+# finished_at_utc: 2026-11-25T02:06:08Z
