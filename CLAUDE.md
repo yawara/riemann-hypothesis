@@ -50,7 +50,7 @@ Mathlib の定義が意図どおりである限り、Mathlib の RiemannHypothes
 | 段階 1a のカーネル再検査(**11/25 09:13 に終了、全モジュール通過**) | (なし) | 11/24 19:33 起動。00:20 で 2,560/5,958 組・64,000 モジュールが通過、失敗 0(ビルドと CPU を分け合うので遅い。朝 7 時ごろの見込み) |
 | 使われない引数の見積もり(段階 2 の下調べ。**02:31 に終了**) | `$RUN_ROOT/shorten/analysis-dae1b.pid` | `RHSHRINK_DAE=1` の rhshrink(`$RUN_ROOT/shorten/analysis-dae1b-20261124T130655Z/`)。固定点の反復が 1 回 1 時間(1 回目で残る位置 1,507,211 → 508,992)。終わったら `python3 -I shorten/tools/domtree/dae_report.py $RUN_ROOT/shorten/analysis-dom1b-20261124T121043Z/domtree.tsv <その出力>/dae-dropped-decls.tsv <その出力>/dae-dead-args.tsv <その出力>/report` で、どの定理の使われない仮定が何行を抱えているかをまとめる |
 | 宣言の属性の書き出し(守る宣言の見直し用) | `$RUN_ROOT/shorten/analysis-declinfo.pid` | `RHSHRINK_DECL_INFO=1` の rhshrink(別に作った `/var/tmp/riemann-hypothesis-ywr/shorten/rhshrink-dev` の実行ファイル。出力 `$RUN_ROOT/shorten/analysis-declinfo-20261124T151010Z/decl-info.tsv`) |
-| import を足してまとめる見積もり(厳しい版) | (なし) | `scripts/shorten_estimate_import_merge.py` と同じもの。出力 `$RUN_ROOT/shorten/refined-import-merge.out` |
+| import を足してまとめる見積もり(厳しい版) | (止めた) | `scripts/shorten_estimate_import_merge.py` は **10 時間でメモリを 333 GB まで使い、空きメモリが下限を切ってメモリの見張りが段階 1b の続きのビルドを止めた**(11/25 10:20)。11/25 10:22 に止めた。メモリを抑えるように作り直すまで回さない |
 
 ビルドの進み具合: `grep -oE '^\S+ \[[0-9]+/[0-9]+\]' <ログ>/build.log | tail -1`、失敗: `grep -c '^✖' <ログ>/build.log`。
 ビルドを止めるときは `kill -TERM -- -<ビルドの PID>`(プロセスグループごと)。`pkill -f` は自分のコマンド行に当たるので使わない。
@@ -95,7 +95,7 @@ mathlib で置き換えられるものにトライ。それが終わったら数
 
 ### 短縮で次にやること(引き継ぎ)
 
-1. **段階 1b の全体ビルドは 11/25 10:15 に終わり(13 時間 22 分、失敗は直し済みの 3 件だけ)、直した 4 ファイルを反映して 10:17 に続きのビルドを起動した**(ログ `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/builds/build-20261125T011702Z/`、PID は `stage-1b-build.pid`、作り直しは約 700 モジュール)。反映後の数字は 110,562 モジュール・**13,562,093 行**・宣言 844,184 個。通ったら 2 へ。以下は反映までの手順の控え。
+1. **段階 1b の全体ビルドは 11/25 10:15 に終わり(13 時間 22 分、失敗は直し済みの 3 件だけ)、直した 4 ファイルを反映して 10:17 に続きのビルドを起動した**(ログ `/var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/builds/build-20261125T011702Z/`、PID は `stage-1b-build.pid`、作り直しは約 700 モジュール)。反映後の数字は 110,562 モジュール・**13,562,093 行**・宣言 844,184 個。続きのビルドは見積もりのスクリプトのメモリのせいで 10:20 に止まり、**10:23 に再起動**(ログ `…/stage-1b/builds/build-20261125T012325Z/`)。通ったら 2 へ。以下は反映までの手順の控え。
    ビルドの終了は `stage-1b-build.pid` のプロセスが消えることで分かる(ログの `meta.txt` に終了コード)。ほかの失敗があれば、同じ回でまとめて直す
    (ログの `✖` の行とその下のエラーを読み、計画 `scripts/shorten_plan1b.py` か書き出し `scripts/shorten_stage1a.py` の規則に取り込む)。
    反映は `rsync -a --checksum --delete /var/tmp/riemann-hypothesis-ywr/shorten/writer-test-1b-fix3/src/ /var/tmp/riemann-hypothesis-ywr/shorten/stage-1b/src/` と
